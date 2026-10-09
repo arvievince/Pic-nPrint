@@ -46,7 +46,9 @@ class _QrScreenState extends State<QrScreen> {
 
   void _done() {
     _timer?.cancel();
-    if (mounted) context.goNamed(AppRoute.attract);
+    if (mounted) {
+      context.goNamed(AppRoute.thankYou, extra: widget.data.sessionId);
+    }
   }
 
   @override

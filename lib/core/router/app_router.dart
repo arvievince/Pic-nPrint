@@ -8,6 +8,7 @@ import '../../features/layout/view/layout_screen.dart';
 import '../../features/editor/view/editor_screen.dart';
 import '../../features/output/view/output_screen.dart';
 import '../../features/output/view/qr_screen.dart';
+import '../../features/output/view/thank_you_screen.dart';
 import '../../features/admin/view/admin_screen.dart';
 import '../../features/admin/view/first_run_screen.dart';
 import '../../core/models/models.dart';
@@ -29,6 +30,7 @@ class AppRoute {
   static const String editor    = 'editor';    // /editor
   static const String output    = 'output';    // /output
   static const String qr        = 'qr';        // /qr
+  static const String thankYou  = 'thank-you'; // /thank-you
   static const String admin     = 'admin';     // /admin
   static const String firstRun  = 'first-run'; // /first-run
 }
@@ -115,14 +117,24 @@ GoRouter createRouter() {
         },
       ),
 
-      // ── 8. First-Run Wizard ───────────────────────────────────────────────
+      // ── 8. Thank You Screen (shown after printing/output) ────────────────
+      GoRoute(
+        path: '/thank-you',
+        name: AppRoute.thankYou,
+        builder: (context, state) {
+          final sessionId = state.extra as String?;
+          return ThankYouScreen(sessionId: sessionId);
+        },
+      ),
+
+      // ── 9. First-Run Wizard ───────────────────────────────────────────────
       GoRoute(
         path: '/first-run',
         name: AppRoute.firstRun,
         builder: (context, state) => const FirstRunScreen(),
       ),
 
-      // ── 9. Admin Panel ────────────────────────────────────────────────────
+      // ── 10. Admin Panel ────────────────────────────────────────────────────
       GoRoute(
         path: '/admin',
         name: AppRoute.admin,

@@ -4,7 +4,6 @@ import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
-import '../models/enums.dart';
 import '../models/models.dart';
 
 /// Builds the final composed image (and optional GIF) from captured photos
@@ -32,17 +31,28 @@ class CompositionService {
     final outputDir = await _getOutputDir();
     final outputPath = p.join(outputDir, '${session.sessionId}_composed.jpg');
 
+    final chosenLayout =
+        session.layout ??
+        (session.imagePaths.length == 4
+            ? LayoutType.grid2x2
+            : session.imagePaths.length == 6
+            ? LayoutType.grid3x2
+            : LayoutType.verticalStrip);
+
     // Run in isolate to avoid blocking UI
-    await compute(_composeIsolate, _ComposeParams(
-      imagePaths: session.imagePaths,
-      layout: session.layout ?? LayoutType.single,
-      shotMode: session.shotMode,
-      stickers: stickers,
-      texts: texts,
-      borderAssetPath: borderAssetPath,
-      outputPath: outputPath,
-      sessionId: session.sessionId,
-    ));
+    await compute(
+      _composeIsolate,
+      _ComposeParams(
+        imagePaths: session.imagePaths,
+        layout: chosenLayout,
+        shotMode: session.shotMode,
+        stickers: stickers,
+        texts: texts,
+        borderAssetPath: borderAssetPath,
+        outputPath: outputPath,
+        sessionId: session.sessionId,
+      ),
+    );
 
     return outputPath;
   }
@@ -60,11 +70,14 @@ class CompositionService {
     final outputDir = await _getOutputDir();
     final gifPath = p.join(outputDir, '${session.sessionId}.gif');
 
-    await compute(_createGifIsolate, _GifParams(
-      imagePaths: session.imagePaths,
-      gifPath: gifPath,
-      frameDelayMs: frameDelayMs,
-    ));
+    await compute(
+      _createGifIsolate,
+      _GifParams(
+        imagePaths: session.imagePaths,
+        gifPath: gifPath,
+        frameDelayMs: frameDelayMs,
+      ),
+    );
 
     return gifPath;
   }
@@ -106,7 +119,11 @@ class _GifParams {
   final String gifPath;
   final int frameDelayMs;
 
-  _GifParams({required this.imagePaths, required this.gifPath, required this.frameDelayMs});
+  _GifParams({
+    required this.imagePaths,
+    required this.gifPath,
+    required this.frameDelayMs,
+  });
 }
 
 // ─── Isolate functions ───────────────────────────────────────────────────────
@@ -125,6 +142,18 @@ Future<void> _composeIsolate(_ComposeParams params) async {
   switch (params.layout) {
     case LayoutType.single:
       canvas = images.first;
+      break;
+
+    case LayoutType.verticalStrip:
+      // Stack all images vertically (classic photo booth strip)
+      final w = images.map((i) => i.width).reduce((a, b) => a > b ? a : b);
+      final totalH = images.map((i) => i.height).reduce((a, b) => a + b);
+      canvas = img.Image(width: w, height: totalH);
+      var y = 0;
+      for (final im in images) {
+        img.compositeImage(canvas, im, dstX: 0, dstY: y);
+        y += im.height;
+      }
       break;
 
     case LayoutType.horizontalRow:
@@ -275,15 +304,21 @@ img.Image _buildGrid(List<img.Image> images, {required int columns}) {
 img.Image _addFooter(img.Image source, String sessionId) {
   // Footer height = 60px; white background with session ID text
   const footerH = 60;
-  final canvas = img.Image(width: source.width, height: source.height + footerH);
+  final canvas = img.Image(
+    width: source.width,
+    height: source.height + footerH,
+  );
   img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
   img.compositeImage(canvas, source, dstX: 0, dstY: 0);
   // Draw session ID text in footer area (simple pixel font)
-  img.drawString(canvas, 'Session: $sessionId',
-      font: img.arial14,
-      x: 10,
-      y: source.height + 8,
-      color: img.ColorRgb8(0, 0, 0));
+  img.drawString(
+    canvas,
+    'Session: $sessionId',
+    font: img.arial14,
+    x: 10,
+    y: source.height + 8,
+    color: img.ColorRgb8(0, 0, 0),
+  );
   return canvas;
 }
 
@@ -298,10 +333,14 @@ Future<void> _createGifIsolate(_GifParams params) async {
   // Resize all frames to the same size
   final w = frames.first.width;
   final h = frames.first.height;
-  final resized = frames.map((f) => img.copyResize(f, width: w, height: h)).toList();
+  final resized = frames
+      .map((f) => img.copyResize(f, width: w, height: h))
+      .toList();
 
   // Build GIF animation
-  final gifEncoder = img.GifEncoder(delay: params.frameDelayMs ~/ 10); // centiseconds
+  final gifEncoder = img.GifEncoder(
+    delay: params.frameDelayMs ~/ 10,
+  ); // centiseconds
   for (final frame in resized) {
     gifEncoder.addFrame(frame);
   }

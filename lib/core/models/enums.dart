@@ -52,16 +52,18 @@ extension ShotModeExtension on ShotMode {
 
 /// Available print/display layouts.
 enum LayoutType {
-  single,       // 1 photo, full frame
+  single,        // 1 photo, full frame
+  verticalStrip, // photos in a vertical photo-booth strip
   horizontalRow, // all photos in one horizontal strip
-  grid2x2,      // 4 photos in 2×2 grid
-  grid3x2,      // 6 photos in 3×2 grid
+  grid2x2,       // 4 photos in 2×2 grid
+  grid3x2,       // 6 photos in 3×2 grid
 }
 
 extension LayoutTypeExtension on LayoutType {
   String get label {
     switch (this) {
       case LayoutType.single:        return 'Single';
+      case LayoutType.verticalStrip: return 'Vertical Strip';
       case LayoutType.horizontalRow: return 'Horizontal Strip';
       case LayoutType.grid2x2:       return '2×2 Grid';
       case LayoutType.grid3x2:       return '3×2 Grid';

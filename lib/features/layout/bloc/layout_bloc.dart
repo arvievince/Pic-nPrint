@@ -41,9 +41,9 @@ class LayoutBloc extends Bloc<LayoutEvent, LayoutState> {
   static List<LayoutType> _layoutsFor(ShotMode mode) {
     switch (mode) {
       case ShotMode.single: return [LayoutType.single];
-      case ShotMode.triple: return [LayoutType.horizontalRow];
-      case ShotMode.quad:   return [LayoutType.horizontalRow, LayoutType.grid2x2];
-      case ShotMode.hex:    return [LayoutType.horizontalRow, LayoutType.grid3x2];
+      case ShotMode.triple: return [LayoutType.verticalStrip];
+      case ShotMode.quad:   return [LayoutType.verticalStrip, LayoutType.grid2x2];
+      case ShotMode.hex:    return [LayoutType.verticalStrip, LayoutType.grid3x2];
     }
   }
 }

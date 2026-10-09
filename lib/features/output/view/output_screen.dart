@@ -38,12 +38,12 @@ class OutputScreen extends StatelessWidget {
                 extra: QrScreenData(
                   driveUrl: state.driveUrl!,
                   sessionId: session.sessionId,
-                  displaySeconds: 60, // TODO: load from admin settings
+                  displaySeconds: 60,
                 ),
               );
             } else {
-              // No Drive URL — go back to attract
-              context.goNamed(AppRoute.attract);
+              // No Drive URL — show thank you screen before returning to attract
+              context.goNamed(AppRoute.thankYou, extra: session.sessionId);
             }
           }
         },
@@ -125,13 +125,15 @@ class OutputScreen extends StatelessWidget {
 
   String _subtitleFor(OutputState s) {
     if (s is OutputSaving) return 'Keeping your photo safe on this device.';
-    if (s is OutputUploading)
+    if (s is OutputUploading) {
       return 'So you can scan the QR code to get your photo.';
+    }
     if (s is OutputPrinting) return 'Your receipt is printing. Please wait…';
-    if (s is OutputComplete)
+    if (s is OutputComplete) {
       return s.driveUrl != null
           ? 'Get ready to scan your QR code!'
           : 'Your photo has been printed!';
+    }
     if (s is OutputUploadFailed) return (s).error;
     if (s is OutputPrintFailed) return (s).error;
     return '';

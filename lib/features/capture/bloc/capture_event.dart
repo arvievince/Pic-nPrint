@@ -41,6 +41,11 @@ class CaptureRetake extends CaptureEvent {
   const CaptureRetake();
 }
 
+/// Gap timer completed — start countdown for next shot.
+class CaptureNextShotStarted extends CaptureEvent {
+  const CaptureNextShotStarted();
+}
+
 /// All required photos are collected — proceed to editor.
 class CaptureCompleted extends CaptureEvent {
   const CaptureCompleted();

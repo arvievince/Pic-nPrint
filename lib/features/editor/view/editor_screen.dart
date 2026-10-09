@@ -19,10 +19,8 @@ class EditorScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => EditorBloc(
-        compositionService: context.read(),
-        session: session,
-      ),
+      create: (context) =>
+          EditorBloc(compositionService: context.read(), session: session),
       child: BlocConsumer<EditorBloc, EditorState>(
         listener: (context, state) {
           if (state.composedPath != null && !state.isComposing) {
@@ -42,7 +40,7 @@ class EditorScreen extends StatelessWidget {
         },
         builder: (context, state) {
           return Scaffold(
-            backgroundColor: AppColors.background,
+            backgroundColor: AppColors.surface,
             appBar: AppBar(
               title: const Text('Edit Photo'),
               leading: IconButton(
@@ -55,9 +53,9 @@ class EditorScreen extends StatelessWidget {
                   child: TextButton(
                     onPressed: state.isComposing
                         ? null
-                        : () => context
-                            .read<EditorBloc>()
-                            .add(const EditorConfirmed()),
+                        : () => context.read<EditorBloc>().add(
+                            const EditorConfirmed(),
+                          ),
                     child: state.isComposing
                         ? const SizedBox(
                             width: 20,
@@ -102,60 +100,235 @@ class _EditorCanvas extends StatelessWidget {
 
   const _EditorCanvas({required this.session, required this.editorState});
 
+  double _getAspectRatio() {
+    final paths = session.imagePaths;
+    if (paths.length <= 1) return 3 / 4;
+
+    final layout =
+        session.layout ??
+        (paths.length == 4
+            ? LayoutType.grid2x2
+            : paths.length == 6
+            ? LayoutType.grid3x2
+            : LayoutType.verticalStrip);
+
+    switch (layout) {
+      case LayoutType.single:
+        return 3 / 4;
+      case LayoutType.verticalStrip:
+        return paths.length >= 3 ? 1 / 2.2 : 9 / 16;
+      case LayoutType.horizontalRow:
+        return paths.length >= 3 ? 16 / 10 : 4 / 3;
+      case LayoutType.grid2x2:
+        return 1.0;
+      case LayoutType.grid3x2:
+        return 3 / 2;
+    }
+  }
+
+  EdgeInsets _getBorderPadding() {
+    switch (editorState.borderAssetPath) {
+      case 'polaroid':
+        return const EdgeInsets.fromLTRB(16, 16, 16, 56);
+      case 'gold':
+        return const EdgeInsets.all(14);
+      case 'film':
+        return const EdgeInsets.symmetric(vertical: 30, horizontal: 8);
+      case 'pastel':
+        return const EdgeInsets.all(12);
+      case 'midnight':
+        return const EdgeInsets.all(16);
+      default:
+        return EdgeInsets.zero;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final imagePath =
-        session.imagePaths.isNotEmpty ? session.imagePaths.first : null;
-
     return Center(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        constraints: const BoxConstraints(maxWidth: 480),
+        constraints: const BoxConstraints(maxWidth: 520),
         decoration: BoxDecoration(
-          color: Colors.black,
+          color: editorState.borderAssetPath == 'polaroid'
+              ? Colors.white
+              : Colors.black,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.25),
-              blurRadius: 24,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          // boxShadow: [
+          //   BoxShadow(
+          //     color: AppColors.primary.withValues(alpha: 0.25),
+          //     blurRadius: 24,
+          //     offset: const Offset(0, 4),
+          //   ),
+          // ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: AspectRatio(
-            aspectRatio: 3 / 4,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // ── 1. Base Photo Layer ───────────────────────────────────────
-                if (imagePath != null)
-                  _buildBaseImage(imagePath)
-                else
-                  Container(
-                    color: AppColors.surfaceVariant,
-                    child: const Center(
-                      child: Icon(Icons.image_rounded,
-                          size: 80, color: AppColors.onSurface),
-                    ),
-                  ),
+        child: AspectRatio(
+          aspectRatio: _getAspectRatio(),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // ── 1. Base Multi-Photo Layer (Centered with Border Inset) ─────
+              Padding(padding: _getBorderPadding(), child: _buildPhotoLayout()),
 
-                // ── 2. Border Frame Overlay Layer ─────────────────────────────
-                if (editorState.borderAssetPath != null)
-                  _BorderOverlay(borderId: editorState.borderAssetPath!),
+              // ── 2. Border Frame Overlay Layer ─────────────────────────────
+              if (editorState.borderAssetPath != null)
+                _BorderOverlay(borderId: editorState.borderAssetPath!),
 
-                // ── 3. Sticker Overlays Layer ─────────────────────────────────
-                ...editorState.stickers.map((s) => _StickerWidget(sticker: s)),
+              // ── 3. Sticker Overlays Layer ─────────────────────────────────
+              ...editorState.stickers.map((s) => _StickerWidget(sticker: s)),
 
-                // ── 4. Text Overlays Layer ────────────────────────────────────
-                ...editorState.texts.map((t) => _TextWidget(textItem: t)),
-              ],
-            ),
+              // ── 4. Text Overlays Layer ────────────────────────────────────
+              ...editorState.texts.map((t) => _TextWidget(textItem: t)),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildPhotoLayout() {
+    final paths = session.imagePaths;
+    final hasBorder = editorState.borderAssetPath != null;
+
+    if (paths.isEmpty) return _errorPlaceholder();
+    if (paths.length == 1) return _buildBaseImage(paths.first);
+    final layout =
+        session.layout ??
+        (paths.length == 4
+            ? LayoutType.grid2x2
+            : paths.length == 6
+            ? LayoutType.grid3x2
+            : LayoutType.verticalStrip);
+
+    switch (layout) {
+      case LayoutType.single:
+        return _buildBaseImage(paths.first);
+
+      case LayoutType.verticalStrip:
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: hasBorder
+                ? null
+                : Border.all(color: Colors.white, width: 4),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (int i = 0; i < paths.length; i++) ...[
+                if (i > 0) Container(height: 4, color: Colors.white),
+                Expanded(child: _buildBaseImage(paths[i])),
+              ],
+            ],
+          ),
+        );
+
+      case LayoutType.horizontalRow:
+        return Container(
+          color: Colors.white,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (int i = 0; i < paths.length; i++) ...[
+                if (i > 0) Container(width: 4, color: Colors.white),
+                Expanded(child: _buildBaseImage(paths[i])),
+              ],
+            ],
+          ),
+        );
+
+      case LayoutType.grid2x2:
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: hasBorder
+                ? null
+                : Border.all(color: Colors.white, width: 4),
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: _buildBaseImage(paths[0])),
+                    Container(width: 4, color: Colors.white),
+                    Expanded(
+                      child: _buildBaseImage(
+                        paths.length > 1 ? paths[1] : paths[0],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(height: 4, color: Colors.white),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _buildBaseImage(
+                        paths.length > 2 ? paths[2] : paths[0],
+                      ),
+                    ),
+                    Container(width: 4, color: Colors.white),
+                    Expanded(
+                      child: _buildBaseImage(
+                        paths.length > 3 ? paths[3] : paths[0],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+
+      case LayoutType.grid3x2:
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: hasBorder
+                ? null
+                : Border.all(color: Colors.white, width: 4),
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (int i = 0; i < 3; i++) ...[
+                      if (i > 0) Container(width: 4, color: Colors.white),
+                      Expanded(
+                        child: _buildBaseImage(
+                          paths.length > i ? paths[i] : paths[0],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Container(height: 4, color: Colors.white),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (int i = 3; i < 6; i++) ...[
+                      if (i > 3) Container(width: 4, color: Colors.white),
+                      Expanded(
+                        child: _buildBaseImage(
+                          paths.length > i ? paths[i] : paths[0],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+    }
   }
 
   Widget _buildBaseImage(String path) {
@@ -182,11 +355,16 @@ class _EditorCanvas extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.broken_image_rounded,
-                size: 60, color: AppColors.onSurface),
+            Icon(
+              Icons.broken_image_rounded,
+              size: 60,
+              color: AppColors.onSurface,
+            ),
             SizedBox(height: 8),
-            Text('Photo not loaded',
-                style: TextStyle(color: Colors.white70, fontSize: 13)),
+            Text(
+              'Photo not loaded',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
           ],
         ),
       ),
@@ -207,44 +385,23 @@ class _BorderOverlay extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             border: Border(
-              top: const BorderSide(color: Colors.white, width: 14),
-              left: const BorderSide(color: Colors.white, width: 14),
-              right: const BorderSide(color: Colors.white, width: 14),
-              bottom: const BorderSide(color: Colors.white, width: 44),
+              top: const BorderSide(color: Colors.white, width: 16),
+              left: const BorderSide(color: Colors.white, width: 16),
+              right: const BorderSide(color: Colors.white, width: 16),
+              bottom: const BorderSide(color: Colors.white, width: 56),
             ),
           ),
           alignment: Alignment.bottomCenter,
           padding: const EdgeInsets.only(bottom: 10),
-          child: const Text(
-            'Pic & Print ✨',
-            style: TextStyle(
-              color: Colors.black54,
-              fontFamily: 'cursive',
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        );
-
-      case 'neon':
-        return Container(
-          margin: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFF00E5FF), width: 4),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF00E5FF).withOpacity(0.6),
-                blurRadius: 16,
-                spreadRadius: 2,
-              ),
-              BoxShadow(
-                color: const Color(0xFFFF007F).withOpacity(0.4),
-                blurRadius: 24,
-                spreadRadius: 4,
-              ),
-            ],
-          ),
+          // child: const Text(
+          //   'Pic & Print ✨',
+          //   style: TextStyle(
+          //     color: Colors.black54,
+          //     fontFamily: 'cursive',
+          //     fontSize: 16,
+          //     fontWeight: FontWeight.bold,
+          //   ),
+          // ),
         );
 
       case 'gold':
@@ -262,11 +419,7 @@ class _BorderOverlay extends StatelessWidget {
 
       case 'film':
         return Column(
-          children: [
-            _buildFilmStrip(),
-            const Spacer(),
-            _buildFilmStrip(),
-          ],
+          children: [_buildFilmStrip(), const Spacer(), _buildFilmStrip()],
         );
 
       case 'pastel':
@@ -321,72 +474,96 @@ class _StickerWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isEmoji = sticker.assetPath.startsWith('emoji:');
-    final emojiChar = isEmoji ? sticker.assetPath.replaceFirst('emoji:', '') : '';
+    final emojiChar = isEmoji
+        ? sticker.assetPath.replaceFirst('emoji:', '')
+        : '';
 
     return Positioned(
       left: sticker.x,
       top: sticker.y,
-      child: GestureDetector(
-        onPanUpdate: (d) {
-          context.read<EditorBloc>().add(StickerUpdated(
-                sticker.copyWith(
-                  x: sticker.x + d.delta.dx,
-                  y: sticker.y + d.delta.dy,
-                ),
-              ));
-        },
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Transform.rotate(
-              angle: sticker.rotation,
-              child: Transform.scale(
-                scale: sticker.scale,
-                child: isEmoji
-                    ? Text(
-                        emojiChar,
-                        style: const TextStyle(
-                          fontSize: 46,
-                          shadows: [
-                            Shadow(
-                              blurRadius: 8,
-                              color: Colors.black45,
-                              offset: Offset(2, 2),
-                            ),
-                          ],
-                        ),
-                      )
-                    : Image.asset(
-                        sticker.assetPath,
-                        width: 80,
-                        height: 80,
-                        errorBuilder: (context, error, stackTrace) => const Icon(
-                          Icons.emoji_emotions_rounded,
-                          size: 50,
-                          color: Colors.amber,
-                        ),
-                      ),
-              ),
-            ),
-            // Tap delete button
-            Positioned(
-              top: -8,
-              right: -8,
-              child: GestureDetector(
-                onTap: () =>
-                    context.read<EditorBloc>().add(StickerDeleted(sticker.id)),
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(
-                    color: Colors.redAccent,
-                    shape: BoxShape.circle,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Drag and long-press area
+          GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onPanUpdate: (d) {
+              context.read<EditorBloc>().add(
+                StickerUpdated(
+                  sticker.copyWith(
+                    x: sticker.x + d.delta.dx,
+                    y: sticker.y + d.delta.dy,
                   ),
-                  child: const Icon(Icons.close, size: 14, color: Colors.white),
+                ),
+              );
+            },
+            onLongPress: () =>
+                context.read<EditorBloc>().add(StickerDeleted(sticker.id)),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Transform.rotate(
+                angle: sticker.rotation,
+                child: Transform.scale(
+                  scale: sticker.scale,
+                  child: isEmoji
+                      ? Text(
+                          emojiChar,
+                          style: const TextStyle(
+                            fontSize: 46,
+                            shadows: [
+                              Shadow(
+                                blurRadius: 8,
+                                color: Colors.black45,
+                                offset: Offset(2, 2),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Image.asset(
+                          sticker.assetPath,
+                          width: 80,
+                          height: 80,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
+                                Icons.emoji_emotions_rounded,
+                                size: 50,
+                                color: Colors.amber,
+                              ),
+                        ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+
+          // Delete button
+          Positioned(
+            top: 0,
+            right: 0,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                context.read<EditorBloc>().add(StickerDeleted(sticker.id));
+              },
+              child: Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black45,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.close, size: 16, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -403,24 +580,26 @@ class _TextWidget extends StatelessWidget {
     return Positioned(
       left: textItem.x,
       top: textItem.y,
-      child: GestureDetector(
-        onPanUpdate: (d) {
-          context.read<EditorBloc>().add(TextUpdated(
-                textItem.copyWith(
-                  x: textItem.x + d.delta.dx,
-                  y: textItem.y + d.delta.dy,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Drag and long-press area
+          GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onPanUpdate: (d) {
+              context.read<EditorBloc>().add(
+                TextUpdated(
+                  textItem.copyWith(
+                    x: textItem.x + d.delta.dx,
+                    y: textItem.y + d.delta.dy,
+                  ),
                 ),
-              ));
-        },
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.35),
-                borderRadius: BorderRadius.circular(8),
-              ),
+              );
+            },
+            onLongPress: () =>
+                context.read<EditorBloc>().add(TextDeleted(textItem.id)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(6, 6, 20, 6),
               child: Text(
                 textItem.text,
                 style: TextStyle(
@@ -431,32 +610,49 @@ class _TextWidget extends StatelessWidget {
                   shadows: const [
                     Shadow(
                       blurRadius: 6,
+                      color: Colors.black,
+                      offset: Offset(1.5, 1.5),
+                    ),
+                    Shadow(
+                      blurRadius: 6,
                       color: Colors.black87,
-                      offset: Offset(1, 1),
+                      offset: Offset(-1, -1),
                     ),
                   ],
                 ),
               ),
             ),
-            // Tap delete button
-            Positioned(
-              top: -8,
-              right: -8,
-              child: GestureDetector(
-                onTap: () =>
-                    context.read<EditorBloc>().add(TextDeleted(textItem.id)),
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(
-                    color: Colors.redAccent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.close, size: 14, color: Colors.white),
+          ),
+
+          // Delete button
+          Positioned(
+            top: 0,
+            right: 0,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                context.read<EditorBloc>().add(TextDeleted(textItem.id));
+              },
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black45,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
+                child: const Icon(Icons.close, size: 14, color: Colors.white),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -522,35 +718,49 @@ class _ToolBarState extends State<_ToolBar> {
               index: _selectedTab,
               children: [
                 // 1. Stickers Panel
-                _StickerPanel(onAdd: (path) {
-                  _itemCounter++;
-                  final offset = (_itemCounter % 6) * 25.0;
-                  context.read<EditorBloc>().add(StickerAdded(StickerItem(
-                        id: _uuid.v4(),
-                        assetPath: path,
-                        x: 80 + offset,
-                        y: 80 + offset,
-                      )));
-                }),
+                _StickerPanel(
+                  onAdd: (path) {
+                    _itemCounter++;
+                    final offset = (_itemCounter % 6) * 25.0;
+                    context.read<EditorBloc>().add(
+                      StickerAdded(
+                        StickerItem(
+                          id: _uuid.v4(),
+                          assetPath: path,
+                          x: 80 + offset,
+                          y: 80 + offset,
+                        ),
+                      ),
+                    );
+                  },
+                ),
 
                 // 2. Borders Panel
-                _BorderPanel(onSelect: (borderId) {
-                  context.read<EditorBloc>().add(BorderSelected(borderId));
-                }),
+                _BorderPanel(
+                  onSelect: (borderId) {
+                    context.read<EditorBloc>().add(BorderSelected(borderId));
+                  },
+                ),
 
                 // 3. Text Panel
-                _TextPanel(onAdd: (text, color) {
-                  _itemCounter++;
-                  final offset = (_itemCounter % 5) * 20.0;
-                  context.read<EditorBloc>().add(TextAdded(TextItem(
-                        id: _uuid.v4(),
-                        text: text,
-                        colorValue: color.toARGB32(),
-                        fontSize: 26,
-                        x: 60 + offset,
-                        y: 120 + offset,
-                      )));
-                }),
+                _TextPanel(
+                  onAdd: (text, color) {
+                    _itemCounter++;
+                    final offset = (_itemCounter % 5) * 20.0;
+                    context.read<EditorBloc>().add(
+                      TextAdded(
+                        TextItem(
+                          id: _uuid.v4(),
+                          text: text,
+                          colorValue: color.toARGB32(),
+                          fontSize: 26,
+                          x: 60 + offset,
+                          y: 120 + offset,
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -622,9 +832,30 @@ class _StickerPanel extends StatelessWidget {
   const _StickerPanel({required this.onAdd});
 
   static const _emojis = [
-    '😊', '😂', '😍', '🥳', '😎', '😜', '❤️', '💖',
-    '✨', '⭐', '🎉', '🔥', '👑', '🕶️', '🌸', '🐱',
-    '🍕', '🎂', '💋', '✌️', '📸', '🦄', '🎀', '🎈',
+    '😊',
+    '😂',
+    '😍',
+    '🥳',
+    '😎',
+    '😜',
+    '❤️',
+    '💖',
+    '✨',
+    '⭐',
+    '🎉',
+    '🔥',
+    '👑',
+    '🕶️',
+    '🌸',
+    '🐱',
+    '🍕',
+    '🎂',
+    '💋',
+    '✌️',
+    '📸',
+    '🦄',
+    '🎀',
+    '🎈',
   ];
 
   @override
@@ -662,7 +893,6 @@ class _BorderPanel extends StatelessWidget {
   static const _borders = [
     {'id': null, 'name': 'None', 'icon': Icons.block_rounded},
     {'id': 'polaroid', 'name': 'Polaroid', 'icon': Icons.crop_portrait_rounded},
-    {'id': 'neon', 'name': 'Neon Glow', 'icon': Icons.flare_rounded},
     {'id': 'gold', 'name': 'Gold Frame', 'icon': Icons.star_rounded},
     {'id': 'film', 'name': 'Film Strip', 'icon': Icons.movie_creation_rounded},
     {'id': 'pastel', 'name': 'Pastel', 'icon': Icons.favorite_rounded},
@@ -770,8 +1000,10 @@ class _TextPanelState extends State<_TextPanel> {
                     filled: true,
                     fillColor: AppColors.surfaceVariant,
                     isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -786,8 +1018,10 @@ class _TextPanelState extends State<_TextPanel> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

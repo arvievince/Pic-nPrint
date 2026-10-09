@@ -13,6 +13,8 @@ import 'capture_state.dart';
 ///     → CaptureCountingDown(3, 2, 1…)
 ///     → CaptureTaking (camera fires)
 ///     → PhotoCaptured(path) → CaptureInProgress
+///     → [gap timer fires] → CaptureNextShotStarted
+///     → CaptureCountingDown(3, 2, 1…)
 ///     → [repeat for remaining shots]
 ///     → CaptureComplete(paths)
 ///
@@ -31,6 +33,8 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
   final ShotMode shotMode;
 
   Timer? _countdownTimer;
+  Timer? _gapTimer;
+  int _initialCountdown = 3;
   int _currentCountdown = 3;
   int _shotGapSeconds = 2;
   int _currentShotNumber = 1;
@@ -42,6 +46,7 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
     on<CaptureMethodChosen>(_onMethodChosen);
     on<CaptureCountdownTick>(_onCountdownTick);
     on<PhotoCaptured>(_onPhotoCaptured);
+    on<CaptureNextShotStarted>(_onNextShotStarted);
     on<ImagesUploaded>(_onImagesUploaded);
     on<CaptureRetake>(_onRetake);
     on<CaptureCompleted>(_onCompleted);
@@ -52,15 +57,15 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
   Future<void> _onMethodChosen(
       CaptureMethodChosen event, Emitter<CaptureState> emit) async {
     if (event.method == CaptureMethod.upload) {
-      // Upload mode: the screen will open a picker and dispatch ImagesUploaded
-      // Nothing to do here — just wait for ImagesUploaded
+      // Upload mode: screen opens picker and dispatches ImagesUploaded
       return;
     }
 
     // Camera mode: load settings then start countdown for first shot
-    _currentCountdown = int.tryParse(
+    _initialCountdown = int.tryParse(
             await _db.getSetting('countdown_seconds') ?? '3') ??
         3;
+    _currentCountdown = _initialCountdown;
     _shotGapSeconds = int.tryParse(
             await _db.getSetting('shot_gap_seconds') ?? '2') ??
         2;
@@ -96,13 +101,22 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
         capturedPaths: List.unmodifiable(_capturedPaths),
         totalRequired: shotMode.photoCount,
       ));
-      // Start gap timer, then countdown for next shot
-      _currentShotNumber++;
-      _countdownTimer = Timer(Duration(seconds: _shotGapSeconds), () {
-        _currentCountdown = int.parse('3'); // reset, will be reloaded from settings
-        _startCountdown(emit);
+
+      // Start gap timer, then dispatch event to start next countdown safely
+      _gapTimer?.cancel();
+      _gapTimer = Timer(Duration(seconds: _shotGapSeconds), () {
+        add(const CaptureNextShotStarted());
       });
     }
+  }
+
+  void _onNextShotStarted(
+      CaptureNextShotStarted event, Emitter<CaptureState> emit) {
+    _gapTimer?.cancel();
+    _countdownTimer?.cancel();
+    _currentShotNumber = _capturedPaths.length + 1;
+    _currentCountdown = _initialCountdown;
+    _startCountdown(emit);
   }
 
   void _onImagesUploaded(ImagesUploaded event, Emitter<CaptureState> emit) {
@@ -117,9 +131,11 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
   }
 
   void _onRetake(CaptureRetake event, Emitter<CaptureState> emit) {
+    _gapTimer?.cancel();
     _countdownTimer?.cancel();
     if (_capturedPaths.isNotEmpty) _capturedPaths.removeLast();
     _currentShotNumber = _capturedPaths.length + 1;
+    _currentCountdown = _initialCountdown;
     _startCountdown(emit);
   }
 
@@ -130,6 +146,7 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 
   void _startCountdown(Emitter<CaptureState> emit) {
+    _countdownTimer?.cancel();
     emit(CaptureCountingDown(
       secondsLeft: _currentCountdown,
       shotNumber: _currentShotNumber,
@@ -143,6 +160,7 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
   @override
   Future<void> close() {
     _countdownTimer?.cancel();
+    _gapTimer?.cancel();
     return super.close();
   }
 }
