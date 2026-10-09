@@ -1,0 +1,73 @@
+name: picnprint
+description: "PhotoReceipt kiosk app — photo booth with printing, Drive upload, and voucher system."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ---------- State Management ----------
+  flutter_bloc: ^9.1.1
+  bloc: ^9.0.0
+  equatable: ^2.0.7
+
+  # ---------- Navigation ----------
+  go_router: ^14.6.1
+
+  # ---------- Local Database ----------
+  drift: ^2.22.1
+  sqlite3_flutter_libs: ^0.5.29
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+  # ---------- Camera ----------
+  camera: ^0.11.1
+
+  # ---------- File / Image Picker ----------
+  image_picker: ^1.1.2
+
+  # ---------- Image Processing ----------
+  image: ^4.3.0
+
+  # ---------- QR & Barcode ----------
+  qr_flutter: ^4.1.0
+  barcode_widget: ^2.0.4
+
+  # ---------- Drive / Auth ----------
+  googleapis: ^13.2.0
+  googleapis_auth: ^1.6.0
+  http: ^1.2.2
+
+  # ---------- Printing (ESC/POS) ----------
+  esc_pos_utils_plus: ^2.0.3
+
+  # ---------- Security ----------
+  bcrypt: ^1.1.3
+  flutter_secure_storage: ^9.2.2
+
+  # ---------- Permissions ----------
+  permission_handler: ^11.3.1
+
+  # ---------- Utilities ----------
+  uuid: ^4.5.1
+  intl: ^0.19.0
+  cupertino_icons: ^1.0.8
+  crypto: ^3.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  drift_dev: ^2.22.1
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/stickers/
+    - assets/logos/

@@ -1,0 +1,840 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
+
+import '../bloc/editor_bloc.dart';
+import '../bloc/editor_event.dart';
+import '../bloc/editor_state.dart';
+import '../../../core/models/models.dart';
+import '../../../core/router/app_router.dart';
+import '../../../core/theme/app_theme.dart';
+
+/// Photo editor screen — stickers, text, and decorative borders.
+class EditorScreen extends StatelessWidget {
+  final SessionModel session;
+  const EditorScreen({super.key, required this.session});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => EditorBloc(
+        compositionService: context.read(),
+        session: session,
+      ),
+      child: BlocConsumer<EditorBloc, EditorState>(
+        listener: (context, state) {
+          if (state.composedPath != null && !state.isComposing) {
+            final updated = session.copyWith(
+              composedImagePath: state.composedPath,
+            );
+            context.goNamed(AppRoute.output, extra: updated);
+          }
+          if (state.error != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.error!),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            appBar: AppBar(
+              title: const Text('Edit Photo'),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                onPressed: () => context.pop(),
+              ),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: TextButton(
+                    onPressed: state.isComposing
+                        ? null
+                        : () => context
+                            .read<EditorBloc>()
+                            .add(const EditorConfirmed()),
+                    child: state.isComposing
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text(
+                            'Done',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 17,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+            body: Column(
+              children: [
+                // ── Canvas ────────────────────────────────────────────────────
+                Expanded(
+                  child: _EditorCanvas(session: session, editorState: state),
+                ),
+
+                // ── Tool Tabs ─────────────────────────────────────────────────
+                _ToolBar(session: session),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─── Canvas ───────────────────────────────────────────────────────────────────
+
+class _EditorCanvas extends StatelessWidget {
+  final SessionModel session;
+  final EditorState editorState;
+
+  const _EditorCanvas({required this.session, required this.editorState});
+
+  @override
+  Widget build(BuildContext context) {
+    final imagePath =
+        session.imagePaths.isNotEmpty ? session.imagePaths.first : null;
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        constraints: const BoxConstraints(maxWidth: 480),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.25),
+              blurRadius: 24,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: AspectRatio(
+            aspectRatio: 3 / 4,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // ── 1. Base Photo Layer ───────────────────────────────────────
+                if (imagePath != null)
+                  _buildBaseImage(imagePath)
+                else
+                  Container(
+                    color: AppColors.surfaceVariant,
+                    child: const Center(
+                      child: Icon(Icons.image_rounded,
+                          size: 80, color: AppColors.onSurface),
+                    ),
+                  ),
+
+                // ── 2. Border Frame Overlay Layer ─────────────────────────────
+                if (editorState.borderAssetPath != null)
+                  _BorderOverlay(borderId: editorState.borderAssetPath!),
+
+                // ── 3. Sticker Overlays Layer ─────────────────────────────────
+                ...editorState.stickers.map((s) => _StickerWidget(sticker: s)),
+
+                // ── 4. Text Overlays Layer ────────────────────────────────────
+                ...editorState.texts.map((t) => _TextWidget(textItem: t)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBaseImage(String path) {
+    final file = File(path);
+    if (file.existsSync()) {
+      return Image.file(
+        file,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _errorPlaceholder(),
+      );
+    }
+
+    return Image.asset(
+      path,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => _errorPlaceholder(),
+    );
+  }
+
+  Widget _errorPlaceholder() {
+    return Container(
+      color: AppColors.surfaceVariant,
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.broken_image_rounded,
+                size: 60, color: AppColors.onSurface),
+            SizedBox(height: 8),
+            Text('Photo not loaded',
+                style: TextStyle(color: Colors.white70, fontSize: 13)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Border Frame Overlay ─────────────────────────────────────────────────────
+
+class _BorderOverlay extends StatelessWidget {
+  final String borderId;
+  const _BorderOverlay({required this.borderId});
+
+  @override
+  Widget build(BuildContext context) {
+    switch (borderId) {
+      case 'polaroid':
+        return Container(
+          decoration: BoxDecoration(
+            border: Border(
+              top: const BorderSide(color: Colors.white, width: 14),
+              left: const BorderSide(color: Colors.white, width: 14),
+              right: const BorderSide(color: Colors.white, width: 14),
+              bottom: const BorderSide(color: Colors.white, width: 44),
+            ),
+          ),
+          alignment: Alignment.bottomCenter,
+          padding: const EdgeInsets.only(bottom: 10),
+          child: const Text(
+            'Pic & Print ✨',
+            style: TextStyle(
+              color: Colors.black54,
+              fontFamily: 'cursive',
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
+
+      case 'neon':
+        return Container(
+          margin: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFF00E5FF), width: 4),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF00E5FF).withOpacity(0.6),
+                blurRadius: 16,
+                spreadRadius: 2,
+              ),
+              BoxShadow(
+                color: const Color(0xFFFF007F).withOpacity(0.4),
+                blurRadius: 24,
+                spreadRadius: 4,
+              ),
+            ],
+          ),
+        );
+
+      case 'gold':
+        return Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFFFFD700), width: 6),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFFFFE082), width: 2),
+            ),
+          ),
+        );
+
+      case 'film':
+        return Column(
+          children: [
+            _buildFilmStrip(),
+            const Spacer(),
+            _buildFilmStrip(),
+          ],
+        );
+
+      case 'pastel':
+        return Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFFF80AB), width: 6),
+          ),
+        );
+
+      case 'midnight':
+        return Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFF212121), width: 16),
+          ),
+        );
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildFilmStrip() {
+    return Container(
+      height: 28,
+      color: Colors.black87,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(
+          8,
+          (index) => Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.85),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Sticker Widget ───────────────────────────────────────────────────────────
+
+class _StickerWidget extends StatelessWidget {
+  final StickerItem sticker;
+  const _StickerWidget({required this.sticker});
+
+  @override
+  Widget build(BuildContext context) {
+    final isEmoji = sticker.assetPath.startsWith('emoji:');
+    final emojiChar = isEmoji ? sticker.assetPath.replaceFirst('emoji:', '') : '';
+
+    return Positioned(
+      left: sticker.x,
+      top: sticker.y,
+      child: GestureDetector(
+        onPanUpdate: (d) {
+          context.read<EditorBloc>().add(StickerUpdated(
+                sticker.copyWith(
+                  x: sticker.x + d.delta.dx,
+                  y: sticker.y + d.delta.dy,
+                ),
+              ));
+        },
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Transform.rotate(
+              angle: sticker.rotation,
+              child: Transform.scale(
+                scale: sticker.scale,
+                child: isEmoji
+                    ? Text(
+                        emojiChar,
+                        style: const TextStyle(
+                          fontSize: 46,
+                          shadows: [
+                            Shadow(
+                              blurRadius: 8,
+                              color: Colors.black45,
+                              offset: Offset(2, 2),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Image.asset(
+                        sticker.assetPath,
+                        width: 80,
+                        height: 80,
+                        errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.emoji_emotions_rounded,
+                          size: 50,
+                          color: Colors.amber,
+                        ),
+                      ),
+              ),
+            ),
+            // Tap delete button
+            Positioned(
+              top: -8,
+              right: -8,
+              child: GestureDetector(
+                onTap: () =>
+                    context.read<EditorBloc>().add(StickerDeleted(sticker.id)),
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, size: 14, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Text Widget ──────────────────────────────────────────────────────────────
+
+class _TextWidget extends StatelessWidget {
+  final TextItem textItem;
+  const _TextWidget({required this.textItem});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: textItem.x,
+      top: textItem.y,
+      child: GestureDetector(
+        onPanUpdate: (d) {
+          context.read<EditorBloc>().add(TextUpdated(
+                textItem.copyWith(
+                  x: textItem.x + d.delta.dx,
+                  y: textItem.y + d.delta.dy,
+                ),
+              ));
+        },
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.35),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                textItem.text,
+                style: TextStyle(
+                  fontSize: textItem.fontSize,
+                  fontWeight: FontWeight.bold,
+                  color: Color(textItem.colorValue),
+                  fontFamily: textItem.fontFamily,
+                  shadows: const [
+                    Shadow(
+                      blurRadius: 6,
+                      color: Colors.black87,
+                      offset: Offset(1, 1),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Tap delete button
+            Positioned(
+              top: -8,
+              right: -8,
+              child: GestureDetector(
+                onTap: () =>
+                    context.read<EditorBloc>().add(TextDeleted(textItem.id)),
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, size: 14, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Tool Bar ─────────────────────────────────────────────────────────────────
+
+class _ToolBar extends StatefulWidget {
+  final SessionModel session;
+  const _ToolBar({required this.session});
+
+  @override
+  State<_ToolBar> createState() => _ToolBarState();
+}
+
+class _ToolBarState extends State<_ToolBar> {
+  int _selectedTab = 0;
+  int _itemCounter = 0;
+  final _uuid = const Uuid();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 210,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          // Tab selector
+          Row(
+            children: [
+              _Tab(
+                label: 'Stickers',
+                icon: Icons.emoji_emotions_rounded,
+                index: 0,
+                selected: _selectedTab,
+                onTap: (i) => setState(() => _selectedTab = i),
+              ),
+              _Tab(
+                label: 'Borders',
+                icon: Icons.crop_square_rounded,
+                index: 1,
+                selected: _selectedTab,
+                onTap: (i) => setState(() => _selectedTab = i),
+              ),
+              _Tab(
+                label: 'Text',
+                icon: Icons.text_fields_rounded,
+                index: 2,
+                selected: _selectedTab,
+                onTap: (i) => setState(() => _selectedTab = i),
+              ),
+            ],
+          ),
+
+          const Divider(height: 1, color: Colors.white12),
+
+          // Content
+          Expanded(
+            child: IndexedStack(
+              index: _selectedTab,
+              children: [
+                // 1. Stickers Panel
+                _StickerPanel(onAdd: (path) {
+                  _itemCounter++;
+                  final offset = (_itemCounter % 6) * 25.0;
+                  context.read<EditorBloc>().add(StickerAdded(StickerItem(
+                        id: _uuid.v4(),
+                        assetPath: path,
+                        x: 80 + offset,
+                        y: 80 + offset,
+                      )));
+                }),
+
+                // 2. Borders Panel
+                _BorderPanel(onSelect: (borderId) {
+                  context.read<EditorBloc>().add(BorderSelected(borderId));
+                }),
+
+                // 3. Text Panel
+                _TextPanel(onAdd: (text, color) {
+                  _itemCounter++;
+                  final offset = (_itemCounter % 5) * 20.0;
+                  context.read<EditorBloc>().add(TextAdded(TextItem(
+                        id: _uuid.v4(),
+                        text: text,
+                        colorValue: color.toARGB32(),
+                        fontSize: 26,
+                        x: 60 + offset,
+                        y: 120 + offset,
+                      )));
+                }),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Tab extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final int index;
+  final int selected;
+  final ValueChanged<int> onTap;
+
+  const _Tab({
+    required this.label,
+    required this.icon,
+    required this.index,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = index == selected;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onTap(index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: isSelected ? AppColors.primary : Colors.transparent,
+                width: 3,
+              ),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isSelected ? AppColors.primary : AppColors.onSurface,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isSelected ? AppColors.primary : AppColors.onSurface,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StickerPanel extends StatelessWidget {
+  final ValueChanged<String> onAdd;
+  const _StickerPanel({required this.onAdd});
+
+  static const _emojis = [
+    '😊', '😂', '😍', '🥳', '😎', '😜', '❤️', '💖',
+    '✨', '⭐', '🎉', '🔥', '👑', '🕶️', '🌸', '🐱',
+    '🍕', '🎂', '💋', '✌️', '📸', '🦄', '🎀', '🎈',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      itemCount: _emojis.length,
+      itemBuilder: (context, index) {
+        final emoji = _emojis[index];
+        return GestureDetector(
+          onTap: () => onAdd('emoji:$emoji'),
+          child: Container(
+            margin: const EdgeInsets.only(right: 12),
+            width: 64,
+            height: 64,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Text(emoji, style: const TextStyle(fontSize: 34)),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BorderPanel extends StatelessWidget {
+  final ValueChanged<String?> onSelect;
+  const _BorderPanel({required this.onSelect});
+
+  static const _borders = [
+    {'id': null, 'name': 'None', 'icon': Icons.block_rounded},
+    {'id': 'polaroid', 'name': 'Polaroid', 'icon': Icons.crop_portrait_rounded},
+    {'id': 'neon', 'name': 'Neon Glow', 'icon': Icons.flare_rounded},
+    {'id': 'gold', 'name': 'Gold Frame', 'icon': Icons.star_rounded},
+    {'id': 'film', 'name': 'Film Strip', 'icon': Icons.movie_creation_rounded},
+    {'id': 'pastel', 'name': 'Pastel', 'icon': Icons.favorite_rounded},
+    {'id': 'midnight', 'name': 'Midnight', 'icon': Icons.dark_mode_rounded},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      itemCount: _borders.length,
+      itemBuilder: (context, index) {
+        final item = _borders[index];
+        final id = item['id'] as String?;
+        final name = item['name'] as String;
+        final icon = item['icon'] as IconData;
+
+        return GestureDetector(
+          onTap: () => onSelect(id),
+          child: Container(
+            margin: const EdgeInsets.only(right: 12),
+            width: 80,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: AppColors.primary, size: 28),
+                const SizedBox(height: 6),
+                Text(
+                  name,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TextPanel extends StatefulWidget {
+  final void Function(String text, Color color) onAdd;
+  const _TextPanel({required this.onAdd});
+
+  @override
+  State<_TextPanel> createState() => _TextPanelState();
+}
+
+class _TextPanelState extends State<_TextPanel> {
+  final _controller = TextEditingController();
+  Color _selectedColor = Colors.white;
+
+  static const _colors = [
+    Colors.white,
+    Color(0xFFFFEB3B), // Yellow
+    Color(0xFFFF4081), // Pink
+    Color(0xFF00E5FF), // Cyan
+    Color(0xFF76FF03), // Lime
+    Color(0xFFFF9100), // Orange
+    Colors.black,
+  ];
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _controller.text.trim();
+    if (text.isNotEmpty) {
+      widget.onAdd(text, _selectedColor);
+      _controller.clear();
+      FocusScope.of(context).unfocus();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Type text overlay...',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    filled: true,
+                    fillColor: AppColors.surfaceVariant,
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onSubmitted: (_) => _submit(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton.icon(
+                onPressed: _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Add'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Color picker chips
+          Row(
+            children: [
+              const Text(
+                'Color:',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: _colors.map((c) {
+                    final isSelected = _selectedColor == c;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedColor = c),
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: c,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.primary
+                                : Colors.white30,
+                            width: isSelected ? 3 : 1,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
