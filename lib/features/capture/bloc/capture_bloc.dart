@@ -50,6 +50,7 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
     on<ImagesUploaded>(_onImagesUploaded);
     on<CaptureRetake>(_onRetake);
     on<CaptureCompleted>(_onCompleted);
+    on<CaptureFailed>(_onFailed);
   }
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
@@ -141,6 +142,12 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
 
   void _onCompleted(CaptureCompleted event, Emitter<CaptureState> emit) {
     // No-op: screen navigates when it sees CaptureComplete state.
+  }
+
+  void _onFailed(CaptureFailed event, Emitter<CaptureState> emit) {
+    _countdownTimer?.cancel();
+    _gapTimer?.cancel();
+    emit(CaptureError(event.message));
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────

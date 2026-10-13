@@ -50,3 +50,11 @@ class CaptureNextShotStarted extends CaptureEvent {
 class CaptureCompleted extends CaptureEvent {
   const CaptureCompleted();
 }
+
+/// An error occurred during capture (camera unavailable, shutter error, etc.)
+class CaptureFailed extends CaptureEvent {
+  final String message;
+  const CaptureFailed(this.message);
+  @override
+  List<Object?> get props => [message];
+}

@@ -1,5 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -12,19 +15,54 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 
 /// Photo editor screen — stickers, text, and decorative borders.
-class EditorScreen extends StatelessWidget {
+class EditorScreen extends StatefulWidget {
   final SessionModel session;
   const EditorScreen({super.key, required this.session});
 
   @override
+  State<EditorScreen> createState() => _EditorScreenState();
+}
+
+class _EditorScreenState extends State<EditorScreen> {
+  final GlobalKey _canvasKey = GlobalKey();
+  bool _isCapturing = false;
+
+  Future<void> _handleDone(BuildContext context) async {
+    setState(() => _isCapturing = true);
+
+    // Wait for the UI to rebuild without editing chrome / delete buttons
+    await Future.delayed(const Duration(milliseconds: 60));
+
+    Uint8List? pngBytes;
+    try {
+      final boundary = _canvasKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary != null) {
+        // High resolution snapshot (3.5x pixel ratio)
+        final uiImage = await boundary.toImage(pixelRatio: 3.5);
+        final byteData = await uiImage.toByteData(format: ui.ImageByteFormat.png);
+        pngBytes = byteData?.buffer.asUint8List();
+      }
+    } catch (e) {
+      debugPrint('[EditorScreen] Error capturing canvas snapshot: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isCapturing = false);
+      }
+    }
+
+    if (context.mounted) {
+      context.read<EditorBloc>().add(EditorConfirmed(renderedBytes: pngBytes));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          EditorBloc(compositionService: context.read(), session: session),
+      create: (context) => EditorBloc(compositionService: context.read(), session: widget.session),
       child: BlocConsumer<EditorBloc, EditorState>(
         listener: (context, state) {
           if (state.composedPath != null && !state.isComposing) {
-            final updated = session.copyWith(
+            final updated = widget.session.copyWith(
               composedImagePath: state.composedPath,
             );
             context.goNamed(AppRoute.output, extra: updated);
@@ -39,24 +77,21 @@ class EditorScreen extends StatelessWidget {
           }
         },
         builder: (context, state) {
+          final isProcessing = state.isComposing || _isCapturing;
           return Scaffold(
             backgroundColor: AppColors.surface,
             appBar: AppBar(
               title: const Text('Edit Photo'),
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                onPressed: () => context.pop(),
+                onPressed: isProcessing ? null : () => context.pop(),
               ),
               actions: [
                 Padding(
                   padding: const EdgeInsets.only(right: 8.0),
                   child: TextButton(
-                    onPressed: state.isComposing
-                        ? null
-                        : () => context.read<EditorBloc>().add(
-                            const EditorConfirmed(),
-                          ),
-                    child: state.isComposing
+                    onPressed: isProcessing ? null : () => _handleDone(context),
+                    child: isProcessing
                         ? const SizedBox(
                             width: 20,
                             height: 20,
@@ -78,11 +113,16 @@ class EditorScreen extends StatelessWidget {
               children: [
                 // ── Canvas ────────────────────────────────────────────────────
                 Expanded(
-                  child: _EditorCanvas(session: session, editorState: state),
+                  child: _EditorCanvas(
+                    session: widget.session,
+                    editorState: state,
+                    canvasKey: _canvasKey,
+                    isCapturing: _isCapturing,
+                  ),
                 ),
 
                 // ── Tool Tabs ─────────────────────────────────────────────────
-                _ToolBar(session: session),
+                _ToolBar(session: widget.session),
               ],
             ),
           );
@@ -97,20 +137,26 @@ class EditorScreen extends StatelessWidget {
 class _EditorCanvas extends StatelessWidget {
   final SessionModel session;
   final EditorState editorState;
+  final GlobalKey canvasKey;
+  final bool isCapturing;
 
-  const _EditorCanvas({required this.session, required this.editorState});
+  const _EditorCanvas({
+    required this.session,
+    required this.editorState,
+    required this.canvasKey,
+    required this.isCapturing,
+  });
 
   double _getAspectRatio() {
     final paths = session.imagePaths;
     if (paths.length <= 1) return 3 / 4;
 
-    final layout =
-        session.layout ??
+    final layout = session.layout ??
         (paths.length == 4
             ? LayoutType.grid2x2
             : paths.length == 6
-            ? LayoutType.grid3x2
-            : LayoutType.verticalStrip);
+                ? LayoutType.grid3x2
+                : LayoutType.verticalStrip);
 
     switch (layout) {
       case LayoutType.single:
@@ -145,41 +191,61 @@ class _EditorCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPolaroid = editorState.borderAssetPath == 'polaroid';
     return Center(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         constraints: const BoxConstraints(maxWidth: 520),
-        decoration: BoxDecoration(
-          color: editorState.borderAssetPath == 'polaroid'
-              ? Colors.white
-              : Colors.black,
-          borderRadius: BorderRadius.circular(16),
-          // boxShadow: [
-          //   BoxShadow(
-          //     color: AppColors.primary.withValues(alpha: 0.25),
-          //     blurRadius: 24,
-          //     offset: const Offset(0, 4),
-          //   ),
-          // ],
-        ),
         child: AspectRatio(
           aspectRatio: _getAspectRatio(),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // ── 1. Base Multi-Photo Layer (Centered with Border Inset) ─────
-              Padding(padding: _getBorderPadding(), child: _buildPhotoLayout()),
+          child: RepaintBoundary(
+            key: canvasKey,
+            child: Container(
+              decoration: BoxDecoration(
+                color: isPolaroid ? Colors.white : Colors.black,
+                borderRadius: isCapturing ? BorderRadius.zero : BorderRadius.circular(12),
+              ),
+              child: ClipRRect(
+                borderRadius: isCapturing ? BorderRadius.zero : BorderRadius.circular(12),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // ── 1. Base Multi-Photo Layer (Centered with Border Inset) ─────
+                    Padding(padding: _getBorderPadding(), child: _buildPhotoLayout()),
 
-              // ── 2. Border Frame Overlay Layer ─────────────────────────────
-              if (editorState.borderAssetPath != null)
-                _BorderOverlay(borderId: editorState.borderAssetPath!),
+                    // ── 2. Border Frame Overlay Layer ─────────────────────────────
+                    if (editorState.borderAssetPath != null)
+                      _BorderOverlay(borderId: editorState.borderAssetPath!),
 
-              // ── 3. Sticker Overlays Layer ─────────────────────────────────
-              ...editorState.stickers.map((s) => _StickerWidget(sticker: s)),
+                    // ── 3. Polaroid Session ID Chin Text ──────────────────────────
+                    if (isPolaroid)
+                      Positioned(
+                        bottom: 14,
+                        left: 20,
+                        child: Text(
+                          'Session: ${session.sessionId}',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
 
-              // ── 4. Text Overlays Layer ────────────────────────────────────
-              ...editorState.texts.map((t) => _TextWidget(textItem: t)),
-            ],
+                    // ── 4. Sticker Overlays Layer ─────────────────────────────────
+                    ...editorState.stickers.map(
+                      (s) => _StickerWidget(sticker: s, isCapturing: isCapturing),
+                    ),
+
+                    // ── 5. Text Overlays Layer ────────────────────────────────────
+                    ...editorState.texts.map(
+                      (t) => _TextWidget(textItem: t, isCapturing: isCapturing),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -192,13 +258,12 @@ class _EditorCanvas extends StatelessWidget {
 
     if (paths.isEmpty) return _errorPlaceholder();
     if (paths.length == 1) return _buildBaseImage(paths.first);
-    final layout =
-        session.layout ??
+    final layout = session.layout ??
         (paths.length == 4
             ? LayoutType.grid2x2
             : paths.length == 6
-            ? LayoutType.grid3x2
-            : LayoutType.verticalStrip);
+                ? LayoutType.grid3x2
+                : LayoutType.verticalStrip);
 
     switch (layout) {
       case LayoutType.single:
@@ -208,9 +273,7 @@ class _EditorCanvas extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            border: hasBorder
-                ? null
-                : Border.all(color: Colors.white, width: 4),
+            border: hasBorder ? null : Border.all(color: Colors.white, width: 4),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -241,9 +304,7 @@ class _EditorCanvas extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            border: hasBorder
-                ? null
-                : Border.all(color: Colors.white, width: 4),
+            border: hasBorder ? null : Border.all(color: Colors.white, width: 4),
           ),
           child: Column(
             children: [
@@ -288,9 +349,7 @@ class _EditorCanvas extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            border: hasBorder
-                ? null
-                : Border.all(color: Colors.white, width: 4),
+            border: hasBorder ? null : Border.all(color: Colors.white, width: 4),
           ),
           child: Column(
             children: [
@@ -382,27 +441,8 @@ class _BorderOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (borderId) {
       case 'polaroid':
-        return Container(
-          decoration: BoxDecoration(
-            border: Border(
-              top: const BorderSide(color: Colors.white, width: 16),
-              left: const BorderSide(color: Colors.white, width: 16),
-              right: const BorderSide(color: Colors.white, width: 16),
-              bottom: const BorderSide(color: Colors.white, width: 56),
-            ),
-          ),
-          alignment: Alignment.bottomCenter,
-          padding: const EdgeInsets.only(bottom: 10),
-          // child: const Text(
-          //   'Pic & Print ✨',
-          //   style: TextStyle(
-          //     color: Colors.black54,
-          //     fontFamily: 'cursive',
-          //     fontSize: 16,
-          //     fontWeight: FontWeight.bold,
-          //   ),
-          // ),
-        );
+        // Polaroid frame is created cleanly by container background and padding
+        return const SizedBox.shrink();
 
       case 'gold':
         return Container(
@@ -455,7 +495,7 @@ class _BorderOverlay extends StatelessWidget {
             width: 14,
             height: 14,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.85),
+              color: Colors.white.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -469,14 +509,13 @@ class _BorderOverlay extends StatelessWidget {
 
 class _StickerWidget extends StatelessWidget {
   final StickerItem sticker;
-  const _StickerWidget({required this.sticker});
+  final bool isCapturing;
+  const _StickerWidget({required this.sticker, this.isCapturing = false});
 
   @override
   Widget build(BuildContext context) {
     final isEmoji = sticker.assetPath.startsWith('emoji:');
-    final emojiChar = isEmoji
-        ? sticker.assetPath.replaceFirst('emoji:', '')
-        : '';
+    final emojiChar = isEmoji ? sticker.assetPath.replaceFirst('emoji:', '') : '';
 
     return Positioned(
       left: sticker.x,
@@ -487,18 +526,19 @@ class _StickerWidget extends StatelessWidget {
           // Drag and long-press area
           GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onPanUpdate: (d) {
-              context.read<EditorBloc>().add(
-                StickerUpdated(
-                  sticker.copyWith(
-                    x: sticker.x + d.delta.dx,
-                    y: sticker.y + d.delta.dy,
-                  ),
-                ),
-              );
-            },
-            onLongPress: () =>
-                context.read<EditorBloc>().add(StickerDeleted(sticker.id)),
+            onPanUpdate: isCapturing
+                ? null
+                : (d) {
+                    context.read<EditorBloc>().add(
+                          StickerUpdated(
+                            sticker.copyWith(
+                              x: sticker.x + d.delta.dx,
+                              y: sticker.y + d.delta.dy,
+                            ),
+                          ),
+                        );
+                  },
+            onLongPress: isCapturing ? null : () => context.read<EditorBloc>().add(StickerDeleted(sticker.id)),
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: Transform.rotate(
@@ -523,46 +563,46 @@ class _StickerWidget extends StatelessWidget {
                           sticker.assetPath,
                           width: 80,
                           height: 80,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(
-                                Icons.emoji_emotions_rounded,
-                                size: 50,
-                                color: Colors.amber,
-                              ),
+                          errorBuilder: (context, error, stackTrace) => const Icon(
+                            Icons.emoji_emotions_rounded,
+                            size: 50,
+                            color: Colors.amber,
+                          ),
                         ),
                 ),
               ),
             ),
           ),
 
-          // Delete button
-          Positioned(
-            top: 0,
-            right: 0,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                context.read<EditorBloc>().add(StickerDeleted(sticker.id));
-              },
-              child: Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  color: Colors.redAccent,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black45,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+          // Delete button (hidden when capturing final snapshot)
+          if (!isCapturing)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  context.read<EditorBloc>().add(StickerDeleted(sticker.id));
+                },
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black45,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.close, size: 16, color: Colors.white),
                 ),
-                child: const Icon(Icons.close, size: 16, color: Colors.white),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -573,7 +613,8 @@ class _StickerWidget extends StatelessWidget {
 
 class _TextWidget extends StatelessWidget {
   final TextItem textItem;
-  const _TextWidget({required this.textItem});
+  final bool isCapturing;
+  const _TextWidget({required this.textItem, this.isCapturing = false});
 
   @override
   Widget build(BuildContext context) {
@@ -586,20 +627,23 @@ class _TextWidget extends StatelessWidget {
           // Drag and long-press area
           GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onPanUpdate: (d) {
-              context.read<EditorBloc>().add(
-                TextUpdated(
-                  textItem.copyWith(
-                    x: textItem.x + d.delta.dx,
-                    y: textItem.y + d.delta.dy,
-                  ),
-                ),
-              );
-            },
-            onLongPress: () =>
-                context.read<EditorBloc>().add(TextDeleted(textItem.id)),
+            onPanUpdate: isCapturing
+                ? null
+                : (d) {
+                    context.read<EditorBloc>().add(
+                          TextUpdated(
+                            textItem.copyWith(
+                              x: textItem.x + d.delta.dx,
+                              y: textItem.y + d.delta.dy,
+                            ),
+                          ),
+                        );
+                  },
+            onLongPress: isCapturing ? null : () => context.read<EditorBloc>().add(TextDeleted(textItem.id)),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(6, 6, 20, 6),
+              padding: isCapturing
+                  ? const EdgeInsets.all(6.0)
+                  : const EdgeInsets.fromLTRB(6, 6, 20, 6),
               child: Text(
                 textItem.text,
                 style: TextStyle(
@@ -624,34 +668,35 @@ class _TextWidget extends StatelessWidget {
             ),
           ),
 
-          // Delete button
-          Positioned(
-            top: 0,
-            right: 0,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                context.read<EditorBloc>().add(TextDeleted(textItem.id));
-              },
-              child: Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: Colors.redAccent,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black45,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+          // Delete button (hidden when capturing final snapshot)
+          if (!isCapturing)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  context.read<EditorBloc>().add(TextDeleted(textItem.id));
+                },
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black45,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.close, size: 14, color: Colors.white),
                 ),
-                child: const Icon(Icons.close, size: 14, color: Colors.white),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -723,15 +768,15 @@ class _ToolBarState extends State<_ToolBar> {
                     _itemCounter++;
                     final offset = (_itemCounter % 6) * 25.0;
                     context.read<EditorBloc>().add(
-                      StickerAdded(
-                        StickerItem(
-                          id: _uuid.v4(),
-                          assetPath: path,
-                          x: 80 + offset,
-                          y: 80 + offset,
-                        ),
-                      ),
-                    );
+                          StickerAdded(
+                            StickerItem(
+                              id: _uuid.v4(),
+                              assetPath: path,
+                              x: 80 + offset,
+                              y: 80 + offset,
+                            ),
+                          ),
+                        );
                   },
                 ),
 
@@ -748,17 +793,17 @@ class _ToolBarState extends State<_ToolBar> {
                     _itemCounter++;
                     final offset = (_itemCounter % 5) * 20.0;
                     context.read<EditorBloc>().add(
-                      TextAdded(
-                        TextItem(
-                          id: _uuid.v4(),
-                          text: text,
-                          colorValue: color.toARGB32(),
-                          fontSize: 26,
-                          x: 60 + offset,
-                          y: 120 + offset,
-                        ),
-                      ),
-                    );
+                          TextAdded(
+                            TextItem(
+                              id: _uuid.v4(),
+                              text: text,
+                              colorValue: color.toARGB32(),
+                              fontSize: 26,
+                              x: 60 + offset,
+                              y: 120 + offset,
+                            ),
+                          ),
+                        );
                   },
                 ),
               ],
@@ -1054,9 +1099,7 @@ class _TextPanelState extends State<_TextPanel> {
                           color: c,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: isSelected
-                                ? AppColors.primary
-                                : Colors.white30,
+                            color: isSelected ? AppColors.primary : Colors.white30,
                             width: isSelected ? 3 : 1,
                           ),
                         ),

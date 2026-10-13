@@ -49,8 +49,11 @@ class _CaptureScreenState extends State<CaptureScreen> {
         );
         _currentCameraIndex = frontIndex != -1 ? frontIndex : 0;
         await _startCamera(_cameras![_currentCameraIndex]);
+      } else {
+        debugPrint('[CaptureScreen] No cameras reported by availableCameras().');
       }
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[CaptureScreen] Error initializing cameras: $e\n$stack');
       // Camera unavailable — upload mode still works
     }
   }
@@ -69,7 +72,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
     try {
       await _cameraController!.initialize();
       if (mounted) setState(() => _cameraReady = true);
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[CaptureScreen] Error starting camera controller: $e\n$stack');
       if (mounted) setState(() => _cameraReady = false);
     }
   }
@@ -225,7 +229,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
   Future<void> _takePhoto(BuildContext context) async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       context.read<CaptureBloc>().add(
-            const CaptureError('Camera not available.') as CaptureEvent,
+            const CaptureFailed('Camera is not ready or available.'),
           );
       return;
     }
@@ -238,7 +242,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
     } catch (e) {
       if (context.mounted) {
         context.read<CaptureBloc>().add(
-              PhotoCaptured('/error') // triggers error state in bloc
+              CaptureFailed('Failed to take photo: $e'),
             );
       }
     }
@@ -248,12 +252,22 @@ class _CaptureScreenState extends State<CaptureScreen> {
     final picker = ImagePicker();
     final count = context.read<CaptureBloc>().shotMode.photoCount;
 
-    final files = await picker.pickMultiImage(limit: count);
-    if (files.isEmpty) return;
+    List<String> paths = [];
+    if (count == 1) {
+      final file = await picker.pickImage(source: ImageSource.gallery);
+      if (file != null) {
+        paths = [file.path];
+      }
+    } else {
+      final files = await picker.pickMultiImage(limit: count);
+      paths = files.map((f) => f.path).toList();
+    }
+
+    if (paths.isEmpty) return;
 
     if (context.mounted) {
       context.read<CaptureBloc>().add(
-            ImagesUploaded(files.map((f) => f.path).toList()),
+            ImagesUploaded(paths),
           );
     }
   }

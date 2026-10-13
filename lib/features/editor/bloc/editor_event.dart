@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:equatable/equatable.dart';
 import '../../../core/models/models.dart';
 
@@ -63,7 +64,11 @@ class BorderSelected extends EditorEvent {
   List<Object?> get props => [borderAssetPath];
 }
 
-/// User tapped "Done" — compose the final image.
+/// User tapped "Done" — compose or save the final image.
 class EditorConfirmed extends EditorEvent {
-  const EditorConfirmed();
+  final Uint8List? renderedBytes;
+  const EditorConfirmed({this.renderedBytes});
+
+  @override
+  List<Object?> get props => [renderedBytes];
 }

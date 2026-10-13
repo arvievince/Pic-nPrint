@@ -86,12 +86,20 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
     emit(state.copyWith(isComposing: true));
 
     try {
-      final composedPath = await _compositionService.compose(
-        session: session,
-        stickers: state.stickers,
-        texts: state.texts,
-        borderAssetPath: state.borderAssetPath,
-      );
+      final String composedPath;
+      if (event.renderedBytes != null) {
+        composedPath = await _compositionService.saveComposedImageBytes(
+          bytes: event.renderedBytes!,
+          sessionId: session.sessionId,
+        );
+      } else {
+        composedPath = await _compositionService.compose(
+          session: session,
+          stickers: state.stickers,
+          texts: state.texts,
+          borderAssetPath: state.borderAssetPath,
+        );
+      }
       emit(state.copyWith(isComposing: false, composedPath: composedPath));
     } catch (e) {
       emit(state.copyWith(

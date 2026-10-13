@@ -20,6 +20,19 @@ import '../models/models.dart';
 ///       → if mode is quad/hex, also creates GIF
 ///
 class CompositionService {
+  /// Saves high-resolution rendered canvas bytes (e.g. from RepaintBoundary) directly.
+  /// Returns the local file path of the composed image.
+  Future<String> saveComposedImageBytes({
+    required Uint8List bytes,
+    required String sessionId,
+  }) async {
+    final outputDir = await _getOutputDir();
+    final outputPath = p.join(outputDir, '${sessionId}_composed.png');
+    final file = File(outputPath);
+    await file.writeAsBytes(bytes, flush: true);
+    return outputPath;
+  }
+
   /// Composes all images + overlays into a single final image.
   /// Returns the local file path of the composed image.
   Future<String> compose({
@@ -149,6 +162,7 @@ Future<void> _composeIsolate(_ComposeParams params) async {
       final w = images.map((i) => i.width).reduce((a, b) => a > b ? a : b);
       final totalH = images.map((i) => i.height).reduce((a, b) => a + b);
       canvas = img.Image(width: w, height: totalH);
+      img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
       var y = 0;
       for (final im in images) {
         img.compositeImage(canvas, im, dstX: 0, dstY: y);
@@ -161,6 +175,7 @@ Future<void> _composeIsolate(_ComposeParams params) async {
       final h = images.map((i) => i.height).reduce((a, b) => a > b ? a : b);
       final totalW = images.map((i) => i.width).reduce((a, b) => a + b);
       canvas = img.Image(width: totalW, height: h);
+      img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
       var x = 0;
       for (final im in images) {
         img.compositeImage(canvas, im, dstX: x, dstY: 0);
@@ -180,6 +195,7 @@ Future<void> _composeIsolate(_ComposeParams params) async {
   }
 
   // Apply border frame if selected
+  final isPolaroid = params.borderAssetPath == 'polaroid';
   if (params.borderAssetPath != null) {
     canvas = _applyBorder(canvas, params.borderAssetPath!);
   }
@@ -205,8 +221,8 @@ Future<void> _composeIsolate(_ComposeParams params) async {
     );
   }
 
-  // Apply simple footer with session ID
-  canvas = _addFooter(canvas, params.sessionId);
+  // Apply footer with session ID
+  canvas = _addFooter(canvas, params.sessionId, isPolaroid: isPolaroid);
 
   File(params.outputPath).writeAsBytesSync(img.encodeJpg(canvas, quality: 92));
 }
@@ -214,23 +230,16 @@ Future<void> _composeIsolate(_ComposeParams params) async {
 img.Image _applyBorder(img.Image source, String borderId) {
   switch (borderId) {
     case 'polaroid':
-      const padTop = 30;
-      const padSide = 30;
-      const padBottom = 100;
+      // Polaroid style: padding on top, left, right and wide bottom chin
+      final padSide = (source.width * 0.05).toInt().clamp(24, 60);
+      final padTop = (source.width * 0.05).toInt().clamp(24, 60);
+      final padBottom = (source.width * 0.16).toInt().clamp(70, 180);
       final canvas = img.Image(
         width: source.width + padSide * 2,
         height: source.height + padTop + padBottom,
       );
       img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
       img.compositeImage(canvas, source, dstX: padSide, dstY: padTop);
-      img.drawString(
-        canvas,
-        'Pic & Print',
-        font: img.arial24,
-        x: (canvas.width ~/ 2) - 60,
-        y: canvas.height - 60,
-        color: img.ColorRgb8(80, 80, 80),
-      );
       return canvas;
 
     case 'gold':
@@ -291,6 +300,7 @@ img.Image _buildGrid(List<img.Image> images, {required int columns}) {
   final cellH = images.map((i) => i.height).reduce((a, b) => a > b ? a : b);
   final rows = (images.length / columns).ceil();
   final canvas = img.Image(width: cellW * columns, height: cellH * rows);
+  img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
 
   for (int i = 0; i < images.length; i++) {
     final col = i % columns;
@@ -301,16 +311,28 @@ img.Image _buildGrid(List<img.Image> images, {required int columns}) {
   return canvas;
 }
 
-img.Image _addFooter(img.Image source, String sessionId) {
-  // Footer height = 60px; white background with session ID text
-  const footerH = 60;
+img.Image _addFooter(img.Image source, String sessionId, {bool isPolaroid = false}) {
+  if (isPolaroid) {
+    // Polaroid already has a wide bottom chin! Draw subtle session ID right on the chin
+    img.drawString(
+      source,
+      'Session: $sessionId',
+      font: img.arial14,
+      x: 16,
+      y: source.height - 24,
+      color: img.ColorRgb8(120, 120, 120),
+    );
+    return source;
+  }
+
+  // Footer height = 40px; white background with session ID text
+  const footerH = 40;
   final canvas = img.Image(
     width: source.width,
     height: source.height + footerH,
   );
   img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
   img.compositeImage(canvas, source, dstX: 0, dstY: 0);
-  // Draw session ID text in footer area (simple pixel font)
   img.drawString(
     canvas,
     'Session: $sessionId',

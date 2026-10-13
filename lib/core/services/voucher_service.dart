@@ -3,7 +3,6 @@ import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 
 import '../database/app_database.dart';
-import '../models/enums.dart';
 import '../models/models.dart';
 
 /// Handles voucher generation, validation, and redemption.

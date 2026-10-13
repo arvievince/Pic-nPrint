@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' as drift;
-import 'package:picnprint/core/models/enums.dart';
 import 'package:uuid/uuid.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 

@@ -29,25 +29,67 @@ class StorageService {
   // ─── Local Save ───────────────────────────────────────────────────────────────
 
   /// Copies the composed image to a permanent location and updates the session DB entry.
+  /// Also saves a copy to the device's public Pictures folder (Pictures/Pic-nPrint) so it is visible in Gallery/Photos.
   Future<String> saveLocalFiles(SessionModel session) async {
     final appDir = await getApplicationDocumentsDirectory();
     final destDir = Directory(p.join(appDir.path, 'output'));
     if (!destDir.existsSync()) destDir.createSync(recursive: true);
 
-    final ext = p.extension(session.composedImagePath ?? '');
+    final ext = (session.composedImagePath != null && p.extension(session.composedImagePath!).isNotEmpty)
+        ? p.extension(session.composedImagePath!)
+        : '.png';
     final destPath = p.join(destDir.path, '${session.sessionId}$ext');
 
     if (session.composedImagePath != null) {
       final src = File(session.composedImagePath!);
-      if (src.existsSync()) await src.copy(destPath);
+      if (src.existsSync()) {
+        await src.copy(destPath);
+        // Also save to public Pictures folder
+        await _saveToPublicGallery(src, '${session.sessionId}$ext');
+      }
     }
 
     // Persist in DB
-    await _db.updateSession(session.sessionId, SessionsTableCompanion(
-      composedImagePath: Value(destPath),
-    ));
+    await _db.updateSession(
+        session.sessionId,
+        SessionsTableCompanion(
+          composedImagePath: Value(destPath),
+        ));
 
     return destPath;
+  }
+
+  /// Copies a finished photo to the device's public Pictures directory.
+  Future<void> _saveToPublicGallery(File srcFile, String filename) async {
+    try {
+      Directory? targetDir;
+      if (Platform.isWindows) {
+        final userProfile = Platform.environment['USERPROFILE'];
+        if (userProfile != null) {
+          targetDir = Directory(p.join(userProfile, 'Pictures', 'Pic-nPrint'));
+        }
+      } else if (Platform.isAndroid) {
+        final publicPictures = Directory('/storage/emulated/0/Pictures/Pic-nPrint');
+        if (publicPictures.parent.existsSync()) {
+          targetDir = publicPictures;
+        } else {
+          final extDirs = await getExternalStorageDirectories(type: StorageDirectory.pictures);
+          if (extDirs != null && extDirs.isNotEmpty) {
+            targetDir = Directory(p.join(extDirs.first.path, 'Pic-nPrint'));
+          }
+        }
+      }
+
+      if (targetDir != null) {
+        if (!targetDir.existsSync()) {
+          await targetDir.create(recursive: true);
+        }
+        final publicFile = File(p.join(targetDir.path, filename));
+        await srcFile.copy(publicFile.path);
+      }
+    } catch (_) {
+      // Best-effort copy to public gallery: do not interrupt main kiosk workflow if denied
+    }
   }
 
   // ─── Drive Upload ─────────────────────────────────────────────────────────────
@@ -60,7 +102,7 @@ class StorageService {
     }
 
     // Load Drive config from settings
-    final folderName     = await _db.getSetting('drive_folder_id');
+    final folderName = await _db.getSetting('drive_folder_id');
     final serviceAccJson = await _db.getSetting('drive_service_account_json');
 
     if (folderName == null || serviceAccJson == null) {
@@ -75,9 +117,10 @@ class StorageService {
 
     try {
       final file = File(session.composedImagePath!);
+      final ext = p.extension(session.composedImagePath!).isNotEmpty ? p.extension(session.composedImagePath!) : '.png';
       final media = drive.Media(file.openRead(), file.lengthSync());
       final driveFile = drive.File()
-        ..name = '${session.sessionId}.jpg'
+        ..name = '${session.sessionId}$ext'
         ..parents = [folderName];
 
       final uploaded = await driveApi.files.create(
@@ -96,11 +139,13 @@ class StorageService {
       final shareUrl = 'https://drive.google.com/file/d/${uploaded.id}/view';
 
       // Persist drive info in DB
-      await _db.updateSession(session.sessionId, SessionsTableCompanion(
-        driveFileId: Value(uploaded.id!),
-        driveShareUrl: Value(shareUrl),
-        isUploaded: const Value(true),
-      ));
+      await _db.updateSession(
+          session.sessionId,
+          SessionsTableCompanion(
+            driveFileId: Value(uploaded.id!),
+            driveShareUrl: Value(shareUrl),
+            isUploaded: const Value(true),
+          ));
 
       return shareUrl;
     } finally {
