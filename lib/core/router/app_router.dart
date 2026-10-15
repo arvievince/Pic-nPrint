@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -13,6 +14,24 @@ import '../../features/admin/view/admin_screen.dart';
 import '../../features/admin/view/first_run_screen.dart';
 import '../../core/models/models.dart';
 
+/// Fallback session used in debug mode if route extra is lost during hot reload/restart.
+SessionModel _getFallbackSession() {
+  final now = DateTime.now();
+  return SessionModel(
+    sessionId: 'DEV-${now.millisecondsSinceEpoch}',
+    voucher: VoucherModel(
+      code: 'DEV-DEMO',
+      locationId: 'MNL1',
+      shotMode: ShotMode.triple,
+      serial: '0001',
+      expiresAt: now.add(const Duration(hours: 24)),
+      priceSnapshot: 80.0,
+    ),
+    shotMode: ShotMode.triple,
+    createdAt: now,
+  );
+}
+
 /// ─── Route Name Constants ───────────────────────────────────────────────────
 /// Always use these constants when navigating — never hardcode path strings.
 ///
@@ -23,16 +42,16 @@ import '../../core/models/models.dart';
 class AppRoute {
   AppRoute._();
 
-  static const String attract   = 'attract';   // /
-  static const String voucher   = 'voucher';   // /voucher
-  static const String capture   = 'capture';   // /capture
-  static const String layout    = 'layout';    // /layout
-  static const String editor    = 'editor';    // /editor
-  static const String output    = 'output';    // /output
-  static const String qr        = 'qr';        // /qr
-  static const String thankYou  = 'thank-you'; // /thank-you
-  static const String admin     = 'admin';     // /admin
-  static const String firstRun  = 'first-run'; // /first-run
+  static const String attract = 'attract'; // /
+  static const String voucher = 'voucher'; // /voucher
+  static const String capture = 'capture'; // /capture
+  static const String layout = 'layout'; // /layout
+  static const String editor = 'editor'; // /editor
+  static const String output = 'output'; // /output
+  static const String qr = 'qr'; // /qr
+  static const String thankYou = 'thank-you'; // /thank-you
+  static const String admin = 'admin'; // /admin
+  static const String firstRun = 'first-run'; // /first-run
 }
 
 /// ─── Router Factory ─────────────────────────────────────────────────────────
@@ -70,8 +89,12 @@ GoRouter createRouter() {
       GoRoute(
         path: '/capture',
         name: AppRoute.capture,
+        redirect: (context, state) {
+          if (kReleaseMode && state.extra is! SessionModel) return '/';
+          return null;
+        },
         builder: (context, state) {
-          final session = state.extra as SessionModel;
+          final session = state.extra is SessionModel ? state.extra as SessionModel : _getFallbackSession();
           return CaptureScreen(session: session);
         },
       ),
@@ -81,8 +104,12 @@ GoRouter createRouter() {
       GoRoute(
         path: '/layout',
         name: AppRoute.layout,
+        redirect: (context, state) {
+          if (kReleaseMode && state.extra is! SessionModel) return '/';
+          return null;
+        },
         builder: (context, state) {
-          final session = state.extra as SessionModel;
+          final session = state.extra is SessionModel ? state.extra as SessionModel : _getFallbackSession();
           return LayoutScreen(session: session);
         },
       ),
@@ -91,8 +118,12 @@ GoRouter createRouter() {
       GoRoute(
         path: '/editor',
         name: AppRoute.editor,
+        redirect: (context, state) {
+          if (kReleaseMode && state.extra is! SessionModel) return '/';
+          return null;
+        },
         builder: (context, state) {
-          final session = state.extra as SessionModel;
+          final session = state.extra is SessionModel ? state.extra as SessionModel : _getFallbackSession();
           return EditorScreen(session: session);
         },
       ),
@@ -101,8 +132,12 @@ GoRouter createRouter() {
       GoRoute(
         path: '/output',
         name: AppRoute.output,
+        redirect: (context, state) {
+          if (kReleaseMode && state.extra is! SessionModel) return '/';
+          return null;
+        },
         builder: (context, state) {
-          final session = state.extra as SessionModel;
+          final session = state.extra is SessionModel ? state.extra as SessionModel : _getFallbackSession();
           return OutputScreen(session: session);
         },
       ),
@@ -111,8 +146,18 @@ GoRouter createRouter() {
       GoRoute(
         path: '/qr',
         name: AppRoute.qr,
+        redirect: (context, state) {
+          if (kReleaseMode && state.extra is! QrScreenData) return '/';
+          return null;
+        },
         builder: (context, state) {
-          final data = state.extra as QrScreenData;
+          final data = state.extra is QrScreenData
+              ? state.extra as QrScreenData
+              : const QrScreenData(
+                  driveUrl: 'https://picnprint.app',
+                  sessionId: 'DEV-DEMO',
+                  displaySeconds: 60,
+                );
           return QrScreen(data: data);
         },
       ),

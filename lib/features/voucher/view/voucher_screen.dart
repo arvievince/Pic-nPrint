@@ -51,18 +51,14 @@ class _VoucherScreenState extends State<VoucherScreen> {
     return BlocListener<VoucherBloc, VoucherState>(
       listener: (context, state) {
         if (state is VoucherValid) {
-          // Build the session and navigate to capture
-          final session = context
-              .read<VoucherBloc>()
-              .buildSessionFromCurrentState();
-          if (session != null) {
-            // For single-shot: go straight to capture
-            // For multi-shot: go to layout selection first
-            if (session.shotMode.photoCount == 1) {
-              context.goNamed(AppRoute.capture, extra: session);
-            } else {
-              context.goNamed(AppRoute.layout, extra: session);
-            }
+          // Build the session directly from the validated voucher
+          final session = context.read<VoucherBloc>().buildSession(state.voucher);
+          // For single-shot: go straight to capture
+          // For multi-shot: go to layout selection first
+          if (session.shotMode.photoCount == 1) {
+            context.goNamed(AppRoute.capture, extra: session);
+          } else {
+            context.goNamed(AppRoute.layout, extra: session);
           }
         }
       },

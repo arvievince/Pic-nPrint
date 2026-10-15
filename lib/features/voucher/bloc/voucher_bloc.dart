@@ -76,7 +76,7 @@ class VoucherBloc extends Bloc<VoucherEvent, VoucherState> {
 
   /// Creates a new [SessionModel] from a validated voucher.
   /// Session ID format: LOC-YYMMDD-SERIAL (e.g. MNL1-241009-0042)
-  SessionModel _buildSession(VoucherModel voucher) {
+  SessionModel buildSession(VoucherModel voucher) {
     final now = DateTime.now();
     final date = '${now.year.toString().substring(2)}'
         '${now.month.toString().padLeft(2, '0')}'
@@ -94,7 +94,7 @@ class VoucherBloc extends Bloc<VoucherEvent, VoucherState> {
   /// Expose the built session — used by the screen's BlocListener.
   SessionModel? buildSessionFromCurrentState() {
     if (state is VoucherValid) {
-      return _buildSession((state as VoucherValid).voucher);
+      return buildSession((state as VoucherValid).voucher);
     }
     return null;
   }

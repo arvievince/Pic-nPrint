@@ -32,8 +32,7 @@ class AdminScreen extends StatelessWidget {
         }
         if (state is AdminPasswordWrong) {
           return _PasswordGate(
-            error:
-                'Wrong password. ${state.attemptsRemaining} attempts remaining.',
+            error: 'Wrong password. ${state.attemptsRemaining} attempts remaining.',
           );
         }
         if (state is AdminPasswordLocked) {
@@ -123,9 +122,7 @@ class _PasswordGateState extends State<_PasswordGate> {
                   height: 52,
                   child: BlocBuilder<AdminBloc, AdminState>(
                     builder: (context, state) => ElevatedButton(
-                      onPressed: state is AdminUnlocking
-                          ? null
-                          : () => _submit(context),
+                      onPressed: state is AdminUnlocking ? null : () => _submit(context),
                       child: state is AdminUnlocking
                           ? const SizedBox(
                               height: 22,
@@ -191,16 +188,48 @@ class _LockoutScreen extends StatelessWidget {
 
 // ─── Admin Panel (unlocked) ───────────────────────────────────────────────────
 
-class _AdminPanel extends StatelessWidget {
+class _AdminPanel extends StatefulWidget {
   final AdminUnlockedState state;
   const _AdminPanel({required this.state});
 
   @override
+  State<_AdminPanel> createState() => _AdminPanelState();
+}
+
+class _AdminPanelState extends State<_AdminPanel> {
+  static const double _kBreakpoint = 800.0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _isSidebarExpanded = true;
+
+  void _selectSection(BuildContext context, AdminSection section, {required bool isCompact}) {
+    context.read<AdminBloc>().add(AdminSectionChanged(section));
+    if (isCompact) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isCompact = MediaQuery.of(context).size.width < _kBreakpoint;
+
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Admin Panel'),
+        leading: IconButton(
+          icon: Icon(
+            isCompact ? Icons.menu_rounded : (_isSidebarExpanded ? Icons.menu_open_rounded : Icons.menu_rounded),
+          ),
+          tooltip: isCompact ? 'Open menu' : (_isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'),
+          onPressed: () {
+            if (isCompact) {
+              _scaffoldKey.currentState?.openDrawer();
+            } else {
+              setState(() => _isSidebarExpanded = !_isSidebarExpanded);
+            }
+          },
+        ),
+        title: Text('Admin Panel • ${_labelFor(widget.state.activeSection)}'),
         actions: [
           TextButton.icon(
             icon: const Icon(Icons.logout_rounded, color: AppColors.error),
@@ -212,47 +241,30 @@ class _AdminPanel extends StatelessWidget {
           ),
         ],
       ),
+      drawer: isCompact
+          ? _AdminSidebar(
+              state: widget.state,
+              isDrawer: true,
+              onSelectSection: (section) => _selectSection(context, section, isCompact: true),
+            )
+          : null,
       body: Row(
         children: [
-          // ── Sidebar ─────────────────────────────────────────────────────────
-          Container(
-            width: 210,
-            color: AppColors.surface,
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              children: AdminSection.values.map((section) {
-                final isActive = state.activeSection == section;
-                return ListTile(
-                  leading: Icon(
-                    _iconFor(section),
-                    color: isActive ? AppColors.primary : AppColors.onSurface,
-                  ),
-                  title: Text(
-                    _labelFor(section),
-                    style: TextStyle(
-                      color: isActive
-                          ? AppColors.primary
-                          : AppColors.onBackground,
-                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-                    ),
-                  ),
-                  selected: isActive,
-                  selectedTileColor: AppColors.primary.withValues(alpha: 0.1),
-                  onTap: () => context.read<AdminBloc>().add(
-                    AdminSectionChanged(section),
-                  ),
-                );
-              }).toList(),
+          // ── Persistent Sidebar on Wide Screens ────────────────────────────
+          if (!isCompact && _isSidebarExpanded)
+            _AdminSidebar(
+              state: widget.state,
+              isDrawer: false,
+              onSelectSection: (section) => _selectSection(context, section, isCompact: false),
             ),
-          ),
 
           // ── Section Content ──────────────────────────────────────────────────
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(isCompact ? 16 : 24),
               child: _SectionContent(
-                section: state.activeSection,
-                settings: state.settings,
+                section: widget.state.activeSection,
+                settings: widget.state.settings,
               ),
             ),
           ),
@@ -260,43 +272,161 @@ class _AdminPanel extends StatelessWidget {
       ),
     );
   }
+}
 
-  IconData _iconFor(AdminSection s) {
-    switch (s) {
-      case AdminSection.pricing:
-        return Icons.attach_money_rounded;
-      case AdminSection.camera:
-        return Icons.camera_alt_rounded;
-      case AdminSection.printers:
-        return Icons.print_rounded;
-      case AdminSection.drive:
-        return Icons.cloud_upload_rounded;
-      case AdminSection.branding:
-        return Icons.palette_rounded;
-      case AdminSection.vouchers:
-        return Icons.confirmation_number_rounded;
-      case AdminSection.data:
-        return Icons.security_rounded;
+// ─── Admin Sidebar ────────────────────────────────────────────────────────────
+
+class _AdminSidebar extends StatelessWidget {
+  final AdminUnlockedState state;
+  final ValueChanged<AdminSection> onSelectSection;
+  final bool isDrawer;
+
+  const _AdminSidebar({
+    required this.state,
+    required this.onSelectSection,
+    this.isDrawer = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final listContent = ListView(
+      padding: EdgeInsets.symmetric(vertical: isDrawer ? 0 : 8),
+      children: [
+        if (isDrawer)
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 44, 16, 16),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+              border: const Border(
+                bottom: BorderSide(color: Colors.white10),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.admin_panel_settings_rounded,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pic-nPrint',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: AppColors.onBackground,
+                        ),
+                      ),
+                      Text(
+                        'Admin Settings',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ...AdminSection.values.map((section) {
+          final isActive = state.activeSection == section;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            child: ListTile(
+              leading: Icon(
+                _iconFor(section),
+                color: isActive ? AppColors.primary : AppColors.onSurface,
+              ),
+              title: Text(
+                _labelFor(section),
+                style: TextStyle(
+                  color: isActive ? AppColors.primary : AppColors.onBackground,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+                ),
+              ),
+              selected: isActive,
+              selectedTileColor: AppColors.primary.withValues(alpha: 0.12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              onTap: () => onSelectSection(section),
+            ),
+          );
+        }),
+      ],
+    );
+
+    if (isDrawer) {
+      return Drawer(
+        backgroundColor: AppColors.surface,
+        child: SafeArea(
+          top: false,
+          child: listContent,
+        ),
+      );
     }
+
+    return Container(
+      width: 220,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(
+          right: BorderSide(color: Colors.white10),
+        ),
+      ),
+      child: listContent,
+    );
   }
+}
 
-  String _labelFor(AdminSection s) {
-    switch (s) {
-      case AdminSection.pricing:
-        return 'Pricing';
-      case AdminSection.camera:
-        return 'Camera';
-      case AdminSection.printers:
-        return 'Printers';
-      case AdminSection.drive:
-        return 'Drive';
-      case AdminSection.branding:
-        return 'Branding';
-      case AdminSection.vouchers:
-        return 'Vouchers & Sales';
-      case AdminSection.data:
-        return 'Data & Security';
-    }
+IconData _iconFor(AdminSection s) {
+  switch (s) {
+    case AdminSection.pricing:
+      return Icons.attach_money_rounded;
+    case AdminSection.camera:
+      return Icons.camera_alt_rounded;
+    case AdminSection.printers:
+      return Icons.print_rounded;
+    case AdminSection.drive:
+      return Icons.cloud_upload_rounded;
+    case AdminSection.branding:
+      return Icons.palette_rounded;
+    case AdminSection.vouchers:
+      return Icons.confirmation_number_rounded;
+    case AdminSection.data:
+      return Icons.security_rounded;
+  }
+}
+
+String _labelFor(AdminSection s) {
+  switch (s) {
+    case AdminSection.pricing:
+      return 'Pricing';
+    case AdminSection.camera:
+      return 'Camera';
+    case AdminSection.printers:
+      return 'Printers';
+    case AdminSection.drive:
+      return 'Drive';
+    case AdminSection.branding:
+      return 'Branding';
+    case AdminSection.vouchers:
+      return 'Vouchers & Sales';
+    case AdminSection.data:
+      return 'Data & Security';
   }
 }
 
@@ -360,8 +490,8 @@ class _SettingField extends StatelessWidget {
                 decoration: InputDecoration(hintText: hint),
                 onSubmitted: (v) {
                   context.read<AdminBloc>().add(
-                    AdminSettingUpdated(key: settingKey, value: v),
-                  );
+                        AdminSettingUpdated(key: settingKey, value: v),
+                      );
                   ScaffoldMessenger.of(
                     context,
                   ).showSnackBar(SnackBar(content: Text('$label updated')));
@@ -372,8 +502,8 @@ class _SettingField extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 context.read<AdminBloc>().add(
-                  AdminSettingUpdated(key: settingKey, value: ctrl.text),
-                );
+                      AdminSettingUpdated(key: settingKey, value: ctrl.text),
+                    );
                 ScaffoldMessenger.of(
                   context,
                 ).showSnackBar(SnackBar(content: Text('$label saved')));
@@ -500,32 +630,61 @@ class _PrintersSectionState extends State<_PrintersSection> {
 
     return ListView(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 500;
+            if (isNarrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Printers',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Manage thermal receipt printers for vouchers & photo receipts.',
+                    style: TextStyle(color: AppColors.onSurface),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Add Printer'),
+                    onPressed: () => _showAddPrinterDialog(context),
+                  ),
+                ],
+              );
+            }
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Printers',
-                  style: Theme.of(context).textTheme.headlineMedium,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Printers',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Manage thermal receipt printers for vouchers & photo receipts.',
+                        style: TextStyle(color: AppColors.onSurface),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Manage thermal receipt printers for vouchers & photo receipts.',
-                  style: TextStyle(color: AppColors.onSurface),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Add Printer'),
+                  onPressed: () => _showAddPrinterDialog(context),
                 ),
               ],
-            ),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add Printer'),
-              onPressed: () => _showAddPrinterDialog(context),
-            ),
-          ],
+            );
+          },
         ),
         const SizedBox(height: 24),
-
         FutureBuilder<List<PrinterEntry>>(
           future: _printersFuture,
           builder: (context, snapshot) {
@@ -590,88 +749,107 @@ class _PrintersSectionState extends State<_PrintersSection> {
                   isDefault: p.isDefault,
                 );
 
-                return Card(
-                  color: AppColors.surface,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                      color: p.isDefault ? AppColors.primary : Colors.white12,
-                      width: p.isDefault ? 2 : 1,
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: p.isDefault
-                                ? AppColors.primary.withValues(alpha: 0.2)
-                                : Colors.white10,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.print_rounded,
-                            color: p.isDefault
-                                ? AppColors.primary
-                                : Colors.white70,
+                return LayoutBuilder(
+                  builder: (context, cardConstraints) {
+                    final isCompactCard = cardConstraints.maxWidth < 620;
+
+                    if (isCompactCard) {
+                      return Card(
+                        color: AppColors.surface,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: p.isDefault ? AppColors.primary : Colors.white12,
+                            width: p.isDefault ? 2 : 1,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Top header: Icon, Name + Badge, Delete button
                               Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    p.name,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: p.isDefault ? AppColors.primary.withValues(alpha: 0.2) : Colors.white10,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      Icons.print_rounded,
+                                      color: p.isDefault ? AppColors.primary : Colors.white70,
+                                      size: 22,
                                     ),
                                   ),
-                                  if (p.isDefault) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Text(
-                                        'DEFAULT',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Wrap(
+                                      spacing: 8,
+                                      runSpacing: 4,
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      children: [
+                                        Text(
+                                          p.name,
+                                          style: const TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
-                                      ),
+                                        if (p.isDefault)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: const Text(
+                                              'DEFAULT',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: AppColors.error,
+                                      size: 22,
+                                    ),
+                                    tooltip: 'Delete Printer',
+                                    onPressed: () => _confirmDeletePrinter(context, db, p),
+                                  ),
                                 ],
                               ),
-                              const SizedBox(height: 6),
-                              Row(
+                              const SizedBox(height: 12),
+                              // Chips and address with Wrap
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Chip(
                                     label: Text(model.transport.label),
                                     backgroundColor: Colors.white10,
                                     visualDensity: VisualDensity.compact,
                                   ),
-                                  const SizedBox(width: 8),
                                   Chip(
                                     label: Text('${p.paperWidthMm}mm'),
                                     backgroundColor: Colors.white10,
                                     visualDensity: VisualDensity.compact,
                                   ),
-                                  const SizedBox(width: 12),
                                   Text(
                                     'Address: ${p.address}',
                                     style: const TextStyle(
@@ -681,83 +859,157 @@ class _PrintersSectionState extends State<_PrintersSection> {
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 12),
+                              const Divider(height: 1, color: Colors.white10),
+                              const SizedBox(height: 10),
+                              // Action Buttons row
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  OutlinedButton.icon(
+                                    icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                                    label: const Text('Test Print'),
+                                    onPressed: () => _testPrint(context, printerService, model, p.name),
+                                  ),
+                                  if (!p.isDefault)
+                                    TextButton(
+                                      onPressed: () async {
+                                        await db.setDefaultPrinter(p.id);
+                                        setState(_loadPrinters);
+                                      },
+                                      child: const Text('Set as Default'),
+                                    ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
-                        // Action buttons
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                          label: const Text('Test Print'),
-                          onPressed: () async {
-                            try {
-                              await printerService.testPrint(model);
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Test print sent to ${p.name}!',
-                                    ),
-                                    backgroundColor: AppColors.success,
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Print error: $e'),
-                                    backgroundColor: AppColors.error,
-                                  ),
-                                );
-                              }
-                            }
-                          },
+                      );
+                    }
+
+                    // Wide screen Card layout
+                    return Card(
+                      color: AppColors.surface,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: p.isDefault ? AppColors.primary : Colors.white12,
+                          width: p.isDefault ? 2 : 1,
                         ),
-                        const SizedBox(width: 8),
-                        if (!p.isDefault)
-                          TextButton(
-                            onPressed: () async {
-                              await db.setDefaultPrinter(p.id);
-                              setState(_loadPrinters);
-                            },
-                            child: const Text('Set Default'),
-                          ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete_outline_rounded,
-                            color: AppColors.error,
-                          ),
-                          tooltip: 'Delete Printer',
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text('Delete Printer'),
-                                content: Text('Remove ${p.name}?'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(ctx, false),
-                                    child: const Text('Cancel'),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: p.isDefault ? AppColors.primary.withValues(alpha: 0.2) : Colors.white10,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.print_rounded,
+                                color: p.isDefault ? AppColors.primary : Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 4,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    children: [
+                                      Text(
+                                        p.name,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      if (p.isDefault)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary,
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Text(
+                                            'DEFAULT',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.error,
-                                    ),
-                                    onPressed: () => Navigator.pop(ctx, true),
-                                    child: const Text('Delete'),
+                                  const SizedBox(height: 6),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 6,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    children: [
+                                      Chip(
+                                        label: Text(model.transport.label),
+                                        backgroundColor: Colors.white10,
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      Chip(
+                                        label: Text('${p.paperWidthMm}mm'),
+                                        backgroundColor: Colors.white10,
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      Text(
+                                        'Address: ${p.address}',
+                                        style: const TextStyle(
+                                          color: AppColors.onSurface,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            );
-                            if (confirm == true) {
-                              await db.deletePrinter(p.id);
-                              setState(_loadPrinters);
-                            }
-                          },
+                            ),
+                            const SizedBox(width: 16),
+                            // Action buttons
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                              label: const Text('Test Print'),
+                              onPressed: () => _testPrint(context, printerService, model, p.name),
+                            ),
+                            const SizedBox(width: 8),
+                            if (!p.isDefault)
+                              TextButton(
+                                onPressed: () async {
+                                  await db.setDefaultPrinter(p.id);
+                                  setState(_loadPrinters);
+                                },
+                                child: const Text('Set Default'),
+                              ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline_rounded,
+                                color: AppColors.error,
+                              ),
+                              tooltip: 'Delete Printer',
+                              onPressed: () => _confirmDeletePrinter(context, db, p),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               }).toList(),
             );
@@ -765,6 +1017,65 @@ class _PrintersSectionState extends State<_PrintersSection> {
         ),
       ],
     );
+  }
+
+  Future<void> _testPrint(
+    BuildContext context,
+    PrinterService printerService,
+    PrinterModel model,
+    String printerName,
+  ) async {
+    try {
+      await printerService.testPrint(model);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Test print sent to $printerName!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Print error: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDeletePrinter(
+    BuildContext context,
+    AppDatabase db,
+    PrinterEntry p,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Printer'),
+        content: Text('Remove ${p.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await db.deletePrinter(p.id);
+      setState(_loadPrinters);
+    }
   }
 
   void _showAddPrinterDialog(BuildContext context) {
@@ -794,7 +1105,7 @@ class _PrintersSectionState extends State<_PrintersSection> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<PrinterTransport>(
-                  value: selectedTransport,
+                  initialValue: selectedTransport,
                   decoration: const InputDecoration(
                     labelText: 'Connection Type',
                   ),
@@ -825,13 +1136,13 @@ class _PrintersSectionState extends State<_PrintersSection> {
                     labelText: selectedTransport == PrinterTransport.network
                         ? 'IP Address (Port 9100)'
                         : selectedTransport == PrinterTransport.usb
-                        ? 'Port / Device Path'
-                        : 'Bluetooth MAC Address',
+                            ? 'Port / Device Path'
+                            : 'Bluetooth MAC Address',
                   ),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<int>(
-                  value: selectedPaperWidth,
+                  initialValue: selectedPaperWidth,
                   decoration: const InputDecoration(labelText: 'Paper Width'),
                   items: const [
                     DropdownMenuItem(
@@ -852,8 +1163,7 @@ class _PrintersSectionState extends State<_PrintersSection> {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Set as Default Printer'),
                   value: isDefault,
-                  onChanged: (v) =>
-                      setDialogState(() => isDefault = v ?? false),
+                  onChanged: (v) => setDialogState(() => isDefault = v ?? false),
                 ),
               ],
             ),
@@ -944,8 +1254,8 @@ class _DriveSection extends StatelessWidget {
           ),
           initialValue: settings['drive_service_account_json'] ?? '',
           onChanged: (v) => context.read<AdminBloc>().add(
-            AdminSettingUpdated(key: 'drive_service_account_json', value: v),
-          ),
+                AdminSettingUpdated(key: 'drive_service_account_json', value: v),
+              ),
         ),
       ],
     );
@@ -981,8 +1291,7 @@ class _BrandingSection extends StatelessWidget {
         _SettingField(
           label: 'Kiosk Subtitle',
           settingKey: 'kiosk_subtitle',
-          currentValue:
-              settings['kiosk_subtitle'] ?? 'Your memories, printed instantly.',
+          currentValue: settings['kiosk_subtitle'] ?? 'Your memories, printed instantly.',
           hint: 'Your memories, printed instantly.',
         ),
         _SettingField(
@@ -1075,17 +1384,17 @@ class _VouchersSectionState extends State<_VouchersSection> {
                   children: ShotMode.values.map((mode) {
                     final isSelected = _selectedMode == mode;
                     final priceKey = 'price_${mode.tierChar}';
-                    final price =
-                        widget.settings[priceKey] ??
+                    final price = widget.settings[priceKey] ??
                         (mode == ShotMode.single
                             ? '50'
                             : mode == ShotMode.triple
-                            ? '80'
-                            : mode == ShotMode.quad
-                            ? '100'
-                            : '120');
+                                ? '80'
+                                : mode == ShotMode.quad
+                                    ? '100'
+                                    : '120');
 
                     return ChoiceChip(
+                      showCheckmark: false,
                       selected: isSelected,
                       selectedColor: AppColors.primary,
                       label: Padding(
@@ -1099,18 +1408,14 @@ class _VouchersSectionState extends State<_VouchersSection> {
                               mode.label,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppColors.onBackground,
+                                color: isSelected ? Colors.white : AppColors.onBackground,
                               ),
                             ),
                             Text(
                               '₱$price • ${mode.photoCount} photo${mode.photoCount > 1 ? "s" : ""}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isSelected
-                                    ? Colors.white70
-                                    : AppColors.onSurface,
+                                color: isSelected ? Colors.white70 : AppColors.onSurface,
                               ),
                             ),
                           ],
@@ -1137,51 +1442,44 @@ class _VouchersSectionState extends State<_VouchersSection> {
                           )
                         : const Icon(Icons.confirmation_number_rounded),
                     label: Text(
-                      _isGenerating
-                          ? 'Generating Voucher…'
-                          : 'Generate & Print Voucher (₱${widget.settings['price_${_selectedMode.tierChar}'] ?? "100"})',
+                      _isGenerating ? 'Generating Voucher…' : 'Generate & Print Voucher',
                     ),
                     onPressed: _isGenerating
                         ? null
                         : () async {
                             setState(() => _isGenerating = true);
                             try {
-                              final voucher = await voucherService
-                                  .generateVoucher(mode: _selectedMode);
+                              final voucher = await voucherService.generateVoucher(mode: _selectedMode);
 
                               // Try printing voucher ticket if default printer exists
                               try {
                                 final printers = await db.getAllPrinters();
-                                final defaultPrinter = printers
-                                    .where((p) => p.isDefault)
-                                    .firstOrNull;
+                                final defaultPrinter = printers.where((p) => p.isDefault).firstOrNull;
                                 if (defaultPrinter != null && context.mounted) {
                                   final printerModel = PrinterModel(
                                     id: defaultPrinter.id,
                                     name: defaultPrinter.name,
                                     transport: defaultPrinter.transport == 'usb'
                                         ? PrinterTransport.usb
-                                        : defaultPrinter.transport ==
-                                              'bluetooth'
-                                        ? PrinterTransport.bluetooth
-                                        : PrinterTransport.network,
+                                        : defaultPrinter.transport == 'bluetooth'
+                                            ? PrinterTransport.bluetooth
+                                            : PrinterTransport.network,
                                     address: defaultPrinter.address,
                                     paperWidthMm: defaultPrinter.paperWidthMm,
                                     isDefault: true,
                                   );
                                   await context.read<PrinterService>().printText(
-                                    printer: printerModel,
-                                    text:
-                                        '================================\n'
-                                        '       PHOTORECEIPT VOUCHER     \n'
-                                        '================================\n'
-                                        'CODE: ${voucher.code}\n'
-                                        'TIER: ${_selectedMode.label} (${_selectedMode.photoCount} Photos)\n'
-                                        'PRICE: ₱${voucher.priceSnapshot}\n'
-                                        'EXPIRES: ${voucher.expiresAt.toString().substring(0, 16)}\n'
-                                        '================================\n'
-                                        'Type this code at the kiosk!\n\n',
-                                  );
+                                        printer: printerModel,
+                                        text: '================================\n'
+                                            '       PHOTORECEIPT VOUCHER     \n'
+                                            '================================\n'
+                                            'CODE: ${voucher.code}\n'
+                                            'TIER: ${_selectedMode.label} (${_selectedMode.photoCount} Photos)\n'
+                                            'PRICE: ₱${voucher.priceSnapshot}\n'
+                                            'EXPIRES: ${voucher.expiresAt.toString().substring(0, 16)}\n'
+                                            '================================\n'
+                                            'Type this code at the kiosk!\n\n',
+                                      );
                                 }
                               } catch (_) {}
 
@@ -1223,46 +1521,41 @@ class _VouchersSectionState extends State<_VouchersSection> {
         // ── Highlight Last Generated Voucher ──────────────────────────────────
         if (_lastGeneratedVoucher != null) ...[
           const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.primary, width: 2),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'CUSTOMER VOUCHER READY',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.5,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SelectableText(
-                        _lastGeneratedVoucher!.code,
-                        style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${_lastGeneratedVoucher!.shotMode.label} • ₱${_lastGeneratedVoucher!.priceSnapshot.toStringAsFixed(2)} • Expires in 24 hrs',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                    ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 620;
+
+              final infoColumn = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'CUSTOMER VOUCHER READY',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                      fontSize: 13,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  SelectableText(
+                    _lastGeneratedVoucher!.code,
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${_lastGeneratedVoucher!.shotMode.label} • ₱${_lastGeneratedVoucher!.priceSnapshot.toStringAsFixed(2)} • Expires in 24 hrs',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ],
+              );
+
+              final actions = [
                 SizedBox(
                   width: 140,
                   height: 60,
@@ -1288,8 +1581,37 @@ class _VouchersSectionState extends State<_VouchersSection> {
                     );
                   },
                 ),
-              ],
-            ),
+              ];
+
+              return Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary, width: 2),
+                ),
+                child: isCompact
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          infoColumn,
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 16,
+                            runSpacing: 12,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: actions,
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(child: infoColumn),
+                          ...actions,
+                        ],
+                      ),
+              );
+            },
           ),
         ],
 
@@ -1363,8 +1685,8 @@ class _VouchersSectionState extends State<_VouchersSection> {
                               color: isActive
                                   ? AppColors.success.withValues(alpha: 0.2)
                                   : isUsed
-                                  ? Colors.white10
-                                  : AppColors.error.withValues(alpha: 0.2),
+                                      ? Colors.white10
+                                      : AppColors.error.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -1375,8 +1697,8 @@ class _VouchersSectionState extends State<_VouchersSection> {
                                 color: isActive
                                     ? AppColors.success
                                     : isUsed
-                                    ? Colors.white70
-                                    : AppColors.error,
+                                        ? Colors.white70
+                                        : AppColors.error,
                               ),
                             ),
                           ),
@@ -1490,9 +1812,7 @@ class _DataSectionState extends State<_DataSection> {
                     prefixIcon: const Icon(Icons.key_rounded),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscure
-                            ? Icons.visibility_rounded
-                            : Icons.visibility_off_rounded,
+                        _obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded,
                       ),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
@@ -1504,7 +1824,7 @@ class _DataSectionState extends State<_DataSection> {
                   obscureText: _obscure,
                   decoration: const InputDecoration(
                     labelText: 'Confirm New Password',
-                    prefixIcon: const Icon(Icons.check_circle_outline_rounded),
+                    prefixIcon: Icon(Icons.check_circle_outline_rounded),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -1625,12 +1945,10 @@ class _DataSectionState extends State<_DataSection> {
                       16,
                       (_) => rand.nextInt(256),
                     );
-                    final hex = bytes
-                        .map((b) => b.toRadixString(16).padLeft(2, '0'))
-                        .join();
+                    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
                     context.read<AdminBloc>().add(
-                      AdminSettingUpdated(key: 'voucher_secret', value: hex),
-                    );
+                          AdminSettingUpdated(key: 'voucher_secret', value: hex),
+                        );
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(

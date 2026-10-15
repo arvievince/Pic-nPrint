@@ -214,8 +214,7 @@ class _EditorCanvas extends StatelessWidget {
                     Padding(padding: _getBorderPadding(), child: _buildPhotoLayout()),
 
                     // ── 2. Border Frame Overlay Layer ─────────────────────────────
-                    if (editorState.borderAssetPath != null)
-                      _BorderOverlay(borderId: editorState.borderAssetPath!),
+                    if (editorState.borderAssetPath != null) _BorderOverlay(borderId: editorState.borderAssetPath!),
 
                     // ── 3. Polaroid Session ID Chin Text ──────────────────────────
                     if (isPolaroid)
@@ -641,9 +640,7 @@ class _TextWidget extends StatelessWidget {
                   },
             onLongPress: isCapturing ? null : () => context.read<EditorBloc>().add(TextDeleted(textItem.id)),
             child: Padding(
-              padding: isCapturing
-                  ? const EdgeInsets.all(6.0)
-                  : const EdgeInsets.fromLTRB(6, 6, 20, 6),
+              padding: isCapturing ? const EdgeInsets.all(6.0) : const EdgeInsets.fromLTRB(6, 6, 20, 6),
               child: Text(
                 textItem.text,
                 style: TextStyle(
