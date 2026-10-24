@@ -131,19 +131,23 @@ class VoucherService {
     );
   }
 
-  /// Generate a batch of vouchers. Returns the list of codes.
-  Future<List<String>> generateBatch({
+  /// Generate a batch of vouchers. Returns the list of created [VoucherModel]s.
+  Future<List<VoucherModel>> generateBatch({
     required ShotMode mode,
     required int count,
-    required double priceSnapshot,
-    required DateTime expiresAt,
+    double? priceSnapshot,
+    DateTime? expiresAt,
   }) async {
-    final codes = <String>[];
+    final vouchers = <VoucherModel>[];
     for (int i = 0; i < count; i++) {
-      final v = await generateVoucher(mode: mode, priceSnapshot: priceSnapshot, expiresAt: expiresAt);
-      codes.add(v.code);
+      final v = await generateVoucher(
+        mode: mode,
+        priceSnapshot: priceSnapshot,
+        expiresAt: expiresAt,
+      );
+      vouchers.add(v);
     }
-    return codes;
+    return vouchers;
   }
 
   // ─── Void / reissue ───────────────────────────────────────────────────────────

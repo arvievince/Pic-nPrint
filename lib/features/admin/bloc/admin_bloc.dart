@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:picnprint/core/models/enums.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/services/security_service.dart';
@@ -20,17 +21,19 @@ import 'admin_state.dart';
 ///
 class AdminBloc extends Bloc<AdminEvent, AdminState> {
   final SecurityService _securityService;
-  final AppDatabase     _db;
+  final AppDatabase _db;
 
   AdminBloc({
     required SecurityService securityService,
     required AppDatabase db,
   })  : _securityService = securityService,
-        _db              = db,
+        _db = db,
         super(const AdminLockedState()) {
     on<AdminPasswordSubmitted>(_onPasswordSubmitted);
     on<AdminSectionChanged>(_onSectionChanged);
     on<AdminSettingUpdated>(_onSettingUpdated);
+    on<AdminMultipleSettingsUpdated>(_onMultipleSettingsUpdated);
+    on<AdminPricesUpdated>(_onPricesUpdated);
     on<AdminLocked>(_onLocked);
   }
 
@@ -46,7 +49,8 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
         final settings = await _loadSettings();
         emit(AdminUnlockedState(settings: settings));
       } else {
-        emit(const AdminPasswordWrong(5)); // placeholder — real count from SecurityService
+        emit(const AdminPasswordWrong(
+            5)); // placeholder — real count from SecurityService
       }
     } on AdminLockedException catch (e) {
       emit(AdminPasswordLocked(e.remaining));
@@ -55,10 +59,10 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     }
   }
 
-  void _onSectionChanged(
-      AdminSectionChanged event, Emitter<AdminState> emit) {
+  void _onSectionChanged(AdminSectionChanged event, Emitter<AdminState> emit) {
     if (state is AdminUnlockedState) {
-      emit((state as AdminUnlockedState).copyWith(activeSection: event.section));
+      emit(
+          (state as AdminUnlockedState).copyWith(activeSection: event.section));
     }
   }
 
@@ -68,8 +72,32 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
 
     if (state is AdminUnlockedState) {
       final current = (state as AdminUnlockedState).settings;
-      final updated  = Map<String, String>.from(current)
+      final updated = Map<String, String>.from(current)
         ..[event.key] = event.value;
+      emit((state as AdminUnlockedState).copyWith(settings: updated));
+    }
+  }
+
+  Future<void> _onMultipleSettingsUpdated(
+      AdminMultipleSettingsUpdated event, Emitter<AdminState> emit) async {
+    for (final entry in event.settings.entries) {
+      await _db.setSetting(entry.key, entry.value);
+    }
+
+    if (state is AdminUnlockedState) {
+      final current = (state as AdminUnlockedState).settings;
+      final updated = Map<String, String>.from(current)..addAll(event.settings);
+      emit((state as AdminUnlockedState).copyWith(settings: updated));
+    }
+  }
+
+  void _onPricesUpdated(AdminPricesUpdated event, Emitter<AdminState> emit) {
+    if (state is AdminUnlockedState) {
+      final current = (state as AdminUnlockedState).settings;
+      final updated = Map<String, String>.from(current);
+      for (final entry in event.prices.entries) {
+        updated['price_${entry.key.tierChar}'] = entry.value.toStringAsFixed(2);
+      }
       emit((state as AdminUnlockedState).copyWith(settings: updated));
     }
   }

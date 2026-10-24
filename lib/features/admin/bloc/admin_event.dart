@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../core/models/enums.dart';
 
 abstract class AdminEvent extends Equatable {
   const AdminEvent();
@@ -31,6 +32,22 @@ class AdminSettingUpdated extends AdminEvent {
   List<Object?> get props => [key, value];
 }
 
+/// Multiple settings were updated simultaneously.
+class AdminMultipleSettingsUpdated extends AdminEvent {
+  final Map<String, String> settings;
+  const AdminMultipleSettingsUpdated(this.settings);
+  @override
+  List<Object?> get props => [settings];
+}
+
+/// Admin updated multiple tier prices at once.
+class AdminPricesUpdated extends AdminEvent {
+  final Map<ShotMode, double> prices;
+  const AdminPricesUpdated(this.prices);
+  @override
+  List<Object?> get props => [prices];
+}
+
 /// Admin tapped "Lock / Exit".
 class AdminLocked extends AdminEvent {
   const AdminLocked();
@@ -44,5 +61,6 @@ enum AdminSection {
   drive,
   branding,
   vouchers,
+  sales,
   data,
 }

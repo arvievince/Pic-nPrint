@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../bloc/attract_bloc.dart';
 import '../bloc/attract_event.dart';
 import '../bloc/attract_state.dart';
+import '../../../core/database/app_database.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -24,15 +26,52 @@ class AttractScreen extends StatefulWidget {
 }
 
 class _AttractScreenState extends State<AttractScreen> {
+  String _title = 'Pic & Print';
+  String _subtitle = 'Your memories, printed instantly.';
+  String? _logoPath;
+
   @override
   void initState() {
     super.initState();
+    _loadBranding();
     // Always reset the attract bloc to idle state when screen mounts
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<AttractBloc>().add(const AttractReset());
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadBranding();
+  }
+
+  Future<void> _loadBranding() async {
+    try {
+      final db = context.read<AppDatabase>();
+      final title = await db.getSetting('kiosk_title');
+      final subtitle = await db.getSetting('kiosk_subtitle');
+      final logoPath = await db.getSetting('kiosk_logo_path');
+      if (mounted) {
+        setState(() {
+          if (title != null && title.trim().isNotEmpty) {
+            _title = title.trim();
+          }
+          if (subtitle != null && subtitle.trim().isNotEmpty) {
+            _subtitle = subtitle.trim();
+          }
+          if (logoPath != null &&
+              logoPath.trim().isNotEmpty &&
+              File(logoPath.trim()).existsSync()) {
+            _logoPath = logoPath.trim();
+          } else {
+            _logoPath = null;
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   void _onStartTap() {
@@ -134,18 +173,37 @@ class _AttractScreenState extends State<AttractScreen> {
                                       ),
                                     ],
                                   ),
-                                  child: const Icon(
-                                    Icons.camera_alt_rounded,
-                                    size: 60,
-                                    color: AppColors.primary,
-                                  ),
+                                  child: _logoPath != null && File(_logoPath!).existsSync()
+                                      ? ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(24),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(14),
+                                            child: Image.file(
+                                              File(_logoPath!),
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (_, __, ___) =>
+                                                  const Icon(
+                                                Icons.camera_alt_rounded,
+                                                size: 60,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.camera_alt_rounded,
+                                          size: 60,
+                                          color: AppColors.primary,
+                                        ),
                                 ),
                               ),
 
                               const SizedBox(height: 40),
 
                               Text(
-                                'Pic & Print',
+                                _title,
+                                textAlign: TextAlign.center,
                                 style: Theme.of(context).textTheme.displayMedium
                                     ?.copyWith(
                                       color: Colors.white,
@@ -157,7 +215,8 @@ class _AttractScreenState extends State<AttractScreen> {
                               const SizedBox(height: 12),
 
                               Text(
-                                'Your memories, printed instantly.',
+                                _subtitle,
+                                textAlign: TextAlign.center,
                                 style: Theme.of(context).textTheme.bodyLarge
                                     ?.copyWith(color: Colors.white70),
                               ),
