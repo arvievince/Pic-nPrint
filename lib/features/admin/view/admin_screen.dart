@@ -20,6 +20,7 @@ import '../../../core/services/pricing_service.dart';
 import '../../../core/services/printer_service.dart';
 import '../../../core/services/security_service.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../core/services/excel_export_service.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -1663,7 +1664,9 @@ class _BrandingSectionState extends State<_BrandingSection> {
       if (!brandingDir.existsSync()) {
         brandingDir.createSync(recursive: true);
       }
-      final ext = p.extension(picked.path).isNotEmpty ? p.extension(picked.path) : '.png';
+      final ext = p.extension(picked.path).isNotEmpty
+          ? p.extension(picked.path)
+          : '.png';
       final destPath = p.join(brandingDir.path, 'kiosk_logo$ext');
       await File(picked.path).copy(destPath);
 
@@ -1711,7 +1714,8 @@ class _BrandingSectionState extends State<_BrandingSection> {
     setState(() => _logoPath = null);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Logo removed. Default camera icon will be used on attract screen.'),
+        content: Text(
+            'Logo removed. Default camera icon will be used on attract screen.'),
         backgroundColor: AppColors.success,
       ),
     );
@@ -2049,6 +2053,49 @@ Future<void> _printVoucherSlipHelper({
   } catch (_) {}
 }
 
+Future<void> _exportExcelAndNotify({
+  required BuildContext context,
+  required Future<String?> Function() exportFn,
+}) async {
+  try {
+    final path = await exportFn();
+    if (!context.mounted) return;
+    if (path != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded,
+                  color: AppColors.success, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Exported: ${p.basename(path)}',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'Show in Folder',
+            textColor: AppColors.primary,
+            onPressed: () => ExcelExportService.openInExplorer(path),
+          ),
+        ),
+      );
+    }
+  } catch (e) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Export failed: $e'),
+        backgroundColor: AppColors.error,
+      ),
+    );
+  }
+}
+
 class _VouchersSection extends StatefulWidget {
   final Map<String, String> settings;
   const _VouchersSection({required this.settings});
@@ -2061,6 +2108,8 @@ class _VouchersSectionState extends State<_VouchersSection> {
   late Future<List<VoucherEntry>> _vouchersFuture;
   String _activeTab = 'active'; // 'active', 'used', 'all'
   ShotMode? _selectedTier;
+  int _currentPage = 0;
+  int _rowsPerPage = 10;
 
   @override
   void initState() {
@@ -2095,7 +2144,8 @@ class _VouchersSectionState extends State<_VouchersSection> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 28),
+            const Icon(Icons.check_circle_rounded,
+                color: AppColors.success, size: 28),
             const SizedBox(width: 12),
             Text(
               '${vouchers.length} Voucher${vouchers.length > 1 ? "s" : ""} Generated',
@@ -2111,7 +2161,8 @@ class _VouchersSectionState extends State<_VouchersSection> {
             children: [
               Text(
                 'Tier: ${vouchers.first.shotMode.label} • ₱${vouchers.first.priceSnapshot.toStringAsFixed(2)} each',
-                style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
+                style:
+                    const TextStyle(color: AppColors.onSurface, fontSize: 13),
               ),
               const SizedBox(height: 16),
               ConstrainedBox(
@@ -2119,18 +2170,24 @@ class _VouchersSectionState extends State<_VouchersSection> {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: vouchers.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white10),
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 1, color: Colors.white10),
                   itemBuilder: (ctx, i) {
                     final v = vouchers[i];
                     return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       title: SelectableText(
                         v.code,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.2),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            letterSpacing: 1.2),
                       ),
                       subtitle: Text(
                         'Expires: ${v.expiresAt.toString().substring(0, 16)}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.onSurface),
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.onSurface),
                       ),
                       trailing: IconButton(
                         icon: const Icon(Icons.copy_rounded, size: 20),
@@ -2150,6 +2207,14 @@ class _VouchersSectionState extends State<_VouchersSection> {
           ),
         ),
         actions: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.table_view_rounded, size: 18),
+            label: const Text('Download Excel'),
+            onPressed: () => _exportExcelAndNotify(
+              context: context,
+              exportFn: () => ExcelExportService.exportVoucherBatch(vouchers),
+            ),
+          ),
           TextButton.icon(
             icon: const Icon(Icons.copy_all_rounded),
             label: const Text('Copy All Codes'),
@@ -2157,7 +2222,8 @@ class _VouchersSectionState extends State<_VouchersSection> {
               final allText = vouchers.map((v) => v.code).join('\n');
               Clipboard.setData(ClipboardData(text: allText));
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('All voucher codes copied to clipboard!')),
+                const SnackBar(
+                    content: Text('All voucher codes copied to clipboard!')),
               );
             },
           ),
@@ -2199,7 +2265,8 @@ class _VouchersSectionState extends State<_VouchersSection> {
               icon: const Icon(Icons.add_rounded),
               label: const Text('Generate Vouchers'),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               ),
               onPressed: _showGenerateDialog,
             );
@@ -2226,77 +2293,9 @@ class _VouchersSectionState extends State<_VouchersSection> {
           },
         ),
 
-        const SizedBox(height: 24),
-
-        // ── Filter Bar: Status Tabs & Tier Chips ─────────────────────────────
-        Card(
-          color: AppColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Status Segmented Selector
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 10,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    const Text('Status:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    ChoiceChip(
-                      label: const Text('Active (Unused)'),
-                      selected: _activeTab == 'active',
-                      selectedColor: AppColors.primary,
-                      onSelected: (_) => setState(() => _activeTab = 'active'),
-                    ),
-                    ChoiceChip(
-                      label: const Text('Used / Redeemed'),
-                      selected: _activeTab == 'used',
-                      selectedColor: AppColors.primary,
-                      onSelected: (_) => setState(() => _activeTab = 'used'),
-                    ),
-                    ChoiceChip(
-                      label: const Text('All Vouchers'),
-                      selected: _activeTab == 'all',
-                      selectedColor: AppColors.primary,
-                      onSelected: (_) => setState(() => _activeTab = 'all'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Divider(color: Colors.white10),
-                const SizedBox(height: 8),
-
-                // Tier Filter Chips
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    const Text('Tier:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    ChoiceChip(
-                      label: const Text('All Tiers'),
-                      selected: _selectedTier == null,
-                      onSelected: (_) => setState(() => _selectedTier = null),
-                    ),
-                    ...ShotMode.values.map((mode) {
-                      return ChoiceChip(
-                        label: Text(mode.label),
-                        selected: _selectedTier == mode,
-                        onSelected: (_) => setState(() => _selectedTier = mode),
-                      );
-                    }),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-
         const SizedBox(height: 20),
 
-        // ── Voucher Inventory Table ──────────────────────────────────────────
+        // ── Voucher Inventory Table & Filters ────────────────────────────────
         FutureBuilder<List<VoucherEntry>>(
           future: _vouchersFuture,
           builder: (context, snapshot) {
@@ -2311,189 +2310,516 @@ class _VouchersSectionState extends State<_VouchersSection> {
 
             final all = (snapshot.data ?? []).reversed.toList();
             final filtered = all.where((v) {
-              final matchesStatus = _activeTab == 'all' ? true : v.status == _activeTab;
-              final matchesTier = _selectedTier == null ? true : v.tierChar == _selectedTier!.tierChar;
+              final matchesStatus =
+                  _activeTab == 'all' ? true : v.status == _activeTab;
+              final matchesTier = _selectedTier == null
+                  ? true
+                  : v.tierChar == _selectedTier!.tierChar;
               return matchesStatus && matchesTier;
             }).toList();
 
-            if (filtered.isEmpty) {
-              return Container(
-                padding: const EdgeInsets.all(48),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      _activeTab == 'active' ? Icons.confirmation_number_outlined : Icons.inbox_rounded,
-                      size: 54,
-                      color: AppColors.onSurface.withValues(alpha: 0.5),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _activeTab == 'active' ? 'No Active Unused Vouchers' : 'No Vouchers Found',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _activeTab == 'active'
-                          ? 'Tap "Generate Vouchers" to create new customer tickets.'
-                          : 'Try adjusting your filters above.',
-                      style: const TextStyle(color: AppColors.onSurface),
-                    ),
-                  ],
-                ),
-              );
-            }
+            final totalItems = filtered.length;
+            final totalPages = (totalItems / _rowsPerPage).ceil();
+            final validPage =
+                totalPages == 0 ? 0 : _currentPage.clamp(0, totalPages - 1);
+            final startIndex = validPage * _rowsPerPage;
+            final endIndex = (startIndex + _rowsPerPage).clamp(0, totalItems);
+            final pagedList = filtered.sublist(startIndex, endIndex);
 
             return Card(
               color: AppColors.surface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    columnSpacing: 24,
-                    columns: const [
-                      DataColumn(label: Text('Voucher Code', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('Tier', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('Price', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('Created', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('Expires', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
-                    ],
-                    rows: filtered.map((v) {
-                      final isActive = v.status == 'active';
-                      final isUsed = v.status == 'used';
-                      final mode = ShotModeExtension.fromTierChar(v.tierChar);
-
-                      return DataRow(
-                        cells: [
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SelectableText(
-                                  v.code,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
-                                ),
-                                const SizedBox(width: 4),
-                                IconButton(
-                                  icon: const Icon(Icons.copy_rounded, size: 16, color: AppColors.onSurface),
-                                  tooltip: 'Copy Code',
-                                  onPressed: () {
-                                    Clipboard.setData(ClipboardData(text: v.code));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Copied ${v.code}')),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 12,
+                        runSpacing: 10,
+                        children: [
+                          Text(
+                            'Vouchers List (${filtered.length})',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 15),
                           ),
-                          DataCell(
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                mode.label,
-                                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 12),
-                              ),
-                            ),
-                          ),
-                          DataCell(Text('₱${v.priceSnapshot.toStringAsFixed(2)}')),
-                          DataCell(Text(v.createdAt.toString().substring(0, 16))),
-                          DataCell(Text(v.expiresAt.toString().substring(0, 16))),
-                          DataCell(
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: isActive
-                                    ? AppColors.success.withValues(alpha: 0.2)
-                                    : isUsed
-                                        ? Colors.white12
-                                        : AppColors.error.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                v.status.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: isActive
-                                      ? AppColors.success
-                                      : isUsed
-                                          ? Colors.white70
-                                          : AppColors.error,
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              // Status Dropdown
+                              Container(
+                                height: 38,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceVariant,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.white12),
                                 ),
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.print_rounded, size: 20),
-                                  tooltip: 'Print Slip',
-                                  onPressed: () async {
-                                    await _printVoucherSlipHelper(
-                                      context: context,
-                                      code: v.code,
-                                      mode: mode,
-                                      price: v.priceSnapshot,
-                                      expiresAt: v.expiresAt,
-                                    );
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Print job sent for ${v.code}')),
-                                      );
-                                    }
-                                  },
-                                ),
-                                if (isActive)
-                                  IconButton(
-                                    icon: const Icon(Icons.block_rounded, size: 20, color: AppColors.error),
-                                    tooltip: 'Void Voucher',
-                                    onPressed: () async {
-                                      final confirm = await showDialog<bool>(
-                                        context: context,
-                                        builder: (ctx) => AlertDialog(
-                                          title: const Text('Void Voucher?'),
-                                          content: Text('Are you sure you want to void voucher ${v.code}? It can no longer be used.'),
-                                          actions: [
-                                            TextButton(
-                                              child: const Text('Cancel'),
-                                              onPressed: () => Navigator.of(ctx).pop(false),
-                                            ),
-                                            ElevatedButton(
-                                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-                                              child: const Text('Void Code'),
-                                              onPressed: () => Navigator.of(ctx).pop(true),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                      if (confirm == true) {
-                                        await db.updateVoucherStatus(v.code, 'voided', voidReason: 'Admin voided');
-                                        _loadVouchers();
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: _activeTab,
+                                    dropdownColor: AppColors.surfaceVariant,
+                                    style: const TextStyle(
+                                        fontSize: 13, color: Colors.white),
+                                    icon: const Icon(Icons.arrow_drop_down,
+                                        color: AppColors.onSurface, size: 20),
+                                    items: const [
+                                      DropdownMenuItem(
+                                          value: 'active',
+                                          child:
+                                              Text('Status: Active (Unused)')),
+                                      DropdownMenuItem(
+                                          value: 'used',
+                                          child:
+                                              Text('Status: Used / Redeemed')),
+                                      DropdownMenuItem(
+                                          value: 'all',
+                                          child: Text('Status: All Vouchers')),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        setState(() {
+                                          _activeTab = val;
+                                          _currentPage = 0;
+                                        });
                                       }
                                     },
                                   ),
-                              ],
-                            ),
+                                ),
+                              ),
+                              // Tier Dropdown
+                              Container(
+                                height: 38,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceVariant,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.white12),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<ShotMode?>(
+                                    value: _selectedTier,
+                                    dropdownColor: AppColors.surfaceVariant,
+                                    style: const TextStyle(
+                                        fontSize: 13, color: Colors.white),
+                                    icon: const Icon(Icons.arrow_drop_down,
+                                        color: AppColors.onSurface, size: 20),
+                                    items: [
+                                      const DropdownMenuItem(
+                                          value: null,
+                                          child: Text('Tier: All Tiers')),
+                                      ...ShotMode.values.map(
+                                        (mode) => DropdownMenuItem(
+                                          value: mode,
+                                          child: Text('Tier: ${mode.label}'),
+                                        ),
+                                      ),
+                                    ],
+                                    onChanged: (val) {
+                                      setState(() {
+                                        _selectedTier = val;
+                                        _currentPage = 0;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.table_view_rounded,
+                                    size: 16),
+                                label: const Text('Export'),
+                                onPressed: filtered.isEmpty
+                                    ? null
+                                    : () => _exportExcelAndNotify(
+                                          context: context,
+                                          exportFn: () => ExcelExportService
+                                              .exportVouchersInventory(
+                                            filtered,
+                                            filterLabel:
+                                                '${_activeTab}_${_selectedTier?.name ?? "all"}',
+                                          ),
+                                        ),
+                              ),
+                            ],
                           ),
                         ],
-                      );
-                    }).toList(),
-                  ),
+                      ),
+                    ),
+                    const Divider(height: 1, color: Colors.white10),
+                    if (filtered.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 48, horizontal: 24),
+                        child: Column(
+                          children: [
+                            Icon(
+                              _activeTab == 'active'
+                                  ? Icons.confirmation_number_outlined
+                                  : Icons.inbox_rounded,
+                              size: 54,
+                              color: AppColors.onSurface.withValues(alpha: 0.5),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _activeTab == 'active'
+                                  ? 'No Active Unused Vouchers'
+                                  : 'No Vouchers Found',
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _activeTab == 'active'
+                                  ? 'Tap "Generate Vouchers" to create new customer tickets.'
+                                  : 'Try adjusting your filters above.',
+                              style:
+                                  const TextStyle(color: AppColors.onSurface),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: DataTable(
+                          columnSpacing: 24,
+                          columns: const [
+                            DataColumn(
+                                label: Text('Voucher Code',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            DataColumn(
+                                label: Text('Tier',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            DataColumn(
+                                label: Text('Price',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            DataColumn(
+                                label: Text('Created',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            DataColumn(
+                                label: Text('Expires',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            DataColumn(
+                                label: Text('Status',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            DataColumn(
+                                label: Text('Actions',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                          ],
+                          rows: pagedList.map((v) {
+                            final isActive = v.status == 'active';
+                            final isUsed = v.status == 'used';
+                            final mode =
+                                ShotModeExtension.fromTierChar(v.tierChar);
+
+                            return DataRow(
+                              cells: [
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SelectableText(
+                                        v.code,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.8),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      IconButton(
+                                        icon: const Icon(Icons.copy_rounded,
+                                            size: 16,
+                                            color: AppColors.onSurface),
+                                        tooltip: 'Copy Code',
+                                        onPressed: () {
+                                          Clipboard.setData(
+                                              ClipboardData(text: v.code));
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                                content:
+                                                    Text('Copied ${v.code}')),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary
+                                          .withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      mode.label,
+                                      style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12),
+                                    ),
+                                  ),
+                                ),
+                                DataCell(Text(
+                                    '₱${v.priceSnapshot.toStringAsFixed(2)}')),
+                                DataCell(Text(
+                                    v.createdAt.toString().substring(0, 16))),
+                                DataCell(Text(
+                                    v.expiresAt.toString().substring(0, 16))),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: isActive
+                                          ? AppColors.success
+                                              .withValues(alpha: 0.2)
+                                          : isUsed
+                                              ? Colors.white12
+                                              : AppColors.error
+                                                  .withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      v.status.toUpperCase(),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: isActive
+                                            ? AppColors.success
+                                            : isUsed
+                                                ? Colors.white70
+                                                : AppColors.error,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.print_rounded,
+                                            size: 20),
+                                        tooltip: 'Print Slip',
+                                        onPressed: () async {
+                                          await _printVoucherSlipHelper(
+                                            context: context,
+                                            code: v.code,
+                                            mode: mode,
+                                            price: v.priceSnapshot,
+                                            expiresAt: v.expiresAt,
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                  content: Text(
+                                                      'Print job sent for ${v.code}')),
+                                            );
+                                          }
+                                        },
+                                      ),
+                                      if (isActive)
+                                        IconButton(
+                                          icon: const Icon(Icons.block_rounded,
+                                              size: 20, color: AppColors.error),
+                                          tooltip: 'Void Voucher',
+                                          onPressed: () async {
+                                            final confirm =
+                                                await showDialog<bool>(
+                                              context: context,
+                                              builder: (ctx) => AlertDialog(
+                                                title:
+                                                    const Text('Void Voucher?'),
+                                                content: Text(
+                                                    'Are you sure you want to void voucher ${v.code}? It can no longer be used.'),
+                                                actions: [
+                                                  TextButton(
+                                                    child: const Text('Cancel'),
+                                                    onPressed: () =>
+                                                        Navigator.of(ctx)
+                                                            .pop(false),
+                                                  ),
+                                                  ElevatedButton(
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                            backgroundColor:
+                                                                AppColors
+                                                                    .error),
+                                                    child:
+                                                        const Text('Void Code'),
+                                                    onPressed: () =>
+                                                        Navigator.of(ctx)
+                                                            .pop(true),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                            if (confirm == true) {
+                                              await db.updateVoucherStatus(
+                                                  v.code, 'voided',
+                                                  voidReason: 'Admin voided');
+                                              _loadVouchers();
+                                            }
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    if (filtered.isNotEmpty) ...[
+                      const Divider(height: 1, color: Colors.white10),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 16,
+                          runSpacing: 10,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'Rows per page:',
+                                  style: TextStyle(
+                                    color: AppColors.onSurface,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  height: 32,
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceVariant,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.white12),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<int>(
+                                      value: _rowsPerPage,
+                                      dropdownColor: AppColors.surfaceVariant,
+                                      style: const TextStyle(
+                                          fontSize: 13, color: Colors.white),
+                                      icon: const Icon(Icons.arrow_drop_down,
+                                          color: AppColors.onSurface, size: 18),
+                                      items: const [
+                                        DropdownMenuItem(
+                                            value: 5, child: Text('5')),
+                                        DropdownMenuItem(
+                                            value: 10, child: Text('10')),
+                                        DropdownMenuItem(
+                                            value: 25, child: Text('25')),
+                                        DropdownMenuItem(
+                                            value: 50, child: Text('50')),
+                                      ],
+                                      onChanged: (v) {
+                                        if (v != null) {
+                                          setState(() {
+                                            _rowsPerPage = v;
+                                            _currentPage = 0;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  totalItems == 0
+                                      ? '0 of 0'
+                                      : '${startIndex + 1}–$endIndex of $totalItems',
+                                  style: const TextStyle(
+                                    color: AppColors.onSurface,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                IconButton(
+                                  icon: const Icon(Icons.first_page_rounded,
+                                      size: 20),
+                                  tooltip: 'First Page',
+                                  onPressed: validPage > 0
+                                      ? () => setState(() => _currentPage = 0)
+                                      : null,
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_left_rounded,
+                                      size: 20),
+                                  tooltip: 'Previous Page',
+                                  onPressed: validPage > 0
+                                      ? () => setState(
+                                          () => _currentPage = validPage - 1)
+                                      : null,
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  child: Text(
+                                    'Page ${validPage + 1} of ${totalPages == 0 ? 1 : totalPages}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white70,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_right_rounded,
+                                      size: 20),
+                                  tooltip: 'Next Page',
+                                  onPressed: validPage < totalPages - 1
+                                      ? () => setState(
+                                          () => _currentPage = validPage + 1)
+                                      : null,
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.last_page_rounded,
+                                      size: 20),
+                                  tooltip: 'Last Page',
+                                  onPressed: validPage < totalPages - 1
+                                      ? () => setState(
+                                          () => _currentPage = totalPages - 1)
+                                      : null,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             );
@@ -2513,7 +2839,8 @@ class _VoucherGenerationDialog extends StatefulWidget {
   const _VoucherGenerationDialog({required this.settings});
 
   @override
-  State<_VoucherGenerationDialog> createState() => _VoucherGenerationDialogState();
+  State<_VoucherGenerationDialog> createState() =>
+      _VoucherGenerationDialogState();
 }
 
 class _VoucherGenerationDialogState extends State<_VoucherGenerationDialog> {
@@ -2538,7 +2865,8 @@ class _VoucherGenerationDialogState extends State<_VoucherGenerationDialog> {
     final count = int.tryParse(_countCtrl.text.trim()) ?? 0;
     if (count <= 0 || count > 100) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a quantity between 1 and 100.')),
+        const SnackBar(
+            content: Text('Please enter a quantity between 1 and 100.')),
       );
       return;
     }
@@ -2570,7 +2898,9 @@ class _VoucherGenerationDialogState extends State<_VoucherGenerationDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Generation failed: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+              content: Text('Generation failed: $e'),
+              backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -2587,9 +2917,11 @@ class _VoucherGenerationDialogState extends State<_VoucherGenerationDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Row(
         children: [
-          Icon(Icons.confirmation_number_rounded, color: AppColors.primary, size: 28),
+          Icon(Icons.confirmation_number_rounded,
+              color: AppColors.primary, size: 28),
           SizedBox(width: 12),
-          Text('Generate Customer Vouchers', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text('Generate Customer Vouchers',
+              style: TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
       content: SizedBox(
@@ -2599,7 +2931,8 @@ class _VoucherGenerationDialogState extends State<_VoucherGenerationDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('1. Select Shot Mode / Tier:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const Text('1. Select Shot Mode / Tier:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 10,
@@ -2621,7 +2954,8 @@ class _VoucherGenerationDialogState extends State<_VoucherGenerationDialog> {
                     selected: isSelected,
                     selectedColor: AppColors.primary,
                     label: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 4),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -2629,14 +2963,18 @@ class _VoucherGenerationDialogState extends State<_VoucherGenerationDialog> {
                             mode.label,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: isSelected ? Colors.white : AppColors.onBackground,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.onBackground,
                             ),
                           ),
                           Text(
                             '₱$price • ${mode.photoCount} photo${mode.photoCount > 1 ? "s" : ""}',
                             style: TextStyle(
                               fontSize: 11,
-                              color: isSelected ? Colors.white70 : AppColors.onSurface,
+                              color: isSelected
+                                  ? Colors.white70
+                                  : AppColors.onSurface,
                             ),
                           ),
                         ],
@@ -2646,11 +2984,10 @@ class _VoucherGenerationDialogState extends State<_VoucherGenerationDialog> {
                   );
                 }).toList(),
               ),
-
               const SizedBox(height: 24),
-              const Text('2. How many vouchers would you like to generate?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const Text('2. How many vouchers would you like to generate?',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               const SizedBox(height: 10),
-
               Row(
                 children: [
                   IconButton.filledTonal(
@@ -2665,7 +3002,8 @@ class _VoucherGenerationDialogState extends State<_VoucherGenerationDialog> {
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 18),
                       decoration: const InputDecoration(
                         contentPadding: EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -2685,19 +3023,20 @@ class _VoucherGenerationDialogState extends State<_VoucherGenerationDialog> {
                         label: Text('+$preset'),
                         onPressed: () {
                           final cur = int.tryParse(_countCtrl.text.trim()) ?? 0;
-                          _countCtrl.text = (cur + preset).clamp(1, 100).toString();
+                          _countCtrl.text =
+                              (cur + preset).clamp(1, 100).toString();
                         },
                       );
                     }).toList(),
                   ),
                 ],
               ),
-
               const SizedBox(height: 20),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 activeColor: AppColors.primary,
-                title: const Text('Print thermal ticket slips immediately', style: TextStyle(fontSize: 14)),
+                title: const Text('Print thermal ticket slips immediately',
+                    style: TextStyle(fontSize: 14)),
                 value: _printSlips,
                 onChanged: (v) => setState(() => _printSlips = v ?? true),
               ),
@@ -2715,7 +3054,8 @@ class _VoucherGenerationDialogState extends State<_VoucherGenerationDialog> {
               ? const SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
                 )
               : const Icon(Icons.bolt_rounded),
           label: Text(_isGenerating ? 'Generating...' : 'Generate Now'),
@@ -2750,6 +3090,8 @@ class _SalesSectionState extends State<_SalesSection> {
   _SalesDateFilter _dateFilter = _SalesDateFilter.allTime;
   DateTimeRange? _customRange;
   ShotMode? _selectedTier;
+  int _currentPage = 0;
+  int _rowsPerPage = 10;
 
   @override
   void initState() {
@@ -2776,7 +3118,8 @@ class _SalesSectionState extends State<_SalesSection> {
         final end = DateTime(y.year, y.month, y.day, 23, 59, 59, 999);
         return DateTimeRange(start: start, end: end);
       case _SalesDateFilter.last7Days:
-        final start = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
+        final start = DateTime(now.year, now.month, now.day)
+            .subtract(const Duration(days: 6));
         final end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
         return DateTimeRange(start: start, end: end);
       case _SalesDateFilter.thisMonth:
@@ -2826,94 +3169,6 @@ class _SalesSectionState extends State<_SalesSection> {
         ),
         const SizedBox(height: 20),
 
-        // ── Date Filter Bar ──────────────────────────────────────────────────
-        Card(
-          color: AppColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Date Filter:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Active: ${_filterLabel()}',
-                        style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Today'),
-                      selected: _dateFilter == _SalesDateFilter.today,
-                      onSelected: (_) => setState(() => _dateFilter = _SalesDateFilter.today),
-                    ),
-                    ChoiceChip(
-                      label: const Text('Yesterday'),
-                      selected: _dateFilter == _SalesDateFilter.yesterday,
-                      onSelected: (_) => setState(() => _dateFilter = _SalesDateFilter.yesterday),
-                    ),
-                    ChoiceChip(
-                      label: const Text('Last 7 Days'),
-                      selected: _dateFilter == _SalesDateFilter.last7Days,
-                      onSelected: (_) => setState(() => _dateFilter = _SalesDateFilter.last7Days),
-                    ),
-                    ChoiceChip(
-                      label: const Text('This Month'),
-                      selected: _dateFilter == _SalesDateFilter.thisMonth,
-                      onSelected: (_) => setState(() => _dateFilter = _SalesDateFilter.thisMonth),
-                    ),
-                    ChoiceChip(
-                      label: const Text('All Time'),
-                      selected: _dateFilter == _SalesDateFilter.allTime,
-                      onSelected: (_) => setState(() => _dateFilter = _SalesDateFilter.allTime),
-                    ),
-                    ActionChip(
-                      avatar: const Icon(Icons.date_range_rounded, size: 16),
-                      label: Text(_dateFilter == _SalesDateFilter.custom && _customRange != null
-                          ? 'Custom: ${_customRange!.start.month}/${_customRange!.start.day}-${_customRange!.end.month}/${_customRange!.end.day}'
-                          : 'Custom Range…'),
-                      onPressed: () async {
-                        final picked = await showDateRangePicker(
-                          context: context,
-                          firstDate: DateTime(2024),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
-                          initialDateRange: _customRange ?? DateTimeRange(
-                            start: DateTime.now().subtract(const Duration(days: 7)),
-                            end: DateTime.now(),
-                          ),
-                        );
-                        if (picked != null) {
-                          setState(() {
-                            _customRange = picked;
-                            _dateFilter = _SalesDateFilter.custom;
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
         // ── Data Content ─────────────────────────────────────────────────────
         FutureBuilder<List<VoucherEntry>>(
           future: _vouchersFuture,
@@ -2935,7 +3190,8 @@ class _SalesSectionState extends State<_SalesSection> {
               if (v.status != 'used') return false;
               final timestamp = v.redeemedAt ?? v.createdAt;
               if (range != null) {
-                if (timestamp.isBefore(range.start) || timestamp.isAfter(range.end)) {
+                if (timestamp.isBefore(range.start) ||
+                    timestamp.isAfter(range.end)) {
                   return false;
                 }
               }
@@ -2974,10 +3230,22 @@ class _SalesSectionState extends State<_SalesSection> {
             final totalRev = singleRev + tripleRev + quadRev + hexRev;
 
             // Tier filtering for table
-            final tableSales = usedSales.where((v) {
-              if (_selectedTier == null) return true;
-              return v.tierChar == _selectedTier!.tierChar;
-            }).toList().reversed.toList();
+            final tableSales = usedSales
+                .where((v) {
+                  if (_selectedTier == null) return true;
+                  return v.tierChar == _selectedTier!.tierChar;
+                })
+                .toList()
+                .reversed
+                .toList();
+
+            final totalItems = tableSales.length;
+            final totalPages = (totalItems / _rowsPerPage).ceil();
+            final validPage =
+                totalPages == 0 ? 0 : _currentPage.clamp(0, totalPages - 1);
+            final startIndex = validPage * _rowsPerPage;
+            final endIndex = (startIndex + _rowsPerPage).clamp(0, totalItems);
+            final pagedSales = tableSales.sublist(startIndex, endIndex);
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3005,7 +3273,9 @@ class _SalesSectionState extends State<_SalesSection> {
                         width: cardWidth,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: isPrimary ? color.withValues(alpha: 0.18) : AppColors.surface,
+                          color: isPrimary
+                              ? color.withValues(alpha: 0.18)
+                              : AppColors.surface,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: isPrimary ? color : Colors.white10,
@@ -3023,7 +3293,9 @@ class _SalesSectionState extends State<_SalesSection> {
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.bold,
-                                    color: isPrimary ? Colors.white : AppColors.onSurface,
+                                    color: isPrimary
+                                        ? Colors.white
+                                        : AppColors.onSurface,
                                   ),
                                 ),
                                 Icon(icon, size: 20, color: color),
@@ -3043,7 +3315,9 @@ class _SalesSectionState extends State<_SalesSection> {
                               '$count sold • $subtitle',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isPrimary ? Colors.white70 : AppColors.onSurface,
+                                color: isPrimary
+                                    ? Colors.white70
+                                    : AppColors.onSurface,
                               ),
                             ),
                           ],
@@ -3101,164 +3375,484 @@ class _SalesSectionState extends State<_SalesSection> {
                   },
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
 
-                // ── Sales History Header & Tier Filter ───────────────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Redeemed Sales History (${tableSales.length})',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    Wrap(
-                      spacing: 6,
-                      children: [
-                        ChoiceChip(
-                          label: const Text('All'),
-                          selected: _selectedTier == null,
-                          onSelected: (_) => setState(() => _selectedTier = null),
-                        ),
-                        ...ShotMode.values.map((mode) {
-                          return ChoiceChip(
-                            label: Text(mode.label),
-                            selected: _selectedTier == mode,
-                            onSelected: (_) => setState(() => _selectedTier = mode),
-                          );
-                        }),
-                      ],
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // ── Sales History Table ──────────────────────────────────────
-                if (tableSales.isEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(48),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white10),
-                    ),
+                // ── Sales History Card & Filters ─────────────────────────────
+                Card(
+                  color: AppColors.surface,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Icon(
-                          Icons.receipt_long_rounded,
-                          size: 50,
-                          color: AppColors.onSurface.withValues(alpha: 0.5),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'No Sales Found for this Filter',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'No vouchers were redeemed during the ${_filterLabel().toLowerCase()} period.',
-                          style: const TextStyle(color: AppColors.onSurface),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Card(
-                    color: AppColors.surface,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                          columnSpacing: 28,
-                          columns: const [
-                            DataColumn(label: Text('Voucher Code', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('Tier Mode', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('Redeemed At', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('Created Date', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
-                          ],
-                          rows: tableSales.take(50).map((v) {
-                            final mode = ShotModeExtension.fromTierChar(v.tierChar);
-                            final redeemedStr = v.redeemedAt != null
-                                ? v.redeemedAt.toString().substring(0, 16)
-                                : '—';
-
-                            return DataRow(
-                              cells: [
-                                DataCell(
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      SelectableText(
-                                        v.code,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      IconButton(
-                                        icon: const Icon(Icons.copy_rounded, size: 16, color: AppColors.onSurface),
-                                        tooltip: 'Copy Code',
-                                        onPressed: () {
-                                          Clipboard.setData(ClipboardData(text: v.code));
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text('Copied ${v.code}')),
-                                          );
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          child: Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 12,
+                            runSpacing: 10,
+                            children: [
+                              Text(
+                                'Redeemed Sales History (${tableSales.length})',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 15),
+                              ),
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 10,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  // Date Filter Dropdown
+                                  Container(
+                                    height: 38,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.white12),
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<_SalesDateFilter>(
+                                        value: _dateFilter,
+                                        dropdownColor: AppColors.surfaceVariant,
+                                        style: const TextStyle(
+                                            fontSize: 13, color: Colors.white),
+                                        icon: const Icon(Icons.arrow_drop_down,
+                                            color: AppColors.onSurface,
+                                            size: 20),
+                                        items: [
+                                          const DropdownMenuItem(
+                                            value: _SalesDateFilter.today,
+                                            child: Text('Date: Today'),
+                                          ),
+                                          const DropdownMenuItem(
+                                            value: _SalesDateFilter.yesterday,
+                                            child: Text('Date: Yesterday'),
+                                          ),
+                                          const DropdownMenuItem(
+                                            value: _SalesDateFilter.last7Days,
+                                            child: Text('Date: Last 7 Days'),
+                                          ),
+                                          const DropdownMenuItem(
+                                            value: _SalesDateFilter.thisMonth,
+                                            child: Text('Date: This Month'),
+                                          ),
+                                          const DropdownMenuItem(
+                                            value: _SalesDateFilter.allTime,
+                                            child: Text('Date: All Time'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: _SalesDateFilter.custom,
+                                            child: Text(
+                                              _dateFilter ==
+                                                          _SalesDateFilter
+                                                              .custom &&
+                                                      _customRange != null
+                                                  ? 'Date: ${_customRange!.start.month}/${_customRange!.start.day}–${_customRange!.end.month}/${_customRange!.end.day}'
+                                                  : 'Date: Custom Range…',
+                                            ),
+                                          ),
+                                        ],
+                                        onChanged: (val) async {
+                                          if (val == _SalesDateFilter.custom) {
+                                            final picked =
+                                                await showDateRangePicker(
+                                              context: context,
+                                              firstDate: DateTime(2024),
+                                              lastDate: DateTime.now().add(
+                                                  const Duration(days: 365)),
+                                              initialDateRange: _customRange ??
+                                                  DateTimeRange(
+                                                    start: DateTime.now()
+                                                        .subtract(
+                                                            const Duration(
+                                                                days: 7)),
+                                                    end: DateTime.now(),
+                                                  ),
+                                            );
+                                            if (picked != null) {
+                                              setState(() {
+                                                _customRange = picked;
+                                                _dateFilter =
+                                                    _SalesDateFilter.custom;
+                                                _currentPage = 0;
+                                              });
+                                            }
+                                          } else if (val != null) {
+                                            setState(() {
+                                              _dateFilter = val;
+                                              _currentPage = 0;
+                                            });
+                                          }
                                         },
                                       ),
-                                    ],
+                                    ),
                                   ),
-                                ),
-                                DataCell(
+                                  // Tier Dropdown
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    height: 38,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
                                     decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(6),
+                                      color: AppColors.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.white12),
                                     ),
-                                    child: Text(
-                                      mode.label,
-                                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 12),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<ShotMode?>(
+                                        value: _selectedTier,
+                                        dropdownColor: AppColors.surfaceVariant,
+                                        style: const TextStyle(
+                                            fontSize: 13, color: Colors.white),
+                                        icon: const Icon(Icons.arrow_drop_down,
+                                            color: AppColors.onSurface,
+                                            size: 20),
+                                        items: [
+                                          const DropdownMenuItem(
+                                            value: null,
+                                            child: Text('Tier: All Tiers'),
+                                          ),
+                                          ...ShotMode.values.map(
+                                            (mode) => DropdownMenuItem(
+                                              value: mode,
+                                              child:
+                                                  Text('Tier: ${mode.label}'),
+                                            ),
+                                          ),
+                                        ],
+                                        onChanged: (val) {
+                                          setState(() {
+                                            _selectedTier = val;
+                                            _currentPage = 0;
+                                          });
+                                        },
+                                      ),
                                     ),
                                   ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    '₱${v.priceSnapshot.toStringAsFixed(2)}',
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.table_view_rounded,
+                                        size: 16),
+                                    label: const Text('Export'),
+                                    onPressed: tableSales.isEmpty
+                                        ? null
+                                        : () => _exportExcelAndNotify(
+                                              context: context,
+                                              exportFn: () => ExcelExportService
+                                                  .exportSalesReport(
+                                                sales: tableSales,
+                                                dateFilterLabel: _filterLabel(),
+                                                tierFilterLabel:
+                                                    _selectedTier?.label,
+                                              ),
+                                            ),
                                   ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(height: 1, color: Colors.white10),
+                        if (tableSales.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 48, horizontal: 24),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.receipt_long_rounded,
+                                  size: 50,
+                                  color: AppColors.onSurface
+                                      .withValues(alpha: 0.5),
                                 ),
-                                DataCell(Text(redeemedStr)),
-                                DataCell(Text(v.createdAt.toString().substring(0, 16))),
-                                DataCell(
-                                  IconButton(
-                                    icon: const Icon(Icons.print_rounded, size: 20),
-                                    tooltip: 'Print Receipt Copy',
-                                    onPressed: () async {
-                                      await _printVoucherSlipHelper(
-                                        context: context,
-                                        code: v.code,
-                                        mode: mode,
-                                        price: v.priceSnapshot,
-                                        expiresAt: v.expiresAt,
-                                      );
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Receipt printed for ${v.code}')),
-                                        );
-                                      }
-                                    },
-                                  ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'No Sales Found for this Filter',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'No vouchers were redeemed during the ${_filterLabel().toLowerCase()} period.',
+                                  style: const TextStyle(
+                                      color: AppColors.onSurface),
                                 ),
                               ],
-                            );
-                          }).toList(),
-                        ),
-                      ),
+                            ),
+                          )
+                        else ...[
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: DataTable(
+                              columnSpacing: 28,
+                              columns: const [
+                                DataColumn(
+                                    label: Text('Voucher Code',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                DataColumn(
+                                    label: Text('Tier Mode',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                DataColumn(
+                                    label: Text('Amount',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                DataColumn(
+                                    label: Text('Redeemed At',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                DataColumn(
+                                    label: Text('Created Date',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                DataColumn(
+                                    label: Text('Actions',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                              ],
+                              rows: pagedSales.map((v) {
+                                final mode =
+                                    ShotModeExtension.fromTierChar(v.tierChar);
+                                final redeemedStr = v.redeemedAt != null
+                                    ? v.redeemedAt.toString().substring(0, 16)
+                                    : '—';
+
+                                return DataRow(
+                                  cells: [
+                                    DataCell(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SelectableText(
+                                            v.code,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 0.8),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          IconButton(
+                                            icon: const Icon(Icons.copy_rounded,
+                                                size: 16,
+                                                color: AppColors.onSurface),
+                                            tooltip: 'Copy Code',
+                                            onPressed: () {
+                                              Clipboard.setData(
+                                                  ClipboardData(text: v.code));
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                    content: Text(
+                                                        'Copied ${v.code}')),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary
+                                              .withValues(alpha: 0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          mode.label,
+                                          style: const TextStyle(
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Text(
+                                        '₱${v.priceSnapshot.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    DataCell(Text(redeemedStr)),
+                                    DataCell(Text(v.createdAt
+                                        .toString()
+                                        .substring(0, 16))),
+                                    DataCell(
+                                      IconButton(
+                                        icon: const Icon(Icons.print_rounded,
+                                            size: 20),
+                                        tooltip: 'Print Receipt Copy',
+                                        onPressed: () async {
+                                          await _printVoucherSlipHelper(
+                                            context: context,
+                                            code: v.code,
+                                            mode: mode,
+                                            price: v.priceSnapshot,
+                                            expiresAt: v.expiresAt,
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                  content: Text(
+                                                      'Receipt printed for ${v.code}')),
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                          const Divider(height: 1, color: Colors.white10),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            child: Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 16,
+                              runSpacing: 10,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text(
+                                      'Rows per page:',
+                                      style: TextStyle(
+                                        color: AppColors.onSurface,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      height: 32,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surfaceVariant,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border:
+                                            Border.all(color: Colors.white12),
+                                      ),
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<int>(
+                                          value: _rowsPerPage,
+                                          dropdownColor:
+                                              AppColors.surfaceVariant,
+                                          style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.white),
+                                          icon: const Icon(
+                                              Icons.arrow_drop_down,
+                                              color: AppColors.onSurface,
+                                              size: 18),
+                                          items: const [
+                                            DropdownMenuItem(
+                                                value: 5, child: Text('5')),
+                                            DropdownMenuItem(
+                                                value: 10, child: Text('10')),
+                                            DropdownMenuItem(
+                                                value: 25, child: Text('25')),
+                                            DropdownMenuItem(
+                                                value: 50, child: Text('50')),
+                                          ],
+                                          onChanged: (v) {
+                                            if (v != null) {
+                                              setState(() {
+                                                _rowsPerPage = v;
+                                                _currentPage = 0;
+                                              });
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      totalItems == 0
+                                          ? '0 of 0'
+                                          : '${startIndex + 1}–$endIndex of $totalItems',
+                                      style: const TextStyle(
+                                        color: AppColors.onSurface,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    IconButton(
+                                      icon: const Icon(Icons.first_page_rounded,
+                                          size: 20),
+                                      tooltip: 'First Page',
+                                      onPressed: validPage > 0
+                                          ? () =>
+                                              setState(() => _currentPage = 0)
+                                          : null,
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                          Icons.chevron_left_rounded,
+                                          size: 20),
+                                      tooltip: 'Previous Page',
+                                      onPressed: validPage > 0
+                                          ? () => setState(() =>
+                                              _currentPage = validPage - 1)
+                                          : null,
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
+                                      child: Text(
+                                        'Page ${validPage + 1} of ${totalPages == 0 ? 1 : totalPages}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.white70,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                          Icons.chevron_right_rounded,
+                                          size: 20),
+                                      tooltip: 'Next Page',
+                                      onPressed: validPage < totalPages - 1
+                                          ? () => setState(() =>
+                                              _currentPage = validPage + 1)
+                                          : null,
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.last_page_rounded,
+                                          size: 20),
+                                      tooltip: 'Last Page',
+                                      onPressed: validPage < totalPages - 1
+                                          ? () => setState(() =>
+                                              _currentPage = totalPages - 1)
+                                          : null,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                ),
 
                 const SizedBox(height: 32),
               ],
