@@ -49,13 +49,10 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
         final settings = await _loadSettings();
         emit(AdminUnlockedState(settings: settings));
       } else {
-        emit(const AdminPasswordWrong(
-            5)); // placeholder — real count from SecurityService
+        emit(const AdminPasswordWrong());
       }
-    } on AdminLockedException catch (e) {
-      emit(AdminPasswordLocked(e.remaining));
     } catch (e) {
-      emit(const AdminPasswordWrong(0));
+      emit(const AdminPasswordWrong());
     }
   }
 

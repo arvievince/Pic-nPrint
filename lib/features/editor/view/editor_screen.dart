@@ -35,11 +35,13 @@ class _EditorScreenState extends State<EditorScreen> {
 
     Uint8List? pngBytes;
     try {
-      final boundary = _canvasKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      final boundary = _canvasKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
       if (boundary != null) {
         // High resolution snapshot (3.5x pixel ratio)
         final uiImage = await boundary.toImage(pixelRatio: 3.5);
-        final byteData = await uiImage.toByteData(format: ui.ImageByteFormat.png);
+        final byteData =
+            await uiImage.toByteData(format: ui.ImageByteFormat.png);
         pngBytes = byteData?.buffer.asUint8List();
       }
     } catch (e) {
@@ -58,7 +60,8 @@ class _EditorScreenState extends State<EditorScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => EditorBloc(compositionService: context.read(), session: widget.session),
+      create: (context) => EditorBloc(
+          compositionService: context.read(), session: widget.session),
       child: BlocConsumer<EditorBloc, EditorState>(
         listener: (context, state) {
           if (state.composedPath != null && !state.isComposing) {
@@ -203,18 +206,23 @@ class _EditorCanvas extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 color: isPolaroid ? Colors.white : Colors.black,
-                borderRadius: isCapturing ? BorderRadius.zero : BorderRadius.circular(12),
+                borderRadius:
+                    isCapturing ? BorderRadius.zero : BorderRadius.circular(12),
               ),
               child: ClipRRect(
-                borderRadius: isCapturing ? BorderRadius.zero : BorderRadius.circular(12),
+                borderRadius:
+                    isCapturing ? BorderRadius.zero : BorderRadius.circular(12),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     // ── 1. Base Multi-Photo Layer (Centered with Border Inset) ─────
-                    Padding(padding: _getBorderPadding(), child: _buildPhotoLayout()),
+                    Padding(
+                        padding: _getBorderPadding(),
+                        child: _buildPhotoLayout()),
 
                     // ── 2. Border Frame Overlay Layer ─────────────────────────────
-                    if (editorState.borderAssetPath != null) _BorderOverlay(borderId: editorState.borderAssetPath!),
+                    if (editorState.borderAssetPath != null)
+                      _BorderOverlay(borderId: editorState.borderAssetPath!),
 
                     // ── 3. Polaroid Session ID Chin Text ──────────────────────────
                     if (isPolaroid)
@@ -234,7 +242,8 @@ class _EditorCanvas extends StatelessWidget {
 
                     // ── 4. Sticker Overlays Layer ─────────────────────────────────
                     ...editorState.stickers.map(
-                      (s) => _StickerWidget(sticker: s, isCapturing: isCapturing),
+                      (s) =>
+                          _StickerWidget(sticker: s, isCapturing: isCapturing),
                     ),
 
                     // ── 5. Text Overlays Layer ────────────────────────────────────
@@ -272,7 +281,8 @@ class _EditorCanvas extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            border: hasBorder ? null : Border.all(color: Colors.white, width: 4),
+            border:
+                hasBorder ? null : Border.all(color: Colors.white, width: 4),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -303,7 +313,8 @@ class _EditorCanvas extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            border: hasBorder ? null : Border.all(color: Colors.white, width: 4),
+            border:
+                hasBorder ? null : Border.all(color: Colors.white, width: 4),
           ),
           child: Column(
             children: [
@@ -348,7 +359,8 @@ class _EditorCanvas extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            border: hasBorder ? null : Border.all(color: Colors.white, width: 4),
+            border:
+                hasBorder ? null : Border.all(color: Colors.white, width: 4),
           ),
           child: Column(
             children: [
@@ -514,7 +526,8 @@ class _StickerWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isEmoji = sticker.assetPath.startsWith('emoji:');
-    final emojiChar = isEmoji ? sticker.assetPath.replaceFirst('emoji:', '') : '';
+    final emojiChar =
+        isEmoji ? sticker.assetPath.replaceFirst('emoji:', '') : '';
 
     return Positioned(
       left: sticker.x,
@@ -537,7 +550,10 @@ class _StickerWidget extends StatelessWidget {
                           ),
                         );
                   },
-            onLongPress: isCapturing ? null : () => context.read<EditorBloc>().add(StickerDeleted(sticker.id)),
+            onLongPress: isCapturing
+                ? null
+                : () =>
+                    context.read<EditorBloc>().add(StickerDeleted(sticker.id)),
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: Transform.rotate(
@@ -562,7 +578,8 @@ class _StickerWidget extends StatelessWidget {
                           sticker.assetPath,
                           width: 80,
                           height: 80,
-                          errorBuilder: (context, error, stackTrace) => const Icon(
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
                             Icons.emoji_emotions_rounded,
                             size: 50,
                             color: Colors.amber,
@@ -638,9 +655,14 @@ class _TextWidget extends StatelessWidget {
                           ),
                         );
                   },
-            onLongPress: isCapturing ? null : () => context.read<EditorBloc>().add(TextDeleted(textItem.id)),
+            onLongPress: isCapturing
+                ? null
+                : () =>
+                    context.read<EditorBloc>().add(TextDeleted(textItem.id)),
             child: Padding(
-              padding: isCapturing ? const EdgeInsets.all(6.0) : const EdgeInsets.fromLTRB(6, 6, 20, 6),
+              padding: isCapturing
+                  ? const EdgeInsets.all(6.0)
+                  : const EdgeInsets.fromLTRB(6, 6, 20, 6),
               child: Text(
                 textItem.text,
                 style: TextStyle(
@@ -1096,7 +1118,8 @@ class _TextPanelState extends State<_TextPanel> {
                           color: c,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: isSelected ? AppColors.primary : Colors.white30,
+                            color:
+                                isSelected ? AppColors.primary : Colors.white30,
                             width: isSelected ? 3 : 1,
                           ),
                         ),

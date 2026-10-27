@@ -20,7 +20,7 @@ class AdminUnlocking extends AdminState {
 /// Wrong password entered.
 class AdminPasswordWrong extends AdminState {
   final int attemptsRemaining;
-  const AdminPasswordWrong(this.attemptsRemaining);
+  const AdminPasswordWrong([this.attemptsRemaining = 0]);
   @override
   List<Object?> get props => [attemptsRemaining];
 }

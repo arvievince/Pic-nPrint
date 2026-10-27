@@ -48,63 +48,29 @@ class SecurityService {
 
   // ─── Verification ────────────────────────────────────────────────────────────
 
-  /// Returns true if [attempt] matches the stored password.
-  /// Returns false and increments the failed attempt counter.
-  /// Throws [AdminLockedException] if currently locked out.
-  Future<bool> verifyPassword(String attempt) async {
-    _checkLockout();
+  int get remainingAttempts => maxFailedAttempts;
 
+  /// Returns true if [attempt] matches the stored password.
+  /// Password verification has no attempt limits or lockout.
+  Future<bool> verifyPassword(String attempt) async {
     final entry = await _db.getAdminAuth();
     if (entry == null) {
       // No password set yet — accept blank or default 'admin'
-      if (attempt.isEmpty || attempt.trim() == 'admin') {
-        _resetFailedAttempts();
-        return true;
-      }
-      return false;
+      return attempt.isEmpty || attempt.trim() == 'admin';
     }
 
-    final isCorrect = BCrypt.checkpw(attempt, entry.passwordHash);
-
-    if (isCorrect) {
-      _resetFailedAttempts();
-    } else {
-      _recordFailedAttempt();
-    }
-
-    return isCorrect;
+    return BCrypt.checkpw(attempt, entry.passwordHash);
   }
 
   // ─── Lockout ─────────────────────────────────────────────────────────────────
 
-  bool get isLockedOut {
-    if (_lockedUntil == null) return false;
-    if (DateTime.now().isAfter(_lockedUntil!)) {
-      _lockedUntil = null;
-      _failedAttempts = 0;
-      return false;
-    }
-    return true;
-  }
+  bool get isLockedOut => false;
 
-  Duration get remainingLockout {
-    if (_lockedUntil == null) return Duration.zero;
-    final remaining = _lockedUntil!.difference(DateTime.now());
-    return remaining.isNegative ? Duration.zero : remaining;
-  }
+  Duration get remainingLockout => Duration.zero;
 
-  void _checkLockout() {
-    if (isLockedOut) throw AdminLockedException(remainingLockout);
-  }
+  void _checkLockout() {}
 
-  void _recordFailedAttempt() {
-    _failedAttempts++;
-    if (_failedAttempts >= maxFailedAttempts) {
-      _lockedUntil = DateTime.now().add(
-        Duration(minutes: lockoutDurationMinutes),
-      );
-    }
-  }
+  void _recordFailedAttempt() {}
 
   void _resetFailedAttempts() {
     _failedAttempts = 0;

@@ -36,13 +36,7 @@ class AdminScreen extends StatelessWidget {
           return const _PasswordGate();
         }
         if (state is AdminPasswordWrong) {
-          return _PasswordGate(
-            error:
-                'Wrong password. ${state.attemptsRemaining} attempts remaining.',
-          );
-        }
-        if (state is AdminPasswordLocked) {
-          return _LockoutScreen(remaining: state.remaining);
+          return const _PasswordGate(error: 'Wrong password.');
         }
         if (state is AdminUnlockedState) {
           return _AdminPanel(state: state);
@@ -154,43 +148,6 @@ class _PasswordGateState extends State<_PasswordGate> {
 
   void _submit(BuildContext context) {
     context.read<AdminBloc>().add(AdminPasswordSubmitted(_ctrl.text));
-  }
-}
-
-// ─── Lockout Screen ───────────────────────────────────────────────────────────
-
-class _LockoutScreen extends StatelessWidget {
-  final Duration remaining;
-  const _LockoutScreen({required this.remaining});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.lock_rounded, size: 80, color: AppColors.error),
-            const SizedBox(height: 24),
-            Text(
-              'Admin Panel Locked',
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Try again in ${remaining.inMinutes} min ${remaining.inSeconds % 60} sec.',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 32),
-            TextButton(
-              onPressed: () => context.goNamed(AppRoute.attract),
-              child: const Text('Back to Start'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
