@@ -51,7 +51,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
         _currentCameraIndex = frontIndex != -1 ? frontIndex : 0;
         await _startCamera(_cameras![_currentCameraIndex]);
       } else {
-        debugPrint('[CaptureScreen] No cameras reported by availableCameras().');
+        debugPrint(
+            '[CaptureScreen] No cameras reported by availableCameras().');
       }
     } catch (e, stack) {
       debugPrint('[CaptureScreen] Error initializing cameras: $e\n$stack');
@@ -59,23 +60,84 @@ class _CaptureScreenState extends State<CaptureScreen> {
     }
   }
 
+  bool _isCameraInitializing = false;
+
   Future<void> _startCamera(CameraDescription description) async {
+    if (_isCameraInitializing) return;
+    _isCameraInitializing = true;
     setState(() => _cameraReady = false);
+
+    // Dispose old controller completely BEFORE creating new one
     final oldController = _cameraController;
-    _cameraController = CameraController(
+    _cameraController = null;
+    if (oldController != null) {
+      try {
+        await oldController.dispose();
+      } catch (e) {
+        debugPrint('[CaptureScreen] Error disposing previous camera: $e');
+      }
+    }
+
+    // Windows MediaFoundation needs a moment to release device handle
+    if (Platform.isWindows) {
+      await Future.delayed(const Duration(milliseconds: 150));
+    }
+
+    if (!mounted) {
+      _isCameraInitializing = false;
+      return;
+    }
+
+    final newController = CameraController(
       description,
       ResolutionPreset.high,
       enableAudio: false,
     );
 
-    await oldController?.dispose();
-
     try {
-      await _cameraController!.initialize();
-      if (mounted) setState(() => _cameraReady = true);
+      await newController.initialize();
+      if (mounted) {
+        _cameraController = newController;
+        setState(() => _cameraReady = true);
+      } else {
+        await newController.dispose();
+      }
     } catch (e, stack) {
-      debugPrint('[CaptureScreen] Error starting camera controller: $e\n$stack');
-      if (mounted) setState(() => _cameraReady = false);
+      debugPrint(
+          '[CaptureScreen] Error starting camera controller: $e\n$stack');
+      try {
+        await newController.dispose();
+      } catch (_) {}
+
+      // Retry once after a short delay if device ID was still busy
+      if (e.toString().contains('already exists') && mounted) {
+        debugPrint(
+            '[CaptureScreen] Retrying camera init after device release delay...');
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (mounted) {
+          final retryController = CameraController(
+            description,
+            ResolutionPreset.high,
+            enableAudio: false,
+          );
+          try {
+            await retryController.initialize();
+            if (mounted) {
+              _cameraController = retryController;
+              setState(() => _cameraReady = true);
+            } else {
+              await retryController.dispose();
+            }
+          } catch (retryError) {
+            debugPrint('[CaptureScreen] Retry failed: $retryError');
+            if (mounted) setState(() => _cameraReady = false);
+          }
+        }
+      } else {
+        if (mounted) setState(() => _cameraReady = false);
+      }
+    } finally {
+      _isCameraInitializing = false;
     }
   }
 
@@ -88,6 +150,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
   @override
   void dispose() {
     _cameraController?.dispose();
+    _cameraController = null;
     super.dispose();
   }
 
@@ -105,6 +168,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
             await _takePhoto(context);
           }
           if (state is CaptureComplete) {
+            // Free the camera immediately before leaving the screen
+            _cameraController?.dispose();
+            _cameraController = null;
             // Update session with image paths, navigate to editor
             final updated = widget.session.copyWith(
               imagePaths: state.imagePaths,
@@ -195,9 +261,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
                                 style: const TextStyle(color: Colors.white)),
                             const SizedBox(height: 16),
                             ElevatedButton(
-                              onPressed: () => context
-                                  .read<CaptureBloc>()
-                                  .add(const CaptureMethodChosen(CaptureMethod.camera)),
+                              onPressed: () => context.read<CaptureBloc>().add(
+                                  const CaptureMethodChosen(
+                                      CaptureMethod.camera)),
                               child: const Text('Try Again'),
                             ),
                           ],
@@ -431,9 +497,7 @@ class _CountdownOverlay extends StatelessWidget {
             const Text(
               'Get ready!',
               style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 20,
-                  letterSpacing: 2),
+                  color: Colors.white70, fontSize: 20, letterSpacing: 2),
             ),
           ],
         ),
@@ -703,9 +767,7 @@ class _ReviewOverlay extends StatelessWidget {
                         foregroundColor:
                             canRetake ? Colors.white : Colors.white38,
                         side: BorderSide(
-                          color: canRetake
-                              ? AppColors.primary
-                              : Colors.white24,
+                          color: canRetake ? AppColors.primary : Colors.white24,
                           width: 1.5,
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 16),

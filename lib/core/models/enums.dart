@@ -57,6 +57,7 @@ enum LayoutType {
   horizontalRow, // all photos in one horizontal strip
   grid2x2,       // 4 photos in 2×2 grid
   grid3x2,       // 6 photos in 3×2 grid
+  bendo,         // Staggered bento-box collage (3, 4, or 6 photos)
 }
 
 extension LayoutTypeExtension on LayoutType {
@@ -67,6 +68,7 @@ extension LayoutTypeExtension on LayoutType {
       case LayoutType.horizontalRow: return 'Horizontal Strip';
       case LayoutType.grid2x2:       return '2×2 Grid';
       case LayoutType.grid3x2:       return '3×2 Grid';
+      case LayoutType.bendo:         return 'Bendo';
     }
   }
 }

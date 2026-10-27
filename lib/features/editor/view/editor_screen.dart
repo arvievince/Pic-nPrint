@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -29,22 +30,29 @@ class _EditorScreenState extends State<EditorScreen> {
   final GlobalKey _canvasKey = GlobalKey();
   bool _isCapturing = false;
   String? _logoPath;
+  String? _brandText;
 
   @override
   void initState() {
     super.initState();
-    _loadLogo();
+    _loadBranding();
   }
 
-  Future<void> _loadLogo() async {
+  Future<void> _loadBranding() async {
     final db = context.read<AppDatabase>();
     final path = await db.getSetting('kiosk_logo_path');
-    if (path != null &&
-        path.trim().isNotEmpty &&
-        File(path.trim()).existsSync()) {
-      if (mounted) {
-        setState(() => _logoPath = path.trim());
-      }
+    final title = await db.getSetting('kiosk_title');
+    if (mounted) {
+      setState(() {
+        if (path != null &&
+            path.trim().isNotEmpty &&
+            File(path.trim()).existsSync()) {
+          _logoPath = path.trim();
+        }
+        if (title != null && title.trim().isNotEmpty) {
+          _brandText = title.trim();
+        }
+      });
     }
   }
 
@@ -85,6 +93,7 @@ class _EditorScreenState extends State<EditorScreen> {
         compositionService: context.read(),
         session: widget.session,
         logoPath: _logoPath,
+        brandText: _brandText,
       ),
       child: BlocConsumer<EditorBloc, EditorState>(
         listener: (context, state) {
@@ -146,6 +155,7 @@ class _EditorScreenState extends State<EditorScreen> {
                     canvasKey: _canvasKey,
                     isCapturing: _isCapturing,
                     logoPath: _logoPath,
+                    brandText: _brandText,
                   ),
                 ),
 
@@ -168,6 +178,7 @@ class _EditorCanvas extends StatelessWidget {
   final GlobalKey canvasKey;
   final bool isCapturing;
   final String? logoPath;
+  final String? brandText;
 
   const _EditorCanvas({
     required this.session,
@@ -175,6 +186,7 @@ class _EditorCanvas extends StatelessWidget {
     required this.canvasKey,
     required this.isCapturing,
     this.logoPath,
+    this.brandText,
   });
 
   double _getAspectRatio() {
@@ -199,6 +211,8 @@ class _EditorCanvas extends StatelessWidget {
         return 1.0;
       case LayoutType.grid3x2:
         return 3 / 2;
+      case LayoutType.bendo:
+        return 2 / 3;
     }
   }
 
@@ -251,16 +265,19 @@ class _EditorCanvas extends StatelessWidget {
                                       mainAxisSize: MainAxisSize.min,
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
-                                      children: const [
-                                        Icon(
+                                      children: [
+                                        const Icon(
                                           Icons.camera_alt_rounded,
                                           color: AppColors.primary,
                                           size: 20,
                                         ),
-                                        SizedBox(width: 8),
+                                        const SizedBox(width: 8),
                                         Text(
-                                          'Pic & Print',
-                                          style: TextStyle(
+                                          (brandText != null &&
+                                                  brandText!.trim().isNotEmpty)
+                                              ? brandText!.trim()
+                                              : 'Pic & Print',
+                                          style: const TextStyle(
                                             color: AppColors.primary,
                                             fontWeight: FontWeight.w800,
                                             fontSize: 16,
@@ -354,7 +371,6 @@ class _EditorCanvas extends StatelessWidget {
 
   Widget _buildPhotoLayout() {
     final paths = session.imagePaths;
-    final hasBorder = editorState.borderAssetPath != null;
 
     if (paths.isEmpty) return _errorPlaceholder();
     if (paths.length == 1) return _buildBaseImage(paths.first);
@@ -478,23 +494,174 @@ class _EditorCanvas extends StatelessWidget {
             ],
           ),
         );
+
+      case LayoutType.bendo:
+        return _buildBendoLayout(paths);
     }
   }
 
-  Widget _buildBaseImage(String path) {
-    final file = File(path);
-    if (file.existsSync()) {
-      return Image.file(
-        file,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _errorPlaceholder(),
-      );
-    }
+  Widget _buildBendoCard(String path) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: _buildBaseImage(path),
+    );
+  }
 
-    return Image.asset(
-      path,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => _errorPlaceholder(),
+  Widget _buildBendoBrandTag() {
+    final text = (brandText != null && brandText!.trim().isNotEmpty)
+        ? brandText!.trim()
+        : 'Pic & Print';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                const Icon(
+                  Icons.camera_enhance_rounded,
+                  size: 20,
+                  color: Colors.black87,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBendoLayout(List<String> paths) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: () {
+        if (paths.length <= 3) {
+          // ── 3-Shot Bendo: Left hero photo + Right 2 stacked photos with brand tag ──
+          final p0 = paths[0];
+          final p1 = paths.length > 1 ? paths[1] : p0;
+          final p2 = paths.length > 2 ? paths[2] : p0;
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildBendoCard(p0),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: _buildBendoCard(p1)),
+                    _buildBendoBrandTag(),
+                    Expanded(child: _buildBendoCard(p2)),
+                  ],
+                ),
+              ),
+            ],
+          );
+        } else if (paths.length <= 4) {
+          // ── 4-Shot Bendo: Staggered 2x2 masonry with brand tag ──
+          final p0 = paths[0];
+          final p1 = paths.length > 1 ? paths[1] : p0;
+          final p2 = paths.length > 2 ? paths[2] : p0;
+          final p3 = paths.length > 3 ? paths[3] : p0;
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 2, child: _buildBendoCard(p0)),
+                    const SizedBox(height: 16),
+                    Expanded(flex: 3, child: _buildBendoCard(p1)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 3, child: _buildBendoCard(p2)),
+                    _buildBendoBrandTag(),
+                    Expanded(flex: 2, child: _buildBendoCard(p3)),
+                  ],
+                ),
+              ),
+            ],
+          );
+        } else {
+          // ── 6-Shot Bendo (or 5+): 3 Left + 3 Right with brand tag ──
+          final p0 = paths[0];
+          final p1 = paths.length > 1 ? paths[1] : p0;
+          final p2 = paths.length > 2 ? paths[2] : p0;
+          final p3 = paths.length > 3 ? paths[3] : p0;
+          final p4 = paths.length > 4 ? paths[4] : p0;
+          final p5 =
+              paths.length > 5 ? paths[5] : (paths.length > 4 ? paths[4] : p0);
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Left Column: 3 photos (short, tall, short)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 2, child: _buildBendoCard(p0)),
+                    const SizedBox(height: 6),
+                    Expanded(flex: 3, child: _buildBendoCard(p1)),
+                    const SizedBox(height: 6),
+                    Expanded(flex: 2, child: _buildBendoCard(p2)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Right Column: 3 photos (tall, medium, medium) + brand tag
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 3, child: _buildBendoCard(p3)),
+                    _buildBendoBrandTag(),
+                    Expanded(flex: 2, child: _buildBendoCard(p4)),
+                    if (paths.length >= 6) ...[
+                      const SizedBox(height: 6),
+                      Expanded(flex: 2, child: _buildBendoCard(p5)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+      }(),
+    );
+  }
+
+  Widget _buildBaseImage(String path) {
+    return _AdjustablePhotoSlot(
+      key: ValueKey(path),
+      path: path,
+      isCapturing: isCapturing,
     );
   }
 
@@ -515,6 +682,235 @@ class _EditorCanvas extends StatelessWidget {
               'Photo not loaded',
               style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Interactive Adjustable Photo Slot ────────────────────────────────────────
+
+class _AdjustablePhotoSlot extends StatefulWidget {
+  final String path;
+  final bool isCapturing;
+
+  const _AdjustablePhotoSlot({
+    super.key,
+    required this.path,
+    this.isCapturing = false,
+  });
+
+  @override
+  State<_AdjustablePhotoSlot> createState() => _AdjustablePhotoSlotState();
+}
+
+class _AdjustablePhotoSlotState extends State<_AdjustablePhotoSlot> {
+  double _scale = 1.0;
+  double _baseScale = 1.0;
+  Offset _offset = Offset.zero;
+  Offset _baseOffset = Offset.zero;
+  Offset _startFocalPoint = Offset.zero;
+
+  Size? _imageSize;
+  ImageStream? _imageStream;
+  ImageStreamListener? _streamListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveImageSize();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AdjustablePhotoSlot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.path != widget.path) {
+      _scale = 1.0;
+      _offset = Offset.zero;
+      _resolveImageSize();
+    }
+  }
+
+  void _resolveImageSize() {
+    final file = File(widget.path);
+    final ImageProvider provider = file.existsSync()
+        ? FileImage(file)
+        : AssetImage(widget.path) as ImageProvider;
+
+    final config = const ImageConfiguration();
+    _streamListener = ImageStreamListener((info, synchronousCall) {
+      if (mounted) {
+        setState(() {
+          _imageSize = Size(
+            info.image.width.toDouble(),
+            info.image.height.toDouble(),
+          );
+        });
+      }
+    });
+
+    _imageStream = provider.resolve(config);
+    _imageStream?.addListener(_streamListener!);
+  }
+
+  @override
+  void dispose() {
+    if (_streamListener != null) {
+      _imageStream?.removeListener(_streamListener!);
+    }
+    super.dispose();
+  }
+
+  void _reset() {
+    setState(() {
+      _scale = 1.0;
+      _baseScale = 1.0;
+      _offset = Offset.zero;
+      _baseOffset = Offset.zero;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final file = File(widget.path);
+    final imageWidget = file.existsSync()
+        ? Image.file(
+            file,
+            fit: BoxFit.fill,
+            errorBuilder: (_, __, ___) => _slotErrorPlaceholder(),
+          )
+        : Image.asset(
+            widget.path,
+            fit: BoxFit.fill,
+            errorBuilder: (_, __, ___) => _slotErrorPlaceholder(),
+          );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cw = constraints.maxWidth;
+        final ch = constraints.maxHeight;
+
+        if (cw <= 0 || ch <= 0 || _imageSize == null) {
+          return ClipRect(
+            child: file.existsSync()
+                ? Image.file(
+                    file,
+                    fit: BoxFit.cover,
+                    width: cw > 0 ? cw : null,
+                    height: ch > 0 ? ch : null,
+                    errorBuilder: (_, __, ___) => _slotErrorPlaceholder(),
+                  )
+                : Image.asset(
+                    widget.path,
+                    fit: BoxFit.cover,
+                    width: cw > 0 ? cw : null,
+                    height: ch > 0 ? ch : null,
+                    errorBuilder: (_, __, ___) => _slotErrorPlaceholder(),
+                  ),
+          );
+        }
+
+        final iw = _imageSize!.width;
+        final ih = _imageSize!.height;
+
+        final coverScale = math.max(cw / iw, ch / ih);
+        final sw = iw * coverScale * _scale;
+        final sh = ih * coverScale * _scale;
+
+        final maxPanX = math.max(0.0, (sw - cw) / 2);
+        final maxPanY = math.max(0.0, (sh - ch) / 2);
+
+        final clampedX = _offset.dx.clamp(-maxPanX, maxPanX);
+        final clampedY = _offset.dy.clamp(-maxPanY, maxPanY);
+
+        final left = (cw - sw) / 2 + clampedX;
+        final top = (ch - sh) / 2 + clampedY;
+
+        return ClipRect(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onScaleStart: widget.isCapturing
+                ? null
+                : (details) {
+                    _startFocalPoint = details.localFocalPoint;
+                    _baseScale = _scale;
+                    _baseOffset = _offset;
+                  },
+            onScaleUpdate: widget.isCapturing
+                ? null
+                : (details) {
+                    setState(() {
+                      if (details.scale != 1.0) {
+                        _scale = (_baseScale * details.scale).clamp(1.0, 3.0);
+                      }
+                      final dragDelta =
+                          details.localFocalPoint - _startFocalPoint;
+                      final targetOffset = _baseOffset + dragDelta;
+
+                      final updatedSw = iw * coverScale * _scale;
+                      final updatedSh = ih * coverScale * _scale;
+                      final currentMaxX = math.max(0.0, (updatedSw - cw) / 2);
+                      final currentMaxY = math.max(0.0, (updatedSh - ch) / 2);
+
+                      _offset = Offset(
+                        targetOffset.dx.clamp(-currentMaxX, currentMaxX),
+                        targetOffset.dy.clamp(-currentMaxY, currentMaxY),
+                      );
+                    });
+                  },
+            onDoubleTap: widget.isCapturing ? null : _reset,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Positioned(
+                  left: left,
+                  top: top,
+                  width: sw,
+                  height: sh,
+                  child: imageWidget,
+                ),
+                // Subtle reposition guide (only visible in edit mode when the image has room to move)
+                if (!widget.isCapturing &&
+                    (maxPanX > 2 || maxPanY > 2 || _scale > 1.0))
+                  Positioned(
+                    right: 6,
+                    bottom: 6,
+                    child: IgnorePointer(
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(
+                          Icons.open_with_rounded,
+                          size: 13,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _slotErrorPlaceholder() {
+    return Container(
+      color: AppColors.surfaceVariant,
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.broken_image_rounded,
+                size: 36, color: AppColors.onSurface),
+            SizedBox(height: 4),
+            Text('Photo not loaded',
+                style: TextStyle(color: Colors.white70, fontSize: 11)),
           ],
         ),
       ),

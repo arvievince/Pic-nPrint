@@ -175,16 +175,18 @@ class _LayoutCard extends StatelessWidget {
       case LayoutType.horizontalRow: return Icons.view_week_rounded;
       case LayoutType.grid2x2:       return Icons.grid_view_rounded;
       case LayoutType.grid3x2:       return Icons.apps_rounded;
+      case LayoutType.bendo:         return Icons.dashboard_customize_rounded;
     }
   }
 
   String _descFor(LayoutType l) {
     switch (l) {
       case LayoutType.single:        return 'One photo, full frame';
-      case LayoutType.verticalStrip: return '3 photos in a classic vertical photo booth strip';
+      case LayoutType.verticalStrip: return 'Classic vertical photo booth strip';
       case LayoutType.horizontalRow: return 'All photos in a single horizontal strip';
       case LayoutType.grid2x2:       return '4 photos arranged in a 2×2 grid';
       case LayoutType.grid3x2:       return '6 photos arranged in a 3×2 grid';
+      case LayoutType.bendo:         return 'Creative staggered bento-box collage';
     }
   }
 }

@@ -41,17 +41,17 @@ class CompositionService {
     required List<TextItem> texts,
     required String? borderAssetPath,
     String? logoPath,
+    String? brandText,
   }) async {
     final outputDir = await _getOutputDir();
     final outputPath = p.join(outputDir, '${session.sessionId}_composed.jpg');
 
-    final chosenLayout =
-        session.layout ??
+    final chosenLayout = session.layout ??
         (session.imagePaths.length == 4
             ? LayoutType.grid2x2
             : session.imagePaths.length == 6
-            ? LayoutType.grid3x2
-            : LayoutType.verticalStrip);
+                ? LayoutType.grid3x2
+                : LayoutType.verticalStrip);
 
     // Run in isolate to avoid blocking UI
     await compute(
@@ -64,6 +64,7 @@ class CompositionService {
         texts: texts,
         borderAssetPath: borderAssetPath,
         logoPath: logoPath,
+        brandText: brandText,
         outputPath: outputPath,
         sessionId: session.sessionId,
       ),
@@ -115,6 +116,7 @@ class _ComposeParams {
   final List<TextItem> texts;
   final String? borderAssetPath;
   final String? logoPath;
+  final String? brandText;
   final String outputPath;
   final String sessionId;
 
@@ -126,6 +128,7 @@ class _ComposeParams {
     required this.texts,
     required this.borderAssetPath,
     this.logoPath,
+    this.brandText,
     required this.outputPath,
     required this.sessionId,
   });
@@ -196,6 +199,11 @@ Future<void> _composeIsolate(_ComposeParams params) async {
       // 3 columns × 2 rows
       canvas = _buildGrid(images, columns: 3);
       break;
+
+    case LayoutType.bendo:
+      // 2 columns staggered bento collage (3, 4, or 6 photos)
+      canvas = _buildBendo(images, brandText: params.brandText);
+      break;
   }
 
   // Apply border frame if selected
@@ -218,8 +226,7 @@ Future<void> _composeIsolate(_ComposeParams params) async {
     img.compositeImage(framedCanvas, canvas, dstX: sideBorder, dstY: headerH);
 
     try {
-      final logoImg =
-          img.decodeImage(File(params.logoPath!).readAsBytesSync());
+      final logoImg = img.decodeImage(File(params.logoPath!).readAsBytesSync());
       if (logoImg != null) {
         final targetH = (headerH * 0.75).toInt();
         final targetW = (logoImg.width * (targetH / logoImg.height)).toInt();
@@ -345,7 +352,149 @@ img.Image _buildGrid(List<img.Image> images, {required int columns}) {
   return canvas;
 }
 
-img.Image _addFooter(img.Image source, String sessionId, {bool isPolaroid = false}) {
+img.Image _cropAndResizeImage(img.Image src, int targetW, int targetH) {
+  final srcRatio = src.width / src.height;
+  final targetRatio = targetW / targetH;
+
+  int cropW, cropH, cropX, cropY;
+  if (srcRatio > targetRatio) {
+    cropH = src.height;
+    cropW = (src.height * targetRatio).toInt();
+    cropX = (src.width - cropW) ~/ 2;
+    cropY = 0;
+  } else {
+    cropW = src.width;
+    cropH = (src.width / targetRatio).toInt();
+    cropX = 0;
+    cropY = (src.height - cropH) ~/ 2;
+  }
+
+  final cropped =
+      img.copyCrop(src, x: cropX, y: cropY, width: cropW, height: cropH);
+  final resized = img.copyResize(cropped, width: targetW, height: targetH);
+
+  img.drawRect(
+    resized,
+    x1: 0,
+    y1: 0,
+    x2: targetW - 1,
+    y2: targetH - 1,
+    color: img.ColorRgb8(40, 40, 40),
+    thickness: 4,
+  );
+
+  return resized;
+}
+
+img.Image _buildBendo(List<img.Image> images, {String? brandText}) {
+  const canvasW = 1200;
+  const canvasH = 1800; // 2:3 ratio
+  final canvas = img.Image(width: canvasW, height: canvasH);
+  img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
+
+  const gap = 20;
+  const margin = 24;
+  final colW = (canvasW - (margin * 2) - gap) ~/ 2;
+  final leftX = margin;
+  final rightX = margin + colW + gap;
+  final colH = canvasH - (margin * 2);
+
+  void drawBrandBadge(int x, int y, int width, int height) {
+    final text = (brandText != null && brandText.trim().isNotEmpty)
+        ? brandText.trim()
+        : 'Pic-nPrint';
+    final textX = x + (width - (text.length * 14)) ~/ 2;
+    final textY = y + (height - 24) ~/ 2;
+    img.drawString(
+      canvas,
+      text,
+      font: img.arial24,
+      x: textX.clamp(x, x + width - 10),
+      y: textY.clamp(y, y + height - 10),
+      color: img.ColorRgb8(40, 40, 40),
+    );
+  }
+
+  if (images.length <= 3) {
+    // 3 Shots: Left hero photo + Right 2 photos with brand badge
+    final im0 = _cropAndResizeImage(images[0], colW, colH);
+    img.compositeImage(canvas, im0, dstX: leftX, dstY: margin);
+
+    const brandH = 60;
+    final rightPhotoH = (colH - brandH - (gap * 2)) ~/ 2;
+    final im1 = _cropAndResizeImage(
+        images.length > 1 ? images[1] : images[0], colW, rightPhotoH);
+    final im2 = _cropAndResizeImage(
+        images.length > 2 ? images[2] : images[0], colW, rightPhotoH);
+
+    img.compositeImage(canvas, im1, dstX: rightX, dstY: margin);
+    drawBrandBadge(rightX, margin + rightPhotoH + gap, colW, brandH);
+    img.compositeImage(canvas, im2,
+        dstX: rightX, dstY: margin + rightPhotoH + gap + brandH + gap);
+  } else if (images.length <= 4) {
+    // 4 Shots: Left 2 photos (flex 2, flex 3) + Right 2 photos (flex 3, flex 2) + brand badge
+    final leftAvailH = colH - gap;
+    final lh0 = (leftAvailH * 2) ~/ 5;
+    final lh1 = leftAvailH - lh0;
+
+    final im0 = _cropAndResizeImage(images[0], colW, lh0);
+    final im1 = _cropAndResizeImage(images[1], colW, lh1);
+    img.compositeImage(canvas, im0, dstX: leftX, dstY: margin);
+    img.compositeImage(canvas, im1, dstX: leftX, dstY: margin + lh0 + gap);
+
+    const brandH = 50;
+    final rightAvailH = colH - brandH - (gap * 2);
+    final rh0 = (rightAvailH * 3) ~/ 5;
+    final rh1 = rightAvailH - rh0;
+
+    final im2 = _cropAndResizeImage(images[2], colW, rh0);
+    final im3 = _cropAndResizeImage(images[3], colW, rh1);
+
+    img.compositeImage(canvas, im2, dstX: rightX, dstY: margin);
+    drawBrandBadge(rightX, margin + rh0 + gap, colW, brandH);
+    img.compositeImage(canvas, im3,
+        dstX: rightX, dstY: margin + rh0 + gap + brandH + gap);
+  } else {
+    // 6 Shots (or 5+): Left 3 photos + Right 3 photos + brand badge
+    final leftAvailH = colH - (gap * 2);
+    final lh0 = (leftAvailH * 2) ~/ 7;
+    final lh1 = (leftAvailH * 3) ~/ 7;
+    final lh2 = leftAvailH - lh0 - lh1;
+
+    final im0 = _cropAndResizeImage(images[0], colW, lh0);
+    final im1 = _cropAndResizeImage(images[1], colW, lh1);
+    final im2 = _cropAndResizeImage(images[2], colW, lh2);
+
+    img.compositeImage(canvas, im0, dstX: leftX, dstY: margin);
+    img.compositeImage(canvas, im1, dstX: leftX, dstY: margin + lh0 + gap);
+    img.compositeImage(canvas, im2,
+        dstX: leftX, dstY: margin + lh0 + gap + lh1 + gap);
+
+    const brandH = 50;
+    final rightAvailH = colH - brandH - (gap * 3);
+    final rh0 = (rightAvailH * 3) ~/ 7;
+    final rh1 = (rightAvailH * 2) ~/ 7;
+    final rh2 = rightAvailH - rh0 - rh1;
+
+    final im3 = _cropAndResizeImage(images[3], colW, rh0);
+    final im4 = _cropAndResizeImage(
+        images.length > 4 ? images[4] : images[0], colW, rh1);
+    final im5 = _cropAndResizeImage(
+        images.length > 5 ? images[5] : images[0], colW, rh2);
+
+    img.compositeImage(canvas, im3, dstX: rightX, dstY: margin);
+    drawBrandBadge(rightX, margin + rh0 + gap, colW, brandH);
+    img.compositeImage(canvas, im4,
+        dstX: rightX, dstY: margin + rh0 + gap + brandH + gap);
+    img.compositeImage(canvas, im5,
+        dstX: rightX, dstY: margin + rh0 + gap + brandH + gap + rh1 + gap);
+  }
+
+  return canvas;
+}
+
+img.Image _addFooter(img.Image source, String sessionId,
+    {bool isPolaroid = false}) {
   if (isPolaroid) {
     // Polaroid already has a wide bottom chin! Draw subtle session ID right on the chin
     img.drawString(
@@ -389,9 +538,8 @@ Future<void> _createGifIsolate(_GifParams params) async {
   // Resize all frames to the same size
   final w = frames.first.width;
   final h = frames.first.height;
-  final resized = frames
-      .map((f) => img.copyResize(f, width: w, height: h))
-      .toList();
+  final resized =
+      frames.map((f) => img.copyResize(f, width: w, height: h)).toList();
 
   // Build GIF animation
   final gifEncoder = img.GifEncoder(

@@ -20,11 +20,13 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
   final CompositionService _compositionService;
   final SessionModel session;
   final String? logoPath;
+  final String? brandText;
 
   EditorBloc({
     required CompositionService compositionService,
     required this.session,
     this.logoPath,
+    this.brandText,
   })  : _compositionService = compositionService,
         super(const EditorState()) {
     on<StickerAdded>(_onStickerAdded);
@@ -101,6 +103,7 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
           texts: state.texts,
           borderAssetPath: state.borderAssetPath,
           logoPath: logoPath,
+          brandText: brandText,
         );
       }
       emit(state.copyWith(isComposing: false, composedPath: composedPath));
