@@ -55,6 +55,43 @@ class CaptureInProgress extends CaptureState {
   List<Object?> get props => [capturedPaths, totalRequired];
 }
 
+/// Photos have been captured and are presented to user for review and retake.
+class CaptureReview extends CaptureState {
+  final List<String> capturedPaths;
+  final int retakesRemaining;
+  final int maxRetakes;
+  final int selectedIndex;
+
+  const CaptureReview({
+    required this.capturedPaths,
+    required this.retakesRemaining,
+    required this.maxRetakes,
+    this.selectedIndex = 0,
+  });
+
+  CaptureReview copyWith({
+    List<String>? capturedPaths,
+    int? retakesRemaining,
+    int? maxRetakes,
+    int? selectedIndex,
+  }) {
+    return CaptureReview(
+      capturedPaths: capturedPaths ?? this.capturedPaths,
+      retakesRemaining: retakesRemaining ?? this.retakesRemaining,
+      maxRetakes: maxRetakes ?? this.maxRetakes,
+      selectedIndex: selectedIndex ?? this.selectedIndex,
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+        capturedPaths,
+        retakesRemaining,
+        maxRetakes,
+        selectedIndex,
+      ];
+}
+
 /// All photos collected — ready to go to editor.
 class CaptureComplete extends CaptureState {
   final List<String> imagePaths;

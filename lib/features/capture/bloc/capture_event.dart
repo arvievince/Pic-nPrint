@@ -41,6 +41,24 @@ class CaptureRetake extends CaptureEvent {
   const CaptureRetake();
 }
 
+/// User selected a photo in the review screen to be retaken.
+class CapturePhotoSelectedForRetake extends CaptureEvent {
+  final int index;
+  const CapturePhotoSelectedForRetake(this.index);
+  @override
+  List<Object?> get props => [index];
+}
+
+/// User confirmed they want to retake the selected photo.
+class CaptureRetakeConfirmed extends CaptureEvent {
+  const CaptureRetakeConfirmed();
+}
+
+/// User accepted all photos in review and wants to proceed to editor.
+class CaptureReviewConfirmed extends CaptureEvent {
+  const CaptureReviewConfirmed();
+}
+
 /// Gap timer completed — start countdown for next shot.
 class CaptureNextShotStarted extends CaptureEvent {
   const CaptureNextShotStarted();

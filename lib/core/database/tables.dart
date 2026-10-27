@@ -53,11 +53,28 @@ class VouchersTable extends Table {
   TextColumn get tierChar => text()();
   TextColumn get serial => text()();
   RealColumn get priceSnapshot => real()();
-  TextColumn get status => text()();       // 'active' | 'used' | 'voided' | 'expired'
+  IntColumn get status => integer().withDefault(const Constant(0))(); // 0 = active, 1 = used, 2 = voided
   DateTimeColumn get expiresAt => dateTime()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get redeemedAt => dateTime().nullable()();
   TextColumn get voidReason => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {code};
+}
+
+/// Sales records — one row per redeemed (used) voucher.
+@DataClassName('SaleEntry')
+class SalesTable extends Table {
+  TextColumn get code => text()();         // voucher code
+  TextColumn get locationId => text()();
+  TextColumn get tierChar => text()();
+  TextColumn get serial => text()();
+  RealColumn get priceSnapshot => real()();
+  IntColumn get status => integer().withDefault(const Constant(1))(); // 1 = used
+  DateTimeColumn get expiresAt => dateTime()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get redeemedAt => dateTime()();
 
   @override
   Set<Column> get primaryKey => {code};

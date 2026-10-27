@@ -61,16 +61,26 @@ class VoucherService {
     if (entry == null) throw VoucherException('Code not found. It may not have been issued yet.');
 
     // 5. Status checks
-    if (entry.status == 'used')    throw VoucherException('This code has already been used.');
-    if (entry.status == 'voided')  throw VoucherException('This code has been voided.');
-    if (entry.status == 'expired') throw VoucherException('This code has expired.');
+    if (entry.status == 1) throw VoucherException('This code has already been used.');
+    if (entry.status == 2) throw VoucherException('This code has been voided.');
     if (entry.expiresAt.isBefore(DateTime.now())) {
-      await _db.updateVoucherStatus(code, 'expired');
       throw VoucherException('This code has expired.');
     }
 
-    // 6. Redeem (mark as used)
-    await _db.updateVoucherStatus(code, 'used', redeemedAt: DateTime.now());
+    // 6. Redeem (mark as used = 1) and record sale
+    final now = DateTime.now();
+    await _db.updateVoucherStatus(code, 1, redeemedAt: now);
+    await _db.insertSale(SalesTableCompanion(
+      code: Value(code),
+      locationId: Value(locationId),
+      tierChar: Value(tierChar),
+      serial: Value(serial),
+      priceSnapshot: Value(entry.priceSnapshot),
+      status: const Value(1),
+      expiresAt: Value(entry.expiresAt),
+      createdAt: Value(entry.createdAt),
+      redeemedAt: Value(now),
+    ));
 
     return VoucherModel(
       code: code,
@@ -116,7 +126,7 @@ class VoucherService {
       tierChar: Value(tierChar),
       serial: Value(nextSerial),
       priceSnapshot: Value(finalPrice),
-      status: const Value('active'),
+      status: const Value(0),
       expiresAt: Value(finalExpiry),
       createdAt: Value(DateTime.now()),
     ));
@@ -153,7 +163,7 @@ class VoucherService {
   // ─── Void / reissue ───────────────────────────────────────────────────────────
 
   Future<void> voidVoucher(String code, String reason) =>
-      _db.updateVoucherStatus(code, 'voided', voidReason: reason);
+      _db.updateVoucherStatus(code, 2, voidReason: reason);
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
 

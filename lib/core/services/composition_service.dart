@@ -40,6 +40,7 @@ class CompositionService {
     required List<StickerItem> stickers,
     required List<TextItem> texts,
     required String? borderAssetPath,
+    String? logoPath,
   }) async {
     final outputDir = await _getOutputDir();
     final outputPath = p.join(outputDir, '${session.sessionId}_composed.jpg');
@@ -62,6 +63,7 @@ class CompositionService {
         stickers: stickers,
         texts: texts,
         borderAssetPath: borderAssetPath,
+        logoPath: logoPath,
         outputPath: outputPath,
         sessionId: session.sessionId,
       ),
@@ -112,6 +114,7 @@ class _ComposeParams {
   final List<StickerItem> stickers;
   final List<TextItem> texts;
   final String? borderAssetPath;
+  final String? logoPath;
   final String outputPath;
   final String sessionId;
 
@@ -122,6 +125,7 @@ class _ComposeParams {
     required this.stickers,
     required this.texts,
     required this.borderAssetPath,
+    this.logoPath,
     required this.outputPath,
     required this.sessionId,
   });
@@ -200,6 +204,36 @@ Future<void> _composeIsolate(_ComposeParams params) async {
     canvas = _applyBorder(canvas, params.borderAssetPath!);
   }
 
+  // Wrap canvas in white frame with top logo bar and matching bottom chin
+  if (params.logoPath != null && File(params.logoPath!).existsSync()) {
+    final headerH = (canvas.height * 0.08).toInt().clamp(60, 180);
+    final footerH = headerH; // same height as top header
+    const sideBorder = 0;
+
+    final framedCanvas = img.Image(
+      width: canvas.width + sideBorder * 2,
+      height: canvas.height + headerH + footerH,
+    );
+    img.fill(framedCanvas, color: img.ColorRgb8(255, 255, 255));
+    img.compositeImage(framedCanvas, canvas, dstX: sideBorder, dstY: headerH);
+
+    try {
+      final logoImg =
+          img.decodeImage(File(params.logoPath!).readAsBytesSync());
+      if (logoImg != null) {
+        final targetH = (headerH * 0.75).toInt();
+        final targetW = (logoImg.width * (targetH / logoImg.height)).toInt();
+        final resizedLogo =
+            img.copyResize(logoImg, width: targetW, height: targetH);
+        final dstX = (framedCanvas.width - resizedLogo.width) ~/ 2;
+        final dstY = (headerH - resizedLogo.height) ~/ 2;
+        img.compositeImage(framedCanvas, resizedLogo, dstX: dstX, dstY: dstY);
+      }
+    } catch (_) {}
+
+    canvas = framedCanvas;
+  }
+
   // Draw text overlays onto canvas
   for (final textItem in params.texts) {
     final scaleX = canvas.width / 400.0;
@@ -230,8 +264,8 @@ Future<void> _composeIsolate(_ComposeParams params) async {
 img.Image _applyBorder(img.Image source, String borderId) {
   switch (borderId) {
     case 'polaroid':
-      // Polaroid style: padding on top, left, right and wide bottom chin
-      final padSide = (source.width * 0.05).toInt().clamp(24, 60);
+      // Polaroid style: padding on top and wide bottom chin (no side padding)
+      const padSide = 0;
       final padTop = (source.width * 0.05).toInt().clamp(24, 60);
       final padBottom = (source.width * 0.16).toInt().clamp(70, 180);
       final canvas = img.Image(

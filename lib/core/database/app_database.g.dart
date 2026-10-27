@@ -12,21 +12,13 @@ class $SettingsTableTable extends SettingsTable
   static const VerificationMeta _keyMeta = const VerificationMeta('key');
   @override
   late final GeneratedColumn<String> key = GeneratedColumn<String>(
-    'key',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+      'key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _valueMeta = const VerificationMeta('value');
   @override
   late final GeneratedColumn<String> value = GeneratedColumn<String>(
-    'value',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+      'value', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns => [key, value];
   @override
@@ -35,25 +27,19 @@ class $SettingsTableTable extends SettingsTable
   String get actualTableName => $name;
   static const String $name = 'settings_table';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<SettingEntry> instance, {
-    bool isInserting = false,
-  }) {
+  VerificationContext validateIntegrity(Insertable<SettingEntry> instance,
+      {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('key')) {
       context.handle(
-        _keyMeta,
-        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
-      );
+          _keyMeta, key.isAcceptableOrUnknown(data['key']!, _keyMeta));
     } else if (isInserting) {
       context.missing(_keyMeta);
     }
     if (data.containsKey('value')) {
       context.handle(
-        _valueMeta,
-        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
-      );
+          _valueMeta, value.isAcceptableOrUnknown(data['value']!, _valueMeta));
     } else if (isInserting) {
       context.missing(_valueMeta);
     }
@@ -66,14 +52,10 @@ class $SettingsTableTable extends SettingsTable
   SettingEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return SettingEntry(
-      key: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}key'],
-      )!,
-      value: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}value'],
-      )!,
+      key: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}key'])!,
+      value: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}value'])!,
     );
   }
 
@@ -96,13 +78,14 @@ class SettingEntry extends DataClass implements Insertable<SettingEntry> {
   }
 
   SettingsTableCompanion toCompanion(bool nullToAbsent) {
-    return SettingsTableCompanion(key: Value(key), value: Value(value));
+    return SettingsTableCompanion(
+      key: Value(key),
+      value: Value(value),
+    );
   }
 
-  factory SettingEntry.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
+  factory SettingEntry.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return SettingEntry(
       key: serializer.fromJson<String>(json['key']),
@@ -118,8 +101,10 @@ class SettingEntry extends DataClass implements Insertable<SettingEntry> {
     };
   }
 
-  SettingEntry copyWith({String? key, String? value}) =>
-      SettingEntry(key: key ?? this.key, value: value ?? this.value);
+  SettingEntry copyWith({String? key, String? value}) => SettingEntry(
+        key: key ?? this.key,
+        value: value ?? this.value,
+      );
   SettingEntry copyWithCompanion(SettingsTableCompanion data) {
     return SettingEntry(
       key: data.key.present ? data.key.value : this.key,
@@ -159,8 +144,8 @@ class SettingsTableCompanion extends UpdateCompanion<SettingEntry> {
     required String key,
     required String value,
     this.rowid = const Value.absent(),
-  }) : key = Value(key),
-       value = Value(value);
+  })  : key = Value(key),
+        value = Value(value);
   static Insertable<SettingEntry> custom({
     Expression<String>? key,
     Expression<String>? value,
@@ -173,11 +158,8 @@ class SettingsTableCompanion extends UpdateCompanion<SettingEntry> {
     });
   }
 
-  SettingsTableCompanion copyWith({
-    Value<String>? key,
-    Value<String>? value,
-    Value<int>? rowid,
-  }) {
+  SettingsTableCompanion copyWith(
+      {Value<String>? key, Value<String>? value, Value<int>? rowid}) {
     return SettingsTableCompanion(
       key: key ?? this.key,
       value: value ?? this.value,
@@ -217,26 +199,17 @@ class $PricesTableTable extends PricesTable
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $PricesTableTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _tierCharMeta = const VerificationMeta(
-    'tierChar',
-  );
+  static const VerificationMeta _tierCharMeta =
+      const VerificationMeta('tierChar');
   @override
   late final GeneratedColumn<String> tierChar = GeneratedColumn<String>(
-    'tier_char',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+      'tier_char', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _priceMeta = const VerificationMeta('price');
   @override
   late final GeneratedColumn<double> price = GeneratedColumn<double>(
-    'price',
-    aliasedName,
-    false,
-    type: DriftSqlType.double,
-    requiredDuringInsert: true,
-  );
+      'price', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns => [tierChar, price];
   @override
@@ -245,25 +218,19 @@ class $PricesTableTable extends PricesTable
   String get actualTableName => $name;
   static const String $name = 'prices_table';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<PriceEntry> instance, {
-    bool isInserting = false,
-  }) {
+  VerificationContext validateIntegrity(Insertable<PriceEntry> instance,
+      {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('tier_char')) {
-      context.handle(
-        _tierCharMeta,
-        tierChar.isAcceptableOrUnknown(data['tier_char']!, _tierCharMeta),
-      );
+      context.handle(_tierCharMeta,
+          tierChar.isAcceptableOrUnknown(data['tier_char']!, _tierCharMeta));
     } else if (isInserting) {
       context.missing(_tierCharMeta);
     }
     if (data.containsKey('price')) {
       context.handle(
-        _priceMeta,
-        price.isAcceptableOrUnknown(data['price']!, _priceMeta),
-      );
+          _priceMeta, price.isAcceptableOrUnknown(data['price']!, _priceMeta));
     } else if (isInserting) {
       context.missing(_priceMeta);
     }
@@ -276,14 +243,10 @@ class $PricesTableTable extends PricesTable
   PriceEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return PriceEntry(
-      tierChar: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}tier_char'],
-      )!,
-      price: attachedDatabase.typeMapping.read(
-        DriftSqlType.double,
-        data['${effectivePrefix}price'],
-      )!,
+      tierChar: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tier_char'])!,
+      price: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}price'])!,
     );
   }
 
@@ -307,13 +270,14 @@ class PriceEntry extends DataClass implements Insertable<PriceEntry> {
   }
 
   PricesTableCompanion toCompanion(bool nullToAbsent) {
-    return PricesTableCompanion(tierChar: Value(tierChar), price: Value(price));
+    return PricesTableCompanion(
+      tierChar: Value(tierChar),
+      price: Value(price),
+    );
   }
 
-  factory PriceEntry.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
+  factory PriceEntry.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return PriceEntry(
       tierChar: serializer.fromJson<String>(json['tierChar']),
@@ -330,9 +294,9 @@ class PriceEntry extends DataClass implements Insertable<PriceEntry> {
   }
 
   PriceEntry copyWith({String? tierChar, double? price}) => PriceEntry(
-    tierChar: tierChar ?? this.tierChar,
-    price: price ?? this.price,
-  );
+        tierChar: tierChar ?? this.tierChar,
+        price: price ?? this.price,
+      );
   PriceEntry copyWithCompanion(PricesTableCompanion data) {
     return PriceEntry(
       tierChar: data.tierChar.present ? data.tierChar.value : this.tierChar,
@@ -372,8 +336,8 @@ class PricesTableCompanion extends UpdateCompanion<PriceEntry> {
     required String tierChar,
     required double price,
     this.rowid = const Value.absent(),
-  }) : tierChar = Value(tierChar),
-       price = Value(price);
+  })  : tierChar = Value(tierChar),
+        price = Value(price);
   static Insertable<PriceEntry> custom({
     Expression<String>? tierChar,
     Expression<double>? price,
@@ -386,11 +350,8 @@ class PricesTableCompanion extends UpdateCompanion<PriceEntry> {
     });
   }
 
-  PricesTableCompanion copyWith({
-    Value<String>? tierChar,
-    Value<double>? price,
-    Value<int>? rowid,
-  }) {
+  PricesTableCompanion copyWith(
+      {Value<String>? tierChar, Value<double>? price, Value<int>? rowid}) {
     return PricesTableCompanion(
       tierChar: tierChar ?? this.tierChar,
       price: price ?? this.price,
@@ -433,56 +394,34 @@ class $AssetsTableTable extends AssetsTable
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
-    'id',
-    aliasedName,
-    false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'PRIMARY KEY AUTOINCREMENT',
-    ),
-  );
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
   late final GeneratedColumn<String> type = GeneratedColumn<String>(
-    'type',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+      'type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _filePathMeta = const VerificationMeta(
-    'filePath',
-  );
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _filePathMeta =
+      const VerificationMeta('filePath');
   @override
   late final GeneratedColumn<String> filePath = GeneratedColumn<String>(
-    'file_path',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _addedAtMeta = const VerificationMeta(
-    'addedAt',
-  );
+      'file_path', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _addedAtMeta =
+      const VerificationMeta('addedAt');
   @override
   late final GeneratedColumn<DateTime> addedAt = GeneratedColumn<DateTime>(
-    'added_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
+      'added_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns => [id, type, name, filePath, addedAt];
   @override
@@ -491,10 +430,8 @@ class $AssetsTableTable extends AssetsTable
   String get actualTableName => $name;
   static const String $name = 'assets_table';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<AssetEntry> instance, {
-    bool isInserting = false,
-  }) {
+  VerificationContext validateIntegrity(Insertable<AssetEntry> instance,
+      {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -502,33 +439,25 @@ class $AssetsTableTable extends AssetsTable
     }
     if (data.containsKey('type')) {
       context.handle(
-        _typeMeta,
-        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
-      );
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
     } else if (isInserting) {
       context.missing(_typeMeta);
     }
     if (data.containsKey('name')) {
       context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
     if (data.containsKey('file_path')) {
-      context.handle(
-        _filePathMeta,
-        filePath.isAcceptableOrUnknown(data['file_path']!, _filePathMeta),
-      );
+      context.handle(_filePathMeta,
+          filePath.isAcceptableOrUnknown(data['file_path']!, _filePathMeta));
     } else if (isInserting) {
       context.missing(_filePathMeta);
     }
     if (data.containsKey('added_at')) {
-      context.handle(
-        _addedAtMeta,
-        addedAt.isAcceptableOrUnknown(data['added_at']!, _addedAtMeta),
-      );
+      context.handle(_addedAtMeta,
+          addedAt.isAcceptableOrUnknown(data['added_at']!, _addedAtMeta));
     } else if (isInserting) {
       context.missing(_addedAtMeta);
     }
@@ -541,26 +470,16 @@ class $AssetsTableTable extends AssetsTable
   AssetEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return AssetEntry(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
-      type: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}type'],
-      )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      filePath: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}file_path'],
-      )!,
-      addedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}added_at'],
-      )!,
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      filePath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}file_path'])!,
+      addedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}added_at'])!,
     );
   }
 
@@ -576,13 +495,12 @@ class AssetEntry extends DataClass implements Insertable<AssetEntry> {
   final String name;
   final String filePath;
   final DateTime addedAt;
-  const AssetEntry({
-    required this.id,
-    required this.type,
-    required this.name,
-    required this.filePath,
-    required this.addedAt,
-  });
+  const AssetEntry(
+      {required this.id,
+      required this.type,
+      required this.name,
+      required this.filePath,
+      required this.addedAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -604,10 +522,8 @@ class AssetEntry extends DataClass implements Insertable<AssetEntry> {
     );
   }
 
-  factory AssetEntry.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
+  factory AssetEntry.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AssetEntry(
       id: serializer.fromJson<int>(json['id']),
@@ -629,19 +545,19 @@ class AssetEntry extends DataClass implements Insertable<AssetEntry> {
     };
   }
 
-  AssetEntry copyWith({
-    int? id,
-    String? type,
-    String? name,
-    String? filePath,
-    DateTime? addedAt,
-  }) => AssetEntry(
-    id: id ?? this.id,
-    type: type ?? this.type,
-    name: name ?? this.name,
-    filePath: filePath ?? this.filePath,
-    addedAt: addedAt ?? this.addedAt,
-  );
+  AssetEntry copyWith(
+          {int? id,
+          String? type,
+          String? name,
+          String? filePath,
+          DateTime? addedAt}) =>
+      AssetEntry(
+        id: id ?? this.id,
+        type: type ?? this.type,
+        name: name ?? this.name,
+        filePath: filePath ?? this.filePath,
+        addedAt: addedAt ?? this.addedAt,
+      );
   AssetEntry copyWithCompanion(AssetsTableCompanion data) {
     return AssetEntry(
       id: data.id.present ? data.id.value : this.id,
@@ -696,10 +612,10 @@ class AssetsTableCompanion extends UpdateCompanion<AssetEntry> {
     required String name,
     required String filePath,
     required DateTime addedAt,
-  }) : type = Value(type),
-       name = Value(name),
-       filePath = Value(filePath),
-       addedAt = Value(addedAt);
+  })  : type = Value(type),
+        name = Value(name),
+        filePath = Value(filePath),
+        addedAt = Value(addedAt);
   static Insertable<AssetEntry> custom({
     Expression<int>? id,
     Expression<String>? type,
@@ -716,13 +632,12 @@ class AssetsTableCompanion extends UpdateCompanion<AssetEntry> {
     });
   }
 
-  AssetsTableCompanion copyWith({
-    Value<int>? id,
-    Value<String>? type,
-    Value<String>? name,
-    Value<String>? filePath,
-    Value<DateTime>? addedAt,
-  }) {
+  AssetsTableCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? type,
+      Value<String>? name,
+      Value<String>? filePath,
+      Value<DateTime>? addedAt}) {
     return AssetsTableCompanion(
       id: id ?? this.id,
       type: type ?? this.type,
@@ -775,89 +690,54 @@ class $PrintersTableTable extends PrintersTable
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _transportMeta = const VerificationMeta(
-    'transport',
-  );
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _transportMeta =
+      const VerificationMeta('transport');
   @override
   late final GeneratedColumn<String> transport = GeneratedColumn<String>(
-    'transport',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _addressMeta = const VerificationMeta(
-    'address',
-  );
+      'transport', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _addressMeta =
+      const VerificationMeta('address');
   @override
   late final GeneratedColumn<String> address = GeneratedColumn<String>(
-    'address',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _paperWidthMmMeta = const VerificationMeta(
-    'paperWidthMm',
-  );
+      'address', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _paperWidthMmMeta =
+      const VerificationMeta('paperWidthMm');
   @override
   late final GeneratedColumn<int> paperWidthMm = GeneratedColumn<int>(
-    'paper_width_mm',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(80),
-  );
-  static const VerificationMeta _isDefaultMeta = const VerificationMeta(
-    'isDefault',
-  );
+      'paper_width_mm', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(80));
+  static const VerificationMeta _isDefaultMeta =
+      const VerificationMeta('isDefault');
   @override
   late final GeneratedColumn<bool> isDefault = GeneratedColumn<bool>(
-    'is_default',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_default" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
+      'is_default', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_default" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    name,
-    transport,
-    address,
-    paperWidthMm,
-    isDefault,
-  ];
+  List<GeneratedColumn> get $columns =>
+      [id, name, transport, address, paperWidthMm, isDefault];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'printers_table';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<PrinterEntry> instance, {
-    bool isInserting = false,
-  }) {
+  VerificationContext validateIntegrity(Insertable<PrinterEntry> instance,
+      {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -867,42 +747,31 @@ class $PrintersTableTable extends PrintersTable
     }
     if (data.containsKey('name')) {
       context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
     if (data.containsKey('transport')) {
-      context.handle(
-        _transportMeta,
-        transport.isAcceptableOrUnknown(data['transport']!, _transportMeta),
-      );
+      context.handle(_transportMeta,
+          transport.isAcceptableOrUnknown(data['transport']!, _transportMeta));
     } else if (isInserting) {
       context.missing(_transportMeta);
     }
     if (data.containsKey('address')) {
-      context.handle(
-        _addressMeta,
-        address.isAcceptableOrUnknown(data['address']!, _addressMeta),
-      );
+      context.handle(_addressMeta,
+          address.isAcceptableOrUnknown(data['address']!, _addressMeta));
     } else if (isInserting) {
       context.missing(_addressMeta);
     }
     if (data.containsKey('paper_width_mm')) {
       context.handle(
-        _paperWidthMmMeta,
-        paperWidthMm.isAcceptableOrUnknown(
-          data['paper_width_mm']!,
           _paperWidthMmMeta,
-        ),
-      );
+          paperWidthMm.isAcceptableOrUnknown(
+              data['paper_width_mm']!, _paperWidthMmMeta));
     }
     if (data.containsKey('is_default')) {
-      context.handle(
-        _isDefaultMeta,
-        isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta),
-      );
+      context.handle(_isDefaultMeta,
+          isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta));
     }
     return context;
   }
@@ -913,30 +782,18 @@ class $PrintersTableTable extends PrintersTable
   PrinterEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return PrinterEntry(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      transport: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}transport'],
-      )!,
-      address: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}address'],
-      )!,
-      paperWidthMm: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}paper_width_mm'],
-      )!,
-      isDefault: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_default'],
-      )!,
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      transport: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}transport'])!,
+      address: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}address'])!,
+      paperWidthMm: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}paper_width_mm'])!,
+      isDefault: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_default'])!,
     );
   }
 
@@ -953,14 +810,13 @@ class PrinterEntry extends DataClass implements Insertable<PrinterEntry> {
   final String address;
   final int paperWidthMm;
   final bool isDefault;
-  const PrinterEntry({
-    required this.id,
-    required this.name,
-    required this.transport,
-    required this.address,
-    required this.paperWidthMm,
-    required this.isDefault,
-  });
+  const PrinterEntry(
+      {required this.id,
+      required this.name,
+      required this.transport,
+      required this.address,
+      required this.paperWidthMm,
+      required this.isDefault});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -984,10 +840,8 @@ class PrinterEntry extends DataClass implements Insertable<PrinterEntry> {
     );
   }
 
-  factory PrinterEntry.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
+  factory PrinterEntry.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return PrinterEntry(
       id: serializer.fromJson<String>(json['id']),
@@ -1011,21 +865,21 @@ class PrinterEntry extends DataClass implements Insertable<PrinterEntry> {
     };
   }
 
-  PrinterEntry copyWith({
-    String? id,
-    String? name,
-    String? transport,
-    String? address,
-    int? paperWidthMm,
-    bool? isDefault,
-  }) => PrinterEntry(
-    id: id ?? this.id,
-    name: name ?? this.name,
-    transport: transport ?? this.transport,
-    address: address ?? this.address,
-    paperWidthMm: paperWidthMm ?? this.paperWidthMm,
-    isDefault: isDefault ?? this.isDefault,
-  );
+  PrinterEntry copyWith(
+          {String? id,
+          String? name,
+          String? transport,
+          String? address,
+          int? paperWidthMm,
+          bool? isDefault}) =>
+      PrinterEntry(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        transport: transport ?? this.transport,
+        address: address ?? this.address,
+        paperWidthMm: paperWidthMm ?? this.paperWidthMm,
+        isDefault: isDefault ?? this.isDefault,
+      );
   PrinterEntry copyWithCompanion(PrintersTableCompanion data) {
     return PrinterEntry(
       id: data.id.present ? data.id.value : this.id,
@@ -1092,10 +946,10 @@ class PrintersTableCompanion extends UpdateCompanion<PrinterEntry> {
     this.paperWidthMm = const Value.absent(),
     this.isDefault = const Value.absent(),
     this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       name = Value(name),
-       transport = Value(transport),
-       address = Value(address);
+  })  : id = Value(id),
+        name = Value(name),
+        transport = Value(transport),
+        address = Value(address);
   static Insertable<PrinterEntry> custom({
     Expression<String>? id,
     Expression<String>? name,
@@ -1116,15 +970,14 @@ class PrintersTableCompanion extends UpdateCompanion<PrinterEntry> {
     });
   }
 
-  PrintersTableCompanion copyWith({
-    Value<String>? id,
-    Value<String>? name,
-    Value<String>? transport,
-    Value<String>? address,
-    Value<int>? paperWidthMm,
-    Value<bool>? isDefault,
-    Value<int>? rowid,
-  }) {
+  PrintersTableCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? name,
+      Value<String>? transport,
+      Value<String>? address,
+      Value<int>? paperWidthMm,
+      Value<bool>? isDefault,
+      Value<int>? rowid}) {
     return PrintersTableCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
@@ -1187,210 +1040,146 @@ class $VouchersTableTable extends VouchersTable
   static const VerificationMeta _codeMeta = const VerificationMeta('code');
   @override
   late final GeneratedColumn<String> code = GeneratedColumn<String>(
-    'code',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _locationIdMeta = const VerificationMeta(
-    'locationId',
-  );
+      'code', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _locationIdMeta =
+      const VerificationMeta('locationId');
   @override
   late final GeneratedColumn<String> locationId = GeneratedColumn<String>(
-    'location_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _tierCharMeta = const VerificationMeta(
-    'tierChar',
-  );
+      'location_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tierCharMeta =
+      const VerificationMeta('tierChar');
   @override
   late final GeneratedColumn<String> tierChar = GeneratedColumn<String>(
-    'tier_char',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+      'tier_char', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _serialMeta = const VerificationMeta('serial');
   @override
   late final GeneratedColumn<String> serial = GeneratedColumn<String>(
-    'serial',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _priceSnapshotMeta = const VerificationMeta(
-    'priceSnapshot',
-  );
+      'serial', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _priceSnapshotMeta =
+      const VerificationMeta('priceSnapshot');
   @override
   late final GeneratedColumn<double> priceSnapshot = GeneratedColumn<double>(
-    'price_snapshot',
-    aliasedName,
-    false,
-    type: DriftSqlType.double,
-    requiredDuringInsert: true,
-  );
+      'price_snapshot', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
-  late final GeneratedColumn<String> status = GeneratedColumn<String>(
-    'status',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _expiresAtMeta = const VerificationMeta(
-    'expiresAt',
-  );
+  late final GeneratedColumn<int> status = GeneratedColumn<int>(
+      'status', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _expiresAtMeta =
+      const VerificationMeta('expiresAt');
   @override
   late final GeneratedColumn<DateTime> expiresAt = GeneratedColumn<DateTime>(
-    'expires_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
+      'expires_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _redeemedAtMeta = const VerificationMeta(
-    'redeemedAt',
-  );
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _redeemedAtMeta =
+      const VerificationMeta('redeemedAt');
   @override
   late final GeneratedColumn<DateTime> redeemedAt = GeneratedColumn<DateTime>(
-    'redeemed_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _voidReasonMeta = const VerificationMeta(
-    'voidReason',
-  );
+      'redeemed_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _voidReasonMeta =
+      const VerificationMeta('voidReason');
   @override
   late final GeneratedColumn<String> voidReason = GeneratedColumn<String>(
-    'void_reason',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
+      'void_reason', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
-    code,
-    locationId,
-    tierChar,
-    serial,
-    priceSnapshot,
-    status,
-    expiresAt,
-    createdAt,
-    redeemedAt,
-    voidReason,
-  ];
+        code,
+        locationId,
+        tierChar,
+        serial,
+        priceSnapshot,
+        status,
+        expiresAt,
+        createdAt,
+        redeemedAt,
+        voidReason
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'vouchers_table';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<VoucherEntry> instance, {
-    bool isInserting = false,
-  }) {
+  VerificationContext validateIntegrity(Insertable<VoucherEntry> instance,
+      {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('code')) {
       context.handle(
-        _codeMeta,
-        code.isAcceptableOrUnknown(data['code']!, _codeMeta),
-      );
+          _codeMeta, code.isAcceptableOrUnknown(data['code']!, _codeMeta));
     } else if (isInserting) {
       context.missing(_codeMeta);
     }
     if (data.containsKey('location_id')) {
       context.handle(
-        _locationIdMeta,
-        locationId.isAcceptableOrUnknown(data['location_id']!, _locationIdMeta),
-      );
+          _locationIdMeta,
+          locationId.isAcceptableOrUnknown(
+              data['location_id']!, _locationIdMeta));
     } else if (isInserting) {
       context.missing(_locationIdMeta);
     }
     if (data.containsKey('tier_char')) {
-      context.handle(
-        _tierCharMeta,
-        tierChar.isAcceptableOrUnknown(data['tier_char']!, _tierCharMeta),
-      );
+      context.handle(_tierCharMeta,
+          tierChar.isAcceptableOrUnknown(data['tier_char']!, _tierCharMeta));
     } else if (isInserting) {
       context.missing(_tierCharMeta);
     }
     if (data.containsKey('serial')) {
-      context.handle(
-        _serialMeta,
-        serial.isAcceptableOrUnknown(data['serial']!, _serialMeta),
-      );
+      context.handle(_serialMeta,
+          serial.isAcceptableOrUnknown(data['serial']!, _serialMeta));
     } else if (isInserting) {
       context.missing(_serialMeta);
     }
     if (data.containsKey('price_snapshot')) {
       context.handle(
-        _priceSnapshotMeta,
-        priceSnapshot.isAcceptableOrUnknown(
-          data['price_snapshot']!,
           _priceSnapshotMeta,
-        ),
-      );
+          priceSnapshot.isAcceptableOrUnknown(
+              data['price_snapshot']!, _priceSnapshotMeta));
     } else if (isInserting) {
       context.missing(_priceSnapshotMeta);
     }
     if (data.containsKey('status')) {
-      context.handle(
-        _statusMeta,
-        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_statusMeta);
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
     }
     if (data.containsKey('expires_at')) {
-      context.handle(
-        _expiresAtMeta,
-        expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta),
-      );
+      context.handle(_expiresAtMeta,
+          expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta));
     } else if (isInserting) {
       context.missing(_expiresAtMeta);
     }
     if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
     if (data.containsKey('redeemed_at')) {
       context.handle(
-        _redeemedAtMeta,
-        redeemedAt.isAcceptableOrUnknown(data['redeemed_at']!, _redeemedAtMeta),
-      );
+          _redeemedAtMeta,
+          redeemedAt.isAcceptableOrUnknown(
+              data['redeemed_at']!, _redeemedAtMeta));
     }
     if (data.containsKey('void_reason')) {
       context.handle(
-        _voidReasonMeta,
-        voidReason.isAcceptableOrUnknown(data['void_reason']!, _voidReasonMeta),
-      );
+          _voidReasonMeta,
+          voidReason.isAcceptableOrUnknown(
+              data['void_reason']!, _voidReasonMeta));
     }
     return context;
   }
@@ -1401,46 +1190,26 @@ class $VouchersTableTable extends VouchersTable
   VoucherEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return VoucherEntry(
-      code: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}code'],
-      )!,
-      locationId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}location_id'],
-      )!,
-      tierChar: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}tier_char'],
-      )!,
-      serial: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}serial'],
-      )!,
-      priceSnapshot: attachedDatabase.typeMapping.read(
-        DriftSqlType.double,
-        data['${effectivePrefix}price_snapshot'],
-      )!,
-      status: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}status'],
-      )!,
-      expiresAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}expires_at'],
-      )!,
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
-      )!,
-      redeemedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}redeemed_at'],
-      ),
-      voidReason: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}void_reason'],
-      ),
+      code: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}code'])!,
+      locationId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}location_id'])!,
+      tierChar: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tier_char'])!,
+      serial: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}serial'])!,
+      priceSnapshot: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}price_snapshot'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}status'])!,
+      expiresAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}expires_at'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      redeemedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}redeemed_at']),
+      voidReason: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}void_reason']),
     );
   }
 
@@ -1456,23 +1225,22 @@ class VoucherEntry extends DataClass implements Insertable<VoucherEntry> {
   final String tierChar;
   final String serial;
   final double priceSnapshot;
-  final String status;
+  final int status;
   final DateTime expiresAt;
   final DateTime createdAt;
   final DateTime? redeemedAt;
   final String? voidReason;
-  const VoucherEntry({
-    required this.code,
-    required this.locationId,
-    required this.tierChar,
-    required this.serial,
-    required this.priceSnapshot,
-    required this.status,
-    required this.expiresAt,
-    required this.createdAt,
-    this.redeemedAt,
-    this.voidReason,
-  });
+  const VoucherEntry(
+      {required this.code,
+      required this.locationId,
+      required this.tierChar,
+      required this.serial,
+      required this.priceSnapshot,
+      required this.status,
+      required this.expiresAt,
+      required this.createdAt,
+      this.redeemedAt,
+      this.voidReason});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1481,7 +1249,7 @@ class VoucherEntry extends DataClass implements Insertable<VoucherEntry> {
     map['tier_char'] = Variable<String>(tierChar);
     map['serial'] = Variable<String>(serial);
     map['price_snapshot'] = Variable<double>(priceSnapshot);
-    map['status'] = Variable<String>(status);
+    map['status'] = Variable<int>(status);
     map['expires_at'] = Variable<DateTime>(expiresAt);
     map['created_at'] = Variable<DateTime>(createdAt);
     if (!nullToAbsent || redeemedAt != null) {
@@ -1512,10 +1280,8 @@ class VoucherEntry extends DataClass implements Insertable<VoucherEntry> {
     );
   }
 
-  factory VoucherEntry.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
+  factory VoucherEntry.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return VoucherEntry(
       code: serializer.fromJson<String>(json['code']),
@@ -1523,7 +1289,7 @@ class VoucherEntry extends DataClass implements Insertable<VoucherEntry> {
       tierChar: serializer.fromJson<String>(json['tierChar']),
       serial: serializer.fromJson<String>(json['serial']),
       priceSnapshot: serializer.fromJson<double>(json['priceSnapshot']),
-      status: serializer.fromJson<String>(json['status']),
+      status: serializer.fromJson<int>(json['status']),
       expiresAt: serializer.fromJson<DateTime>(json['expiresAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       redeemedAt: serializer.fromJson<DateTime?>(json['redeemedAt']),
@@ -1539,7 +1305,7 @@ class VoucherEntry extends DataClass implements Insertable<VoucherEntry> {
       'tierChar': serializer.toJson<String>(tierChar),
       'serial': serializer.toJson<String>(serial),
       'priceSnapshot': serializer.toJson<double>(priceSnapshot),
-      'status': serializer.toJson<String>(status),
+      'status': serializer.toJson<int>(status),
       'expiresAt': serializer.toJson<DateTime>(expiresAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'redeemedAt': serializer.toJson<DateTime?>(redeemedAt),
@@ -1547,35 +1313,34 @@ class VoucherEntry extends DataClass implements Insertable<VoucherEntry> {
     };
   }
 
-  VoucherEntry copyWith({
-    String? code,
-    String? locationId,
-    String? tierChar,
-    String? serial,
-    double? priceSnapshot,
-    String? status,
-    DateTime? expiresAt,
-    DateTime? createdAt,
-    Value<DateTime?> redeemedAt = const Value.absent(),
-    Value<String?> voidReason = const Value.absent(),
-  }) => VoucherEntry(
-    code: code ?? this.code,
-    locationId: locationId ?? this.locationId,
-    tierChar: tierChar ?? this.tierChar,
-    serial: serial ?? this.serial,
-    priceSnapshot: priceSnapshot ?? this.priceSnapshot,
-    status: status ?? this.status,
-    expiresAt: expiresAt ?? this.expiresAt,
-    createdAt: createdAt ?? this.createdAt,
-    redeemedAt: redeemedAt.present ? redeemedAt.value : this.redeemedAt,
-    voidReason: voidReason.present ? voidReason.value : this.voidReason,
-  );
+  VoucherEntry copyWith(
+          {String? code,
+          String? locationId,
+          String? tierChar,
+          String? serial,
+          double? priceSnapshot,
+          int? status,
+          DateTime? expiresAt,
+          DateTime? createdAt,
+          Value<DateTime?> redeemedAt = const Value.absent(),
+          Value<String?> voidReason = const Value.absent()}) =>
+      VoucherEntry(
+        code: code ?? this.code,
+        locationId: locationId ?? this.locationId,
+        tierChar: tierChar ?? this.tierChar,
+        serial: serial ?? this.serial,
+        priceSnapshot: priceSnapshot ?? this.priceSnapshot,
+        status: status ?? this.status,
+        expiresAt: expiresAt ?? this.expiresAt,
+        createdAt: createdAt ?? this.createdAt,
+        redeemedAt: redeemedAt.present ? redeemedAt.value : this.redeemedAt,
+        voidReason: voidReason.present ? voidReason.value : this.voidReason,
+      );
   VoucherEntry copyWithCompanion(VouchersTableCompanion data) {
     return VoucherEntry(
       code: data.code.present ? data.code.value : this.code,
-      locationId: data.locationId.present
-          ? data.locationId.value
-          : this.locationId,
+      locationId:
+          data.locationId.present ? data.locationId.value : this.locationId,
       tierChar: data.tierChar.present ? data.tierChar.value : this.tierChar,
       serial: data.serial.present ? data.serial.value : this.serial,
       priceSnapshot: data.priceSnapshot.present
@@ -1584,12 +1349,10 @@ class VoucherEntry extends DataClass implements Insertable<VoucherEntry> {
       status: data.status.present ? data.status.value : this.status,
       expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      redeemedAt: data.redeemedAt.present
-          ? data.redeemedAt.value
-          : this.redeemedAt,
-      voidReason: data.voidReason.present
-          ? data.voidReason.value
-          : this.voidReason,
+      redeemedAt:
+          data.redeemedAt.present ? data.redeemedAt.value : this.redeemedAt,
+      voidReason:
+          data.voidReason.present ? data.voidReason.value : this.voidReason,
     );
   }
 
@@ -1611,18 +1374,8 @@ class VoucherEntry extends DataClass implements Insertable<VoucherEntry> {
   }
 
   @override
-  int get hashCode => Object.hash(
-    code,
-    locationId,
-    tierChar,
-    serial,
-    priceSnapshot,
-    status,
-    expiresAt,
-    createdAt,
-    redeemedAt,
-    voidReason,
-  );
+  int get hashCode => Object.hash(code, locationId, tierChar, serial,
+      priceSnapshot, status, expiresAt, createdAt, redeemedAt, voidReason);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1645,7 +1398,7 @@ class VouchersTableCompanion extends UpdateCompanion<VoucherEntry> {
   final Value<String> tierChar;
   final Value<String> serial;
   final Value<double> priceSnapshot;
-  final Value<String> status;
+  final Value<int> status;
   final Value<DateTime> expiresAt;
   final Value<DateTime> createdAt;
   final Value<DateTime?> redeemedAt;
@@ -1670,27 +1423,26 @@ class VouchersTableCompanion extends UpdateCompanion<VoucherEntry> {
     required String tierChar,
     required String serial,
     required double priceSnapshot,
-    required String status,
+    this.status = const Value.absent(),
     required DateTime expiresAt,
     required DateTime createdAt,
     this.redeemedAt = const Value.absent(),
     this.voidReason = const Value.absent(),
     this.rowid = const Value.absent(),
-  }) : code = Value(code),
-       locationId = Value(locationId),
-       tierChar = Value(tierChar),
-       serial = Value(serial),
-       priceSnapshot = Value(priceSnapshot),
-       status = Value(status),
-       expiresAt = Value(expiresAt),
-       createdAt = Value(createdAt);
+  })  : code = Value(code),
+        locationId = Value(locationId),
+        tierChar = Value(tierChar),
+        serial = Value(serial),
+        priceSnapshot = Value(priceSnapshot),
+        expiresAt = Value(expiresAt),
+        createdAt = Value(createdAt);
   static Insertable<VoucherEntry> custom({
     Expression<String>? code,
     Expression<String>? locationId,
     Expression<String>? tierChar,
     Expression<String>? serial,
     Expression<double>? priceSnapshot,
-    Expression<String>? status,
+    Expression<int>? status,
     Expression<DateTime>? expiresAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? redeemedAt,
@@ -1712,19 +1464,18 @@ class VouchersTableCompanion extends UpdateCompanion<VoucherEntry> {
     });
   }
 
-  VouchersTableCompanion copyWith({
-    Value<String>? code,
-    Value<String>? locationId,
-    Value<String>? tierChar,
-    Value<String>? serial,
-    Value<double>? priceSnapshot,
-    Value<String>? status,
-    Value<DateTime>? expiresAt,
-    Value<DateTime>? createdAt,
-    Value<DateTime?>? redeemedAt,
-    Value<String?>? voidReason,
-    Value<int>? rowid,
-  }) {
+  VouchersTableCompanion copyWith(
+      {Value<String>? code,
+      Value<String>? locationId,
+      Value<String>? tierChar,
+      Value<String>? serial,
+      Value<double>? priceSnapshot,
+      Value<int>? status,
+      Value<DateTime>? expiresAt,
+      Value<DateTime>? createdAt,
+      Value<DateTime?>? redeemedAt,
+      Value<String?>? voidReason,
+      Value<int>? rowid}) {
     return VouchersTableCompanion(
       code: code ?? this.code,
       locationId: locationId ?? this.locationId,
@@ -1759,7 +1510,7 @@ class VouchersTableCompanion extends UpdateCompanion<VoucherEntry> {
       map['price_snapshot'] = Variable<double>(priceSnapshot.value);
     }
     if (status.present) {
-      map['status'] = Variable<String>(status.value);
+      map['status'] = Variable<int>(status.value);
     }
     if (expiresAt.present) {
       map['expires_at'] = Variable<DateTime>(expiresAt.value);
@@ -1798,274 +1549,661 @@ class VouchersTableCompanion extends UpdateCompanion<VoucherEntry> {
   }
 }
 
+class $SalesTableTable extends SalesTable
+    with TableInfo<$SalesTableTable, SaleEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SalesTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _codeMeta = const VerificationMeta('code');
+  @override
+  late final GeneratedColumn<String> code = GeneratedColumn<String>(
+      'code', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _locationIdMeta =
+      const VerificationMeta('locationId');
+  @override
+  late final GeneratedColumn<String> locationId = GeneratedColumn<String>(
+      'location_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tierCharMeta =
+      const VerificationMeta('tierChar');
+  @override
+  late final GeneratedColumn<String> tierChar = GeneratedColumn<String>(
+      'tier_char', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _serialMeta = const VerificationMeta('serial');
+  @override
+  late final GeneratedColumn<String> serial = GeneratedColumn<String>(
+      'serial', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _priceSnapshotMeta =
+      const VerificationMeta('priceSnapshot');
+  @override
+  late final GeneratedColumn<double> priceSnapshot = GeneratedColumn<double>(
+      'price_snapshot', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<int> status = GeneratedColumn<int>(
+      'status', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _expiresAtMeta =
+      const VerificationMeta('expiresAt');
+  @override
+  late final GeneratedColumn<DateTime> expiresAt = GeneratedColumn<DateTime>(
+      'expires_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _redeemedAtMeta =
+      const VerificationMeta('redeemedAt');
+  @override
+  late final GeneratedColumn<DateTime> redeemedAt = GeneratedColumn<DateTime>(
+      'redeemed_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        code,
+        locationId,
+        tierChar,
+        serial,
+        priceSnapshot,
+        status,
+        expiresAt,
+        createdAt,
+        redeemedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sales_table';
+  @override
+  VerificationContext validateIntegrity(Insertable<SaleEntry> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('code')) {
+      context.handle(
+          _codeMeta, code.isAcceptableOrUnknown(data['code']!, _codeMeta));
+    } else if (isInserting) {
+      context.missing(_codeMeta);
+    }
+    if (data.containsKey('location_id')) {
+      context.handle(
+          _locationIdMeta,
+          locationId.isAcceptableOrUnknown(
+              data['location_id']!, _locationIdMeta));
+    } else if (isInserting) {
+      context.missing(_locationIdMeta);
+    }
+    if (data.containsKey('tier_char')) {
+      context.handle(_tierCharMeta,
+          tierChar.isAcceptableOrUnknown(data['tier_char']!, _tierCharMeta));
+    } else if (isInserting) {
+      context.missing(_tierCharMeta);
+    }
+    if (data.containsKey('serial')) {
+      context.handle(_serialMeta,
+          serial.isAcceptableOrUnknown(data['serial']!, _serialMeta));
+    } else if (isInserting) {
+      context.missing(_serialMeta);
+    }
+    if (data.containsKey('price_snapshot')) {
+      context.handle(
+          _priceSnapshotMeta,
+          priceSnapshot.isAcceptableOrUnknown(
+              data['price_snapshot']!, _priceSnapshotMeta));
+    } else if (isInserting) {
+      context.missing(_priceSnapshotMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('expires_at')) {
+      context.handle(_expiresAtMeta,
+          expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta));
+    } else if (isInserting) {
+      context.missing(_expiresAtMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('redeemed_at')) {
+      context.handle(
+          _redeemedAtMeta,
+          redeemedAt.isAcceptableOrUnknown(
+              data['redeemed_at']!, _redeemedAtMeta));
+    } else if (isInserting) {
+      context.missing(_redeemedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {code};
+  @override
+  SaleEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SaleEntry(
+      code: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}code'])!,
+      locationId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}location_id'])!,
+      tierChar: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tier_char'])!,
+      serial: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}serial'])!,
+      priceSnapshot: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}price_snapshot'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}status'])!,
+      expiresAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}expires_at'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      redeemedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}redeemed_at'])!,
+    );
+  }
+
+  @override
+  $SalesTableTable createAlias(String alias) {
+    return $SalesTableTable(attachedDatabase, alias);
+  }
+}
+
+class SaleEntry extends DataClass implements Insertable<SaleEntry> {
+  final String code;
+  final String locationId;
+  final String tierChar;
+  final String serial;
+  final double priceSnapshot;
+  final int status;
+  final DateTime expiresAt;
+  final DateTime createdAt;
+  final DateTime redeemedAt;
+  const SaleEntry(
+      {required this.code,
+      required this.locationId,
+      required this.tierChar,
+      required this.serial,
+      required this.priceSnapshot,
+      required this.status,
+      required this.expiresAt,
+      required this.createdAt,
+      required this.redeemedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['code'] = Variable<String>(code);
+    map['location_id'] = Variable<String>(locationId);
+    map['tier_char'] = Variable<String>(tierChar);
+    map['serial'] = Variable<String>(serial);
+    map['price_snapshot'] = Variable<double>(priceSnapshot);
+    map['status'] = Variable<int>(status);
+    map['expires_at'] = Variable<DateTime>(expiresAt);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['redeemed_at'] = Variable<DateTime>(redeemedAt);
+    return map;
+  }
+
+  SalesTableCompanion toCompanion(bool nullToAbsent) {
+    return SalesTableCompanion(
+      code: Value(code),
+      locationId: Value(locationId),
+      tierChar: Value(tierChar),
+      serial: Value(serial),
+      priceSnapshot: Value(priceSnapshot),
+      status: Value(status),
+      expiresAt: Value(expiresAt),
+      createdAt: Value(createdAt),
+      redeemedAt: Value(redeemedAt),
+    );
+  }
+
+  factory SaleEntry.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SaleEntry(
+      code: serializer.fromJson<String>(json['code']),
+      locationId: serializer.fromJson<String>(json['locationId']),
+      tierChar: serializer.fromJson<String>(json['tierChar']),
+      serial: serializer.fromJson<String>(json['serial']),
+      priceSnapshot: serializer.fromJson<double>(json['priceSnapshot']),
+      status: serializer.fromJson<int>(json['status']),
+      expiresAt: serializer.fromJson<DateTime>(json['expiresAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      redeemedAt: serializer.fromJson<DateTime>(json['redeemedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'code': serializer.toJson<String>(code),
+      'locationId': serializer.toJson<String>(locationId),
+      'tierChar': serializer.toJson<String>(tierChar),
+      'serial': serializer.toJson<String>(serial),
+      'priceSnapshot': serializer.toJson<double>(priceSnapshot),
+      'status': serializer.toJson<int>(status),
+      'expiresAt': serializer.toJson<DateTime>(expiresAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'redeemedAt': serializer.toJson<DateTime>(redeemedAt),
+    };
+  }
+
+  SaleEntry copyWith(
+          {String? code,
+          String? locationId,
+          String? tierChar,
+          String? serial,
+          double? priceSnapshot,
+          int? status,
+          DateTime? expiresAt,
+          DateTime? createdAt,
+          DateTime? redeemedAt}) =>
+      SaleEntry(
+        code: code ?? this.code,
+        locationId: locationId ?? this.locationId,
+        tierChar: tierChar ?? this.tierChar,
+        serial: serial ?? this.serial,
+        priceSnapshot: priceSnapshot ?? this.priceSnapshot,
+        status: status ?? this.status,
+        expiresAt: expiresAt ?? this.expiresAt,
+        createdAt: createdAt ?? this.createdAt,
+        redeemedAt: redeemedAt ?? this.redeemedAt,
+      );
+  SaleEntry copyWithCompanion(SalesTableCompanion data) {
+    return SaleEntry(
+      code: data.code.present ? data.code.value : this.code,
+      locationId:
+          data.locationId.present ? data.locationId.value : this.locationId,
+      tierChar: data.tierChar.present ? data.tierChar.value : this.tierChar,
+      serial: data.serial.present ? data.serial.value : this.serial,
+      priceSnapshot: data.priceSnapshot.present
+          ? data.priceSnapshot.value
+          : this.priceSnapshot,
+      status: data.status.present ? data.status.value : this.status,
+      expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      redeemedAt:
+          data.redeemedAt.present ? data.redeemedAt.value : this.redeemedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SaleEntry(')
+          ..write('code: $code, ')
+          ..write('locationId: $locationId, ')
+          ..write('tierChar: $tierChar, ')
+          ..write('serial: $serial, ')
+          ..write('priceSnapshot: $priceSnapshot, ')
+          ..write('status: $status, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('redeemedAt: $redeemedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(code, locationId, tierChar, serial,
+      priceSnapshot, status, expiresAt, createdAt, redeemedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SaleEntry &&
+          other.code == this.code &&
+          other.locationId == this.locationId &&
+          other.tierChar == this.tierChar &&
+          other.serial == this.serial &&
+          other.priceSnapshot == this.priceSnapshot &&
+          other.status == this.status &&
+          other.expiresAt == this.expiresAt &&
+          other.createdAt == this.createdAt &&
+          other.redeemedAt == this.redeemedAt);
+}
+
+class SalesTableCompanion extends UpdateCompanion<SaleEntry> {
+  final Value<String> code;
+  final Value<String> locationId;
+  final Value<String> tierChar;
+  final Value<String> serial;
+  final Value<double> priceSnapshot;
+  final Value<int> status;
+  final Value<DateTime> expiresAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> redeemedAt;
+  final Value<int> rowid;
+  const SalesTableCompanion({
+    this.code = const Value.absent(),
+    this.locationId = const Value.absent(),
+    this.tierChar = const Value.absent(),
+    this.serial = const Value.absent(),
+    this.priceSnapshot = const Value.absent(),
+    this.status = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.redeemedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SalesTableCompanion.insert({
+    required String code,
+    required String locationId,
+    required String tierChar,
+    required String serial,
+    required double priceSnapshot,
+    this.status = const Value.absent(),
+    required DateTime expiresAt,
+    required DateTime createdAt,
+    required DateTime redeemedAt,
+    this.rowid = const Value.absent(),
+  })  : code = Value(code),
+        locationId = Value(locationId),
+        tierChar = Value(tierChar),
+        serial = Value(serial),
+        priceSnapshot = Value(priceSnapshot),
+        expiresAt = Value(expiresAt),
+        createdAt = Value(createdAt),
+        redeemedAt = Value(redeemedAt);
+  static Insertable<SaleEntry> custom({
+    Expression<String>? code,
+    Expression<String>? locationId,
+    Expression<String>? tierChar,
+    Expression<String>? serial,
+    Expression<double>? priceSnapshot,
+    Expression<int>? status,
+    Expression<DateTime>? expiresAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? redeemedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (code != null) 'code': code,
+      if (locationId != null) 'location_id': locationId,
+      if (tierChar != null) 'tier_char': tierChar,
+      if (serial != null) 'serial': serial,
+      if (priceSnapshot != null) 'price_snapshot': priceSnapshot,
+      if (status != null) 'status': status,
+      if (expiresAt != null) 'expires_at': expiresAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (redeemedAt != null) 'redeemed_at': redeemedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SalesTableCompanion copyWith(
+      {Value<String>? code,
+      Value<String>? locationId,
+      Value<String>? tierChar,
+      Value<String>? serial,
+      Value<double>? priceSnapshot,
+      Value<int>? status,
+      Value<DateTime>? expiresAt,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? redeemedAt,
+      Value<int>? rowid}) {
+    return SalesTableCompanion(
+      code: code ?? this.code,
+      locationId: locationId ?? this.locationId,
+      tierChar: tierChar ?? this.tierChar,
+      serial: serial ?? this.serial,
+      priceSnapshot: priceSnapshot ?? this.priceSnapshot,
+      status: status ?? this.status,
+      expiresAt: expiresAt ?? this.expiresAt,
+      createdAt: createdAt ?? this.createdAt,
+      redeemedAt: redeemedAt ?? this.redeemedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (code.present) {
+      map['code'] = Variable<String>(code.value);
+    }
+    if (locationId.present) {
+      map['location_id'] = Variable<String>(locationId.value);
+    }
+    if (tierChar.present) {
+      map['tier_char'] = Variable<String>(tierChar.value);
+    }
+    if (serial.present) {
+      map['serial'] = Variable<String>(serial.value);
+    }
+    if (priceSnapshot.present) {
+      map['price_snapshot'] = Variable<double>(priceSnapshot.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<int>(status.value);
+    }
+    if (expiresAt.present) {
+      map['expires_at'] = Variable<DateTime>(expiresAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (redeemedAt.present) {
+      map['redeemed_at'] = Variable<DateTime>(redeemedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SalesTableCompanion(')
+          ..write('code: $code, ')
+          ..write('locationId: $locationId, ')
+          ..write('tierChar: $tierChar, ')
+          ..write('serial: $serial, ')
+          ..write('priceSnapshot: $priceSnapshot, ')
+          ..write('status: $status, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('redeemedAt: $redeemedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SessionsTableTable extends SessionsTable
     with TableInfo<$SessionsTableTable, SessionEntry> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $SessionsTableTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
-    'sessionId',
-  );
+  static const VerificationMeta _sessionIdMeta =
+      const VerificationMeta('sessionId');
   @override
   late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
-    'session_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _voucherCodeMeta = const VerificationMeta(
-    'voucherCode',
-  );
+      'session_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _voucherCodeMeta =
+      const VerificationMeta('voucherCode');
   @override
   late final GeneratedColumn<String> voucherCode = GeneratedColumn<String>(
-    'voucher_code',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _tierCharMeta = const VerificationMeta(
-    'tierChar',
-  );
+      'voucher_code', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tierCharMeta =
+      const VerificationMeta('tierChar');
   @override
   late final GeneratedColumn<String> tierChar = GeneratedColumn<String>(
-    'tier_char',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _layoutTypeMeta = const VerificationMeta(
-    'layoutType',
-  );
+      'tier_char', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _layoutTypeMeta =
+      const VerificationMeta('layoutType');
   @override
   late final GeneratedColumn<String> layoutType = GeneratedColumn<String>(
-    'layout_type',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _localImagePathsMeta = const VerificationMeta(
-    'localImagePaths',
-  );
+      'layout_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _localImagePathsMeta =
+      const VerificationMeta('localImagePaths');
   @override
   late final GeneratedColumn<String> localImagePaths = GeneratedColumn<String>(
-    'local_image_paths',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _composedImagePathMeta = const VerificationMeta(
-    'composedImagePath',
-  );
+      'local_image_paths', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _composedImagePathMeta =
+      const VerificationMeta('composedImagePath');
   @override
   late final GeneratedColumn<String> composedImagePath =
-      GeneratedColumn<String>(
-        'composed_image_path',
-        aliasedName,
-        true,
-        type: DriftSqlType.string,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _gifPathMeta = const VerificationMeta(
-    'gifPath',
-  );
+      GeneratedColumn<String>('composed_image_path', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _gifPathMeta =
+      const VerificationMeta('gifPath');
   @override
   late final GeneratedColumn<String> gifPath = GeneratedColumn<String>(
-    'gif_path',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _driveFileIdMeta = const VerificationMeta(
-    'driveFileId',
-  );
+      'gif_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _driveFileIdMeta =
+      const VerificationMeta('driveFileId');
   @override
   late final GeneratedColumn<String> driveFileId = GeneratedColumn<String>(
-    'drive_file_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _driveShareUrlMeta = const VerificationMeta(
-    'driveShareUrl',
-  );
+      'drive_file_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _driveShareUrlMeta =
+      const VerificationMeta('driveShareUrl');
   @override
   late final GeneratedColumn<String> driveShareUrl = GeneratedColumn<String>(
-    'drive_share_url',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _isUploadedMeta = const VerificationMeta(
-    'isUploaded',
-  );
+      'drive_share_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _isUploadedMeta =
+      const VerificationMeta('isUploaded');
   @override
   late final GeneratedColumn<bool> isUploaded = GeneratedColumn<bool>(
-    'is_uploaded',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_uploaded" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
-  static const VerificationMeta _isPrintedMeta = const VerificationMeta(
-    'isPrinted',
-  );
+      'is_uploaded', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_uploaded" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _isPrintedMeta =
+      const VerificationMeta('isPrinted');
   @override
   late final GeneratedColumn<bool> isPrinted = GeneratedColumn<bool>(
-    'is_printed',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_printed" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
+      'is_printed', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_printed" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns => [
-    sessionId,
-    voucherCode,
-    tierChar,
-    layoutType,
-    localImagePaths,
-    composedImagePath,
-    gifPath,
-    driveFileId,
-    driveShareUrl,
-    isUploaded,
-    isPrinted,
-    createdAt,
-  ];
+        sessionId,
+        voucherCode,
+        tierChar,
+        layoutType,
+        localImagePaths,
+        composedImagePath,
+        gifPath,
+        driveFileId,
+        driveShareUrl,
+        isUploaded,
+        isPrinted,
+        createdAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'sessions_table';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<SessionEntry> instance, {
-    bool isInserting = false,
-  }) {
+  VerificationContext validateIntegrity(Insertable<SessionEntry> instance,
+      {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('session_id')) {
-      context.handle(
-        _sessionIdMeta,
-        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
-      );
+      context.handle(_sessionIdMeta,
+          sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta));
     } else if (isInserting) {
       context.missing(_sessionIdMeta);
     }
     if (data.containsKey('voucher_code')) {
       context.handle(
-        _voucherCodeMeta,
-        voucherCode.isAcceptableOrUnknown(
-          data['voucher_code']!,
           _voucherCodeMeta,
-        ),
-      );
+          voucherCode.isAcceptableOrUnknown(
+              data['voucher_code']!, _voucherCodeMeta));
     } else if (isInserting) {
       context.missing(_voucherCodeMeta);
     }
     if (data.containsKey('tier_char')) {
-      context.handle(
-        _tierCharMeta,
-        tierChar.isAcceptableOrUnknown(data['tier_char']!, _tierCharMeta),
-      );
+      context.handle(_tierCharMeta,
+          tierChar.isAcceptableOrUnknown(data['tier_char']!, _tierCharMeta));
     } else if (isInserting) {
       context.missing(_tierCharMeta);
     }
     if (data.containsKey('layout_type')) {
       context.handle(
-        _layoutTypeMeta,
-        layoutType.isAcceptableOrUnknown(data['layout_type']!, _layoutTypeMeta),
-      );
+          _layoutTypeMeta,
+          layoutType.isAcceptableOrUnknown(
+              data['layout_type']!, _layoutTypeMeta));
     }
     if (data.containsKey('local_image_paths')) {
       context.handle(
-        _localImagePathsMeta,
-        localImagePaths.isAcceptableOrUnknown(
-          data['local_image_paths']!,
           _localImagePathsMeta,
-        ),
-      );
+          localImagePaths.isAcceptableOrUnknown(
+              data['local_image_paths']!, _localImagePathsMeta));
     } else if (isInserting) {
       context.missing(_localImagePathsMeta);
     }
     if (data.containsKey('composed_image_path')) {
       context.handle(
-        _composedImagePathMeta,
-        composedImagePath.isAcceptableOrUnknown(
-          data['composed_image_path']!,
           _composedImagePathMeta,
-        ),
-      );
+          composedImagePath.isAcceptableOrUnknown(
+              data['composed_image_path']!, _composedImagePathMeta));
     }
     if (data.containsKey('gif_path')) {
-      context.handle(
-        _gifPathMeta,
-        gifPath.isAcceptableOrUnknown(data['gif_path']!, _gifPathMeta),
-      );
+      context.handle(_gifPathMeta,
+          gifPath.isAcceptableOrUnknown(data['gif_path']!, _gifPathMeta));
     }
     if (data.containsKey('drive_file_id')) {
       context.handle(
-        _driveFileIdMeta,
-        driveFileId.isAcceptableOrUnknown(
-          data['drive_file_id']!,
           _driveFileIdMeta,
-        ),
-      );
+          driveFileId.isAcceptableOrUnknown(
+              data['drive_file_id']!, _driveFileIdMeta));
     }
     if (data.containsKey('drive_share_url')) {
       context.handle(
-        _driveShareUrlMeta,
-        driveShareUrl.isAcceptableOrUnknown(
-          data['drive_share_url']!,
           _driveShareUrlMeta,
-        ),
-      );
+          driveShareUrl.isAcceptableOrUnknown(
+              data['drive_share_url']!, _driveShareUrlMeta));
     }
     if (data.containsKey('is_uploaded')) {
       context.handle(
-        _isUploadedMeta,
-        isUploaded.isAcceptableOrUnknown(data['is_uploaded']!, _isUploadedMeta),
-      );
+          _isUploadedMeta,
+          isUploaded.isAcceptableOrUnknown(
+              data['is_uploaded']!, _isUploadedMeta));
     }
     if (data.containsKey('is_printed')) {
-      context.handle(
-        _isPrintedMeta,
-        isPrinted.isAcceptableOrUnknown(data['is_printed']!, _isPrintedMeta),
-      );
+      context.handle(_isPrintedMeta,
+          isPrinted.isAcceptableOrUnknown(data['is_printed']!, _isPrintedMeta));
     }
     if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
@@ -2078,54 +2216,30 @@ class $SessionsTableTable extends SessionsTable
   SessionEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return SessionEntry(
-      sessionId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}session_id'],
-      )!,
-      voucherCode: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}voucher_code'],
-      )!,
-      tierChar: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}tier_char'],
-      )!,
-      layoutType: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}layout_type'],
-      ),
+      sessionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}session_id'])!,
+      voucherCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}voucher_code'])!,
+      tierChar: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tier_char'])!,
+      layoutType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}layout_type']),
       localImagePaths: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}local_image_paths'],
-      )!,
+          DriftSqlType.string, data['${effectivePrefix}local_image_paths'])!,
       composedImagePath: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}composed_image_path'],
-      ),
-      gifPath: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}gif_path'],
-      ),
-      driveFileId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}drive_file_id'],
-      ),
-      driveShareUrl: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}drive_share_url'],
-      ),
-      isUploaded: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_uploaded'],
-      )!,
-      isPrinted: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_printed'],
-      )!,
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
-      )!,
+          DriftSqlType.string, data['${effectivePrefix}composed_image_path']),
+      gifPath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}gif_path']),
+      driveFileId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}drive_file_id']),
+      driveShareUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}drive_share_url']),
+      isUploaded: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_uploaded'])!,
+      isPrinted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_printed'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
     );
   }
 
@@ -2148,20 +2262,19 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
   final bool isUploaded;
   final bool isPrinted;
   final DateTime createdAt;
-  const SessionEntry({
-    required this.sessionId,
-    required this.voucherCode,
-    required this.tierChar,
-    this.layoutType,
-    required this.localImagePaths,
-    this.composedImagePath,
-    this.gifPath,
-    this.driveFileId,
-    this.driveShareUrl,
-    required this.isUploaded,
-    required this.isPrinted,
-    required this.createdAt,
-  });
+  const SessionEntry(
+      {required this.sessionId,
+      required this.voucherCode,
+      required this.tierChar,
+      this.layoutType,
+      required this.localImagePaths,
+      this.composedImagePath,
+      this.gifPath,
+      this.driveFileId,
+      this.driveShareUrl,
+      required this.isUploaded,
+      required this.isPrinted,
+      required this.createdAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2217,10 +2330,8 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
     );
   }
 
-  factory SessionEntry.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
+  factory SessionEntry.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return SessionEntry(
       sessionId: serializer.fromJson<String>(json['sessionId']),
@@ -2228,9 +2339,8 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
       tierChar: serializer.fromJson<String>(json['tierChar']),
       layoutType: serializer.fromJson<String?>(json['layoutType']),
       localImagePaths: serializer.fromJson<String>(json['localImagePaths']),
-      composedImagePath: serializer.fromJson<String?>(
-        json['composedImagePath'],
-      ),
+      composedImagePath:
+          serializer.fromJson<String?>(json['composedImagePath']),
       gifPath: serializer.fromJson<String?>(json['gifPath']),
       driveFileId: serializer.fromJson<String?>(json['driveFileId']),
       driveShareUrl: serializer.fromJson<String?>(json['driveShareUrl']),
@@ -2258,47 +2368,44 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
     };
   }
 
-  SessionEntry copyWith({
-    String? sessionId,
-    String? voucherCode,
-    String? tierChar,
-    Value<String?> layoutType = const Value.absent(),
-    String? localImagePaths,
-    Value<String?> composedImagePath = const Value.absent(),
-    Value<String?> gifPath = const Value.absent(),
-    Value<String?> driveFileId = const Value.absent(),
-    Value<String?> driveShareUrl = const Value.absent(),
-    bool? isUploaded,
-    bool? isPrinted,
-    DateTime? createdAt,
-  }) => SessionEntry(
-    sessionId: sessionId ?? this.sessionId,
-    voucherCode: voucherCode ?? this.voucherCode,
-    tierChar: tierChar ?? this.tierChar,
-    layoutType: layoutType.present ? layoutType.value : this.layoutType,
-    localImagePaths: localImagePaths ?? this.localImagePaths,
-    composedImagePath: composedImagePath.present
-        ? composedImagePath.value
-        : this.composedImagePath,
-    gifPath: gifPath.present ? gifPath.value : this.gifPath,
-    driveFileId: driveFileId.present ? driveFileId.value : this.driveFileId,
-    driveShareUrl: driveShareUrl.present
-        ? driveShareUrl.value
-        : this.driveShareUrl,
-    isUploaded: isUploaded ?? this.isUploaded,
-    isPrinted: isPrinted ?? this.isPrinted,
-    createdAt: createdAt ?? this.createdAt,
-  );
+  SessionEntry copyWith(
+          {String? sessionId,
+          String? voucherCode,
+          String? tierChar,
+          Value<String?> layoutType = const Value.absent(),
+          String? localImagePaths,
+          Value<String?> composedImagePath = const Value.absent(),
+          Value<String?> gifPath = const Value.absent(),
+          Value<String?> driveFileId = const Value.absent(),
+          Value<String?> driveShareUrl = const Value.absent(),
+          bool? isUploaded,
+          bool? isPrinted,
+          DateTime? createdAt}) =>
+      SessionEntry(
+        sessionId: sessionId ?? this.sessionId,
+        voucherCode: voucherCode ?? this.voucherCode,
+        tierChar: tierChar ?? this.tierChar,
+        layoutType: layoutType.present ? layoutType.value : this.layoutType,
+        localImagePaths: localImagePaths ?? this.localImagePaths,
+        composedImagePath: composedImagePath.present
+            ? composedImagePath.value
+            : this.composedImagePath,
+        gifPath: gifPath.present ? gifPath.value : this.gifPath,
+        driveFileId: driveFileId.present ? driveFileId.value : this.driveFileId,
+        driveShareUrl:
+            driveShareUrl.present ? driveShareUrl.value : this.driveShareUrl,
+        isUploaded: isUploaded ?? this.isUploaded,
+        isPrinted: isPrinted ?? this.isPrinted,
+        createdAt: createdAt ?? this.createdAt,
+      );
   SessionEntry copyWithCompanion(SessionsTableCompanion data) {
     return SessionEntry(
       sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
-      voucherCode: data.voucherCode.present
-          ? data.voucherCode.value
-          : this.voucherCode,
+      voucherCode:
+          data.voucherCode.present ? data.voucherCode.value : this.voucherCode,
       tierChar: data.tierChar.present ? data.tierChar.value : this.tierChar,
-      layoutType: data.layoutType.present
-          ? data.layoutType.value
-          : this.layoutType,
+      layoutType:
+          data.layoutType.present ? data.layoutType.value : this.layoutType,
       localImagePaths: data.localImagePaths.present
           ? data.localImagePaths.value
           : this.localImagePaths,
@@ -2306,15 +2413,13 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
           ? data.composedImagePath.value
           : this.composedImagePath,
       gifPath: data.gifPath.present ? data.gifPath.value : this.gifPath,
-      driveFileId: data.driveFileId.present
-          ? data.driveFileId.value
-          : this.driveFileId,
+      driveFileId:
+          data.driveFileId.present ? data.driveFileId.value : this.driveFileId,
       driveShareUrl: data.driveShareUrl.present
           ? data.driveShareUrl.value
           : this.driveShareUrl,
-      isUploaded: data.isUploaded.present
-          ? data.isUploaded.value
-          : this.isUploaded,
+      isUploaded:
+          data.isUploaded.present ? data.isUploaded.value : this.isUploaded,
       isPrinted: data.isPrinted.present ? data.isPrinted.value : this.isPrinted,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -2341,19 +2446,18 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
 
   @override
   int get hashCode => Object.hash(
-    sessionId,
-    voucherCode,
-    tierChar,
-    layoutType,
-    localImagePaths,
-    composedImagePath,
-    gifPath,
-    driveFileId,
-    driveShareUrl,
-    isUploaded,
-    isPrinted,
-    createdAt,
-  );
+      sessionId,
+      voucherCode,
+      tierChar,
+      layoutType,
+      localImagePaths,
+      composedImagePath,
+      gifPath,
+      driveFileId,
+      driveShareUrl,
+      isUploaded,
+      isPrinted,
+      createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2415,11 +2519,11 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
     this.isPrinted = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
-  }) : sessionId = Value(sessionId),
-       voucherCode = Value(voucherCode),
-       tierChar = Value(tierChar),
-       localImagePaths = Value(localImagePaths),
-       createdAt = Value(createdAt);
+  })  : sessionId = Value(sessionId),
+        voucherCode = Value(voucherCode),
+        tierChar = Value(tierChar),
+        localImagePaths = Value(localImagePaths),
+        createdAt = Value(createdAt);
   static Insertable<SessionEntry> custom({
     Expression<String>? sessionId,
     Expression<String>? voucherCode,
@@ -2452,21 +2556,20 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
     });
   }
 
-  SessionsTableCompanion copyWith({
-    Value<String>? sessionId,
-    Value<String>? voucherCode,
-    Value<String>? tierChar,
-    Value<String?>? layoutType,
-    Value<String>? localImagePaths,
-    Value<String?>? composedImagePath,
-    Value<String?>? gifPath,
-    Value<String?>? driveFileId,
-    Value<String?>? driveShareUrl,
-    Value<bool>? isUploaded,
-    Value<bool>? isPrinted,
-    Value<DateTime>? createdAt,
-    Value<int>? rowid,
-  }) {
+  SessionsTableCompanion copyWith(
+      {Value<String>? sessionId,
+      Value<String>? voucherCode,
+      Value<String>? tierChar,
+      Value<String?>? layoutType,
+      Value<String>? localImagePaths,
+      Value<String?>? composedImagePath,
+      Value<String?>? gifPath,
+      Value<String?>? driveFileId,
+      Value<String?>? driveShareUrl,
+      Value<bool>? isUploaded,
+      Value<bool>? isPrinted,
+      Value<DateTime>? createdAt,
+      Value<int>? rowid}) {
     return SessionsTableCompanion(
       sessionId: sessionId ?? this.sessionId,
       voucherCode: voucherCode ?? this.voucherCode,
@@ -2559,38 +2662,24 @@ class $AdminAuthTableTable extends AdminAuthTable
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
-    'id',
-    aliasedName,
-    false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'PRIMARY KEY AUTOINCREMENT',
-    ),
-  );
-  static const VerificationMeta _passwordHashMeta = const VerificationMeta(
-    'passwordHash',
-  );
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _passwordHashMeta =
+      const VerificationMeta('passwordHash');
   @override
   late final GeneratedColumn<String> passwordHash = GeneratedColumn<String>(
-    'password_hash',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
-    'updatedAt',
-  );
+      'password_hash', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
   @override
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-    'updated_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns => [id, passwordHash, updatedAt];
   @override
@@ -2599,10 +2688,8 @@ class $AdminAuthTableTable extends AdminAuthTable
   String get actualTableName => $name;
   static const String $name = 'admin_auth_table';
   @override
-  VerificationContext validateIntegrity(
-    Insertable<AdminAuthEntry> instance, {
-    bool isInserting = false,
-  }) {
+  VerificationContext validateIntegrity(Insertable<AdminAuthEntry> instance,
+      {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -2610,20 +2697,15 @@ class $AdminAuthTableTable extends AdminAuthTable
     }
     if (data.containsKey('password_hash')) {
       context.handle(
-        _passwordHashMeta,
-        passwordHash.isAcceptableOrUnknown(
-          data['password_hash']!,
           _passwordHashMeta,
-        ),
-      );
+          passwordHash.isAcceptableOrUnknown(
+              data['password_hash']!, _passwordHashMeta));
     } else if (isInserting) {
       context.missing(_passwordHashMeta);
     }
     if (data.containsKey('updated_at')) {
-      context.handle(
-        _updatedAtMeta,
-        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
-      );
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
@@ -2636,18 +2718,12 @@ class $AdminAuthTableTable extends AdminAuthTable
   AdminAuthEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return AdminAuthEntry(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
-      passwordHash: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}password_hash'],
-      )!,
-      updatedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}updated_at'],
-      )!,
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      passwordHash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}password_hash'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
     );
   }
 
@@ -2661,11 +2737,8 @@ class AdminAuthEntry extends DataClass implements Insertable<AdminAuthEntry> {
   final int id;
   final String passwordHash;
   final DateTime updatedAt;
-  const AdminAuthEntry({
-    required this.id,
-    required this.passwordHash,
-    required this.updatedAt,
-  });
+  const AdminAuthEntry(
+      {required this.id, required this.passwordHash, required this.updatedAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2683,10 +2756,8 @@ class AdminAuthEntry extends DataClass implements Insertable<AdminAuthEntry> {
     );
   }
 
-  factory AdminAuthEntry.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
+  factory AdminAuthEntry.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AdminAuthEntry(
       id: serializer.fromJson<int>(json['id']),
@@ -2704,15 +2775,13 @@ class AdminAuthEntry extends DataClass implements Insertable<AdminAuthEntry> {
     };
   }
 
-  AdminAuthEntry copyWith({
-    int? id,
-    String? passwordHash,
-    DateTime? updatedAt,
-  }) => AdminAuthEntry(
-    id: id ?? this.id,
-    passwordHash: passwordHash ?? this.passwordHash,
-    updatedAt: updatedAt ?? this.updatedAt,
-  );
+  AdminAuthEntry copyWith(
+          {int? id, String? passwordHash, DateTime? updatedAt}) =>
+      AdminAuthEntry(
+        id: id ?? this.id,
+        passwordHash: passwordHash ?? this.passwordHash,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
   AdminAuthEntry copyWithCompanion(AdminAuthTableCompanion data) {
     return AdminAuthEntry(
       id: data.id.present ? data.id.value : this.id,
@@ -2757,8 +2826,8 @@ class AdminAuthTableCompanion extends UpdateCompanion<AdminAuthEntry> {
     this.id = const Value.absent(),
     required String passwordHash,
     required DateTime updatedAt,
-  }) : passwordHash = Value(passwordHash),
-       updatedAt = Value(updatedAt);
+  })  : passwordHash = Value(passwordHash),
+        updatedAt = Value(updatedAt);
   static Insertable<AdminAuthEntry> custom({
     Expression<int>? id,
     Expression<String>? passwordHash,
@@ -2771,11 +2840,10 @@ class AdminAuthTableCompanion extends UpdateCompanion<AdminAuthEntry> {
     });
   }
 
-  AdminAuthTableCompanion copyWith({
-    Value<int>? id,
-    Value<String>? passwordHash,
-    Value<DateTime>? updatedAt,
-  }) {
+  AdminAuthTableCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? passwordHash,
+      Value<DateTime>? updatedAt}) {
     return AdminAuthTableCompanion(
       id: id ?? this.id,
       passwordHash: passwordHash ?? this.passwordHash,
@@ -2817,6 +2885,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AssetsTableTable assetsTable = $AssetsTableTable(this);
   late final $PrintersTableTable printersTable = $PrintersTableTable(this);
   late final $VouchersTableTable vouchersTable = $VouchersTableTable(this);
+  late final $SalesTableTable salesTable = $SalesTableTable(this);
   late final $SessionsTableTable sessionsTable = $SessionsTableTable(this);
   late final $AdminAuthTableTable adminAuthTable = $AdminAuthTableTable(this);
   @override
@@ -2824,28 +2893,29 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
-    settingsTable,
-    pricesTable,
-    assetsTable,
-    printersTable,
-    vouchersTable,
-    sessionsTable,
-    adminAuthTable,
-  ];
+        settingsTable,
+        pricesTable,
+        assetsTable,
+        printersTable,
+        vouchersTable,
+        salesTable,
+        sessionsTable,
+        adminAuthTable
+      ];
 }
 
-typedef $$SettingsTableTableCreateCompanionBuilder =
-    SettingsTableCompanion Function({
-      required String key,
-      required String value,
-      Value<int> rowid,
-    });
-typedef $$SettingsTableTableUpdateCompanionBuilder =
-    SettingsTableCompanion Function({
-      Value<String> key,
-      Value<String> value,
-      Value<int> rowid,
-    });
+typedef $$SettingsTableTableCreateCompanionBuilder = SettingsTableCompanion
+    Function({
+  required String key,
+  required String value,
+  Value<int> rowid,
+});
+typedef $$SettingsTableTableUpdateCompanionBuilder = SettingsTableCompanion
+    Function({
+  Value<String> key,
+  Value<String> value,
+  Value<int> rowid,
+});
 
 class $$SettingsTableTableFilterComposer
     extends Composer<_$AppDatabase, $SettingsTableTable> {
@@ -2857,14 +2927,10 @@ class $$SettingsTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get key => $composableBuilder(
-    column: $table.key,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.key, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get value => $composableBuilder(
-    column: $table.value,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.value, builder: (column) => ColumnFilters(column));
 }
 
 class $$SettingsTableTableOrderingComposer
@@ -2877,14 +2943,10 @@ class $$SettingsTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get key => $composableBuilder(
-    column: $table.key,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.key, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get value => $composableBuilder(
-    column: $table.value,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.value, builder: (column) => ColumnOrderings(column));
 }
 
 class $$SettingsTableTableAnnotationComposer
@@ -2903,27 +2965,23 @@ class $$SettingsTableTableAnnotationComposer
       $composableBuilder(column: $table.value, builder: (column) => column);
 }
 
-class $$SettingsTableTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $SettingsTableTable,
-          SettingEntry,
-          $$SettingsTableTableFilterComposer,
-          $$SettingsTableTableOrderingComposer,
-          $$SettingsTableTableAnnotationComposer,
-          $$SettingsTableTableCreateCompanionBuilder,
-          $$SettingsTableTableUpdateCompanionBuilder,
-          (
-            SettingEntry,
-            BaseReferences<_$AppDatabase, $SettingsTableTable, SettingEntry>,
-          ),
-          SettingEntry,
-          PrefetchHooks Function()
-        > {
+class $$SettingsTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SettingsTableTable,
+    SettingEntry,
+    $$SettingsTableTableFilterComposer,
+    $$SettingsTableTableOrderingComposer,
+    $$SettingsTableTableAnnotationComposer,
+    $$SettingsTableTableCreateCompanionBuilder,
+    $$SettingsTableTableUpdateCompanionBuilder,
+    (
+      SettingEntry,
+      BaseReferences<_$AppDatabase, $SettingsTableTable, SettingEntry>
+    ),
+    SettingEntry,
+    PrefetchHooks Function()> {
   $$SettingsTableTableTableManager(_$AppDatabase db, $SettingsTableTable table)
-    : super(
-        TableManagerState(
+      : super(TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -2932,69 +2990,60 @@ class $$SettingsTableTableTableManager
               $$SettingsTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$SettingsTableTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> key = const Value.absent(),
-                Value<String> value = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) =>
-                  SettingsTableCompanion(key: key, value: value, rowid: rowid),
-          createCompanionCallback:
-              ({
-                required String key,
-                required String value,
-                Value<int> rowid = const Value.absent(),
-              }) => SettingsTableCompanion.insert(
-                key: key,
-                value: value,
-                rowid: rowid,
-              ),
+          updateCompanionCallback: ({
+            Value<String> key = const Value.absent(),
+            Value<String> value = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SettingsTableCompanion(
+            key: key,
+            value: value,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String key,
+            required String value,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SettingsTableCompanion.insert(
+            key: key,
+            value: value,
+            rowid: rowid,
+          ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$SettingsTableTable, SettingEntry>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $SettingsTableTable,
-                    SettingEntry
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
-        ),
-      );
+        ));
 }
 
-typedef $$SettingsTableTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $SettingsTableTable,
+typedef $$SettingsTableTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SettingsTableTable,
+    SettingEntry,
+    $$SettingsTableTableFilterComposer,
+    $$SettingsTableTableOrderingComposer,
+    $$SettingsTableTableAnnotationComposer,
+    $$SettingsTableTableCreateCompanionBuilder,
+    $$SettingsTableTableUpdateCompanionBuilder,
+    (
       SettingEntry,
-      $$SettingsTableTableFilterComposer,
-      $$SettingsTableTableOrderingComposer,
-      $$SettingsTableTableAnnotationComposer,
-      $$SettingsTableTableCreateCompanionBuilder,
-      $$SettingsTableTableUpdateCompanionBuilder,
-      (
-        SettingEntry,
-        BaseReferences<_$AppDatabase, $SettingsTableTable, SettingEntry>,
-      ),
-      SettingEntry,
-      PrefetchHooks Function()
-    >;
-typedef $$PricesTableTableCreateCompanionBuilder =
-    PricesTableCompanion Function({
-      required String tierChar,
-      required double price,
-      Value<int> rowid,
-    });
-typedef $$PricesTableTableUpdateCompanionBuilder =
-    PricesTableCompanion Function({
-      Value<String> tierChar,
-      Value<double> price,
-      Value<int> rowid,
-    });
+      BaseReferences<_$AppDatabase, $SettingsTableTable, SettingEntry>
+    ),
+    SettingEntry,
+    PrefetchHooks Function()>;
+typedef $$PricesTableTableCreateCompanionBuilder = PricesTableCompanion
+    Function({
+  required String tierChar,
+  required double price,
+  Value<int> rowid,
+});
+typedef $$PricesTableTableUpdateCompanionBuilder = PricesTableCompanion
+    Function({
+  Value<String> tierChar,
+  Value<double> price,
+  Value<int> rowid,
+});
 
 class $$PricesTableTableFilterComposer
     extends Composer<_$AppDatabase, $PricesTableTable> {
@@ -3006,14 +3055,10 @@ class $$PricesTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get tierChar => $composableBuilder(
-    column: $table.tierChar,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.tierChar, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get price => $composableBuilder(
-    column: $table.price,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.price, builder: (column) => ColumnFilters(column));
 }
 
 class $$PricesTableTableOrderingComposer
@@ -3026,14 +3071,10 @@ class $$PricesTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get tierChar => $composableBuilder(
-    column: $table.tierChar,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.tierChar, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<double> get price => $composableBuilder(
-    column: $table.price,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.price, builder: (column) => ColumnOrderings(column));
 }
 
 class $$PricesTableTableAnnotationComposer
@@ -3052,27 +3093,20 @@ class $$PricesTableTableAnnotationComposer
       $composableBuilder(column: $table.price, builder: (column) => column);
 }
 
-class $$PricesTableTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $PricesTableTable,
-          PriceEntry,
-          $$PricesTableTableFilterComposer,
-          $$PricesTableTableOrderingComposer,
-          $$PricesTableTableAnnotationComposer,
-          $$PricesTableTableCreateCompanionBuilder,
-          $$PricesTableTableUpdateCompanionBuilder,
-          (
-            PriceEntry,
-            BaseReferences<_$AppDatabase, $PricesTableTable, PriceEntry>,
-          ),
-          PriceEntry,
-          PrefetchHooks Function()
-        > {
+class $$PricesTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $PricesTableTable,
+    PriceEntry,
+    $$PricesTableTableFilterComposer,
+    $$PricesTableTableOrderingComposer,
+    $$PricesTableTableAnnotationComposer,
+    $$PricesTableTableCreateCompanionBuilder,
+    $$PricesTableTableUpdateCompanionBuilder,
+    (PriceEntry, BaseReferences<_$AppDatabase, $PricesTableTable, PriceEntry>),
+    PriceEntry,
+    PrefetchHooks Function()> {
   $$PricesTableTableTableManager(_$AppDatabase db, $PricesTableTable table)
-    : super(
-        TableManagerState(
+      : super(TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -3081,76 +3115,61 @@ class $$PricesTableTableTableManager
               $$PricesTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$PricesTableTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> tierChar = const Value.absent(),
-                Value<double> price = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => PricesTableCompanion(
-                tierChar: tierChar,
-                price: price,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String tierChar,
-                required double price,
-                Value<int> rowid = const Value.absent(),
-              }) => PricesTableCompanion.insert(
-                tierChar: tierChar,
-                price: price,
-                rowid: rowid,
-              ),
+          updateCompanionCallback: ({
+            Value<String> tierChar = const Value.absent(),
+            Value<double> price = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              PricesTableCompanion(
+            tierChar: tierChar,
+            price: price,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String tierChar,
+            required double price,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              PricesTableCompanion.insert(
+            tierChar: tierChar,
+            price: price,
+            rowid: rowid,
+          ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$PricesTableTable, PriceEntry>(table),
-                  BaseReferences<_$AppDatabase, $PricesTableTable, PriceEntry>(
-                    db,
-                    table,
-                    e,
-                  ),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
-        ),
-      );
+        ));
 }
 
-typedef $$PricesTableTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $PricesTableTable,
-      PriceEntry,
-      $$PricesTableTableFilterComposer,
-      $$PricesTableTableOrderingComposer,
-      $$PricesTableTableAnnotationComposer,
-      $$PricesTableTableCreateCompanionBuilder,
-      $$PricesTableTableUpdateCompanionBuilder,
-      (
-        PriceEntry,
-        BaseReferences<_$AppDatabase, $PricesTableTable, PriceEntry>,
-      ),
-      PriceEntry,
-      PrefetchHooks Function()
-    >;
-typedef $$AssetsTableTableCreateCompanionBuilder =
-    AssetsTableCompanion Function({
-      Value<int> id,
-      required String type,
-      required String name,
-      required String filePath,
-      required DateTime addedAt,
-    });
-typedef $$AssetsTableTableUpdateCompanionBuilder =
-    AssetsTableCompanion Function({
-      Value<int> id,
-      Value<String> type,
-      Value<String> name,
-      Value<String> filePath,
-      Value<DateTime> addedAt,
-    });
+typedef $$PricesTableTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $PricesTableTable,
+    PriceEntry,
+    $$PricesTableTableFilterComposer,
+    $$PricesTableTableOrderingComposer,
+    $$PricesTableTableAnnotationComposer,
+    $$PricesTableTableCreateCompanionBuilder,
+    $$PricesTableTableUpdateCompanionBuilder,
+    (PriceEntry, BaseReferences<_$AppDatabase, $PricesTableTable, PriceEntry>),
+    PriceEntry,
+    PrefetchHooks Function()>;
+typedef $$AssetsTableTableCreateCompanionBuilder = AssetsTableCompanion
+    Function({
+  Value<int> id,
+  required String type,
+  required String name,
+  required String filePath,
+  required DateTime addedAt,
+});
+typedef $$AssetsTableTableUpdateCompanionBuilder = AssetsTableCompanion
+    Function({
+  Value<int> id,
+  Value<String> type,
+  Value<String> name,
+  Value<String> filePath,
+  Value<DateTime> addedAt,
+});
 
 class $$AssetsTableTableFilterComposer
     extends Composer<_$AppDatabase, $AssetsTableTable> {
@@ -3162,29 +3181,19 @@ class $$AssetsTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.id, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get type => $composableBuilder(
-    column: $table.type,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.type, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.name, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get filePath => $composableBuilder(
-    column: $table.filePath,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.filePath, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get addedAt => $composableBuilder(
-    column: $table.addedAt,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.addedAt, builder: (column) => ColumnFilters(column));
 }
 
 class $$AssetsTableTableOrderingComposer
@@ -3197,29 +3206,19 @@ class $$AssetsTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.id, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get type => $composableBuilder(
-    column: $table.type,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.type, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.name, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get filePath => $composableBuilder(
-    column: $table.filePath,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.filePath, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get addedAt => $composableBuilder(
-    column: $table.addedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.addedAt, builder: (column) => ColumnOrderings(column));
 }
 
 class $$AssetsTableTableAnnotationComposer
@@ -3247,27 +3246,20 @@ class $$AssetsTableTableAnnotationComposer
       $composableBuilder(column: $table.addedAt, builder: (column) => column);
 }
 
-class $$AssetsTableTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $AssetsTableTable,
-          AssetEntry,
-          $$AssetsTableTableFilterComposer,
-          $$AssetsTableTableOrderingComposer,
-          $$AssetsTableTableAnnotationComposer,
-          $$AssetsTableTableCreateCompanionBuilder,
-          $$AssetsTableTableUpdateCompanionBuilder,
-          (
-            AssetEntry,
-            BaseReferences<_$AppDatabase, $AssetsTableTable, AssetEntry>,
-          ),
-          AssetEntry,
-          PrefetchHooks Function()
-        > {
+class $$AssetsTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AssetsTableTable,
+    AssetEntry,
+    $$AssetsTableTableFilterComposer,
+    $$AssetsTableTableOrderingComposer,
+    $$AssetsTableTableAnnotationComposer,
+    $$AssetsTableTableCreateCompanionBuilder,
+    $$AssetsTableTableUpdateCompanionBuilder,
+    (AssetEntry, BaseReferences<_$AppDatabase, $AssetsTableTable, AssetEntry>),
+    AssetEntry,
+    PrefetchHooks Function()> {
   $$AssetsTableTableTableManager(_$AppDatabase db, $AssetsTableTable table)
-    : super(
-        TableManagerState(
+      : super(TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -3276,88 +3268,73 @@ class $$AssetsTableTableTableManager
               $$AssetsTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$AssetsTableTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<String> type = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<String> filePath = const Value.absent(),
-                Value<DateTime> addedAt = const Value.absent(),
-              }) => AssetsTableCompanion(
-                id: id,
-                type: type,
-                name: name,
-                filePath: filePath,
-                addedAt: addedAt,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                required String type,
-                required String name,
-                required String filePath,
-                required DateTime addedAt,
-              }) => AssetsTableCompanion.insert(
-                id: id,
-                type: type,
-                name: name,
-                filePath: filePath,
-                addedAt: addedAt,
-              ),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> filePath = const Value.absent(),
+            Value<DateTime> addedAt = const Value.absent(),
+          }) =>
+              AssetsTableCompanion(
+            id: id,
+            type: type,
+            name: name,
+            filePath: filePath,
+            addedAt: addedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String type,
+            required String name,
+            required String filePath,
+            required DateTime addedAt,
+          }) =>
+              AssetsTableCompanion.insert(
+            id: id,
+            type: type,
+            name: name,
+            filePath: filePath,
+            addedAt: addedAt,
+          ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$AssetsTableTable, AssetEntry>(table),
-                  BaseReferences<_$AppDatabase, $AssetsTableTable, AssetEntry>(
-                    db,
-                    table,
-                    e,
-                  ),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
-        ),
-      );
+        ));
 }
 
-typedef $$AssetsTableTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $AssetsTableTable,
-      AssetEntry,
-      $$AssetsTableTableFilterComposer,
-      $$AssetsTableTableOrderingComposer,
-      $$AssetsTableTableAnnotationComposer,
-      $$AssetsTableTableCreateCompanionBuilder,
-      $$AssetsTableTableUpdateCompanionBuilder,
-      (
-        AssetEntry,
-        BaseReferences<_$AppDatabase, $AssetsTableTable, AssetEntry>,
-      ),
-      AssetEntry,
-      PrefetchHooks Function()
-    >;
-typedef $$PrintersTableTableCreateCompanionBuilder =
-    PrintersTableCompanion Function({
-      required String id,
-      required String name,
-      required String transport,
-      required String address,
-      Value<int> paperWidthMm,
-      Value<bool> isDefault,
-      Value<int> rowid,
-    });
-typedef $$PrintersTableTableUpdateCompanionBuilder =
-    PrintersTableCompanion Function({
-      Value<String> id,
-      Value<String> name,
-      Value<String> transport,
-      Value<String> address,
-      Value<int> paperWidthMm,
-      Value<bool> isDefault,
-      Value<int> rowid,
-    });
+typedef $$AssetsTableTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AssetsTableTable,
+    AssetEntry,
+    $$AssetsTableTableFilterComposer,
+    $$AssetsTableTableOrderingComposer,
+    $$AssetsTableTableAnnotationComposer,
+    $$AssetsTableTableCreateCompanionBuilder,
+    $$AssetsTableTableUpdateCompanionBuilder,
+    (AssetEntry, BaseReferences<_$AppDatabase, $AssetsTableTable, AssetEntry>),
+    AssetEntry,
+    PrefetchHooks Function()>;
+typedef $$PrintersTableTableCreateCompanionBuilder = PrintersTableCompanion
+    Function({
+  required String id,
+  required String name,
+  required String transport,
+  required String address,
+  Value<int> paperWidthMm,
+  Value<bool> isDefault,
+  Value<int> rowid,
+});
+typedef $$PrintersTableTableUpdateCompanionBuilder = PrintersTableCompanion
+    Function({
+  Value<String> id,
+  Value<String> name,
+  Value<String> transport,
+  Value<String> address,
+  Value<int> paperWidthMm,
+  Value<bool> isDefault,
+  Value<int> rowid,
+});
 
 class $$PrintersTableTableFilterComposer
     extends Composer<_$AppDatabase, $PrintersTableTable> {
@@ -3369,34 +3346,22 @@ class $$PrintersTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.id, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.name, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get transport => $composableBuilder(
-    column: $table.transport,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.transport, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get address => $composableBuilder(
-    column: $table.address,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.address, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get paperWidthMm => $composableBuilder(
-    column: $table.paperWidthMm,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.paperWidthMm, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isDefault => $composableBuilder(
-    column: $table.isDefault,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.isDefault, builder: (column) => ColumnFilters(column));
 }
 
 class $$PrintersTableTableOrderingComposer
@@ -3409,34 +3374,23 @@ class $$PrintersTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.id, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.name, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get transport => $composableBuilder(
-    column: $table.transport,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.transport, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get address => $composableBuilder(
-    column: $table.address,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.address, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get paperWidthMm => $composableBuilder(
-    column: $table.paperWidthMm,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.paperWidthMm,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get isDefault => $composableBuilder(
-    column: $table.isDefault,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.isDefault, builder: (column) => ColumnOrderings(column));
 }
 
 class $$PrintersTableTableAnnotationComposer
@@ -3461,35 +3415,29 @@ class $$PrintersTableTableAnnotationComposer
       $composableBuilder(column: $table.address, builder: (column) => column);
 
   GeneratedColumn<int> get paperWidthMm => $composableBuilder(
-    column: $table.paperWidthMm,
-    builder: (column) => column,
-  );
+      column: $table.paperWidthMm, builder: (column) => column);
 
   GeneratedColumn<bool> get isDefault =>
       $composableBuilder(column: $table.isDefault, builder: (column) => column);
 }
 
-class $$PrintersTableTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $PrintersTableTable,
-          PrinterEntry,
-          $$PrintersTableTableFilterComposer,
-          $$PrintersTableTableOrderingComposer,
-          $$PrintersTableTableAnnotationComposer,
-          $$PrintersTableTableCreateCompanionBuilder,
-          $$PrintersTableTableUpdateCompanionBuilder,
-          (
-            PrinterEntry,
-            BaseReferences<_$AppDatabase, $PrintersTableTable, PrinterEntry>,
-          ),
-          PrinterEntry,
-          PrefetchHooks Function()
-        > {
+class $$PrintersTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $PrintersTableTable,
+    PrinterEntry,
+    $$PrintersTableTableFilterComposer,
+    $$PrintersTableTableOrderingComposer,
+    $$PrintersTableTableAnnotationComposer,
+    $$PrintersTableTableCreateCompanionBuilder,
+    $$PrintersTableTableUpdateCompanionBuilder,
+    (
+      PrinterEntry,
+      BaseReferences<_$AppDatabase, $PrintersTableTable, PrinterEntry>
+    ),
+    PrinterEntry,
+    PrefetchHooks Function()> {
   $$PrintersTableTableTableManager(_$AppDatabase db, $PrintersTableTable table)
-    : super(
-        TableManagerState(
+      : super(TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -3498,104 +3446,92 @@ class $$PrintersTableTableTableManager
               $$PrintersTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$PrintersTableTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> id = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<String> transport = const Value.absent(),
-                Value<String> address = const Value.absent(),
-                Value<int> paperWidthMm = const Value.absent(),
-                Value<bool> isDefault = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => PrintersTableCompanion(
-                id: id,
-                name: name,
-                transport: transport,
-                address: address,
-                paperWidthMm: paperWidthMm,
-                isDefault: isDefault,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String id,
-                required String name,
-                required String transport,
-                required String address,
-                Value<int> paperWidthMm = const Value.absent(),
-                Value<bool> isDefault = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => PrintersTableCompanion.insert(
-                id: id,
-                name: name,
-                transport: transport,
-                address: address,
-                paperWidthMm: paperWidthMm,
-                isDefault: isDefault,
-                rowid: rowid,
-              ),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> transport = const Value.absent(),
+            Value<String> address = const Value.absent(),
+            Value<int> paperWidthMm = const Value.absent(),
+            Value<bool> isDefault = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              PrintersTableCompanion(
+            id: id,
+            name: name,
+            transport: transport,
+            address: address,
+            paperWidthMm: paperWidthMm,
+            isDefault: isDefault,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String name,
+            required String transport,
+            required String address,
+            Value<int> paperWidthMm = const Value.absent(),
+            Value<bool> isDefault = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              PrintersTableCompanion.insert(
+            id: id,
+            name: name,
+            transport: transport,
+            address: address,
+            paperWidthMm: paperWidthMm,
+            isDefault: isDefault,
+            rowid: rowid,
+          ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$PrintersTableTable, PrinterEntry>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $PrintersTableTable,
-                    PrinterEntry
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
-        ),
-      );
+        ));
 }
 
-typedef $$PrintersTableTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $PrintersTableTable,
+typedef $$PrintersTableTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $PrintersTableTable,
+    PrinterEntry,
+    $$PrintersTableTableFilterComposer,
+    $$PrintersTableTableOrderingComposer,
+    $$PrintersTableTableAnnotationComposer,
+    $$PrintersTableTableCreateCompanionBuilder,
+    $$PrintersTableTableUpdateCompanionBuilder,
+    (
       PrinterEntry,
-      $$PrintersTableTableFilterComposer,
-      $$PrintersTableTableOrderingComposer,
-      $$PrintersTableTableAnnotationComposer,
-      $$PrintersTableTableCreateCompanionBuilder,
-      $$PrintersTableTableUpdateCompanionBuilder,
-      (
-        PrinterEntry,
-        BaseReferences<_$AppDatabase, $PrintersTableTable, PrinterEntry>,
-      ),
-      PrinterEntry,
-      PrefetchHooks Function()
-    >;
-typedef $$VouchersTableTableCreateCompanionBuilder =
-    VouchersTableCompanion Function({
-      required String code,
-      required String locationId,
-      required String tierChar,
-      required String serial,
-      required double priceSnapshot,
-      required String status,
-      required DateTime expiresAt,
-      required DateTime createdAt,
-      Value<DateTime?> redeemedAt,
-      Value<String?> voidReason,
-      Value<int> rowid,
-    });
-typedef $$VouchersTableTableUpdateCompanionBuilder =
-    VouchersTableCompanion Function({
-      Value<String> code,
-      Value<String> locationId,
-      Value<String> tierChar,
-      Value<String> serial,
-      Value<double> priceSnapshot,
-      Value<String> status,
-      Value<DateTime> expiresAt,
-      Value<DateTime> createdAt,
-      Value<DateTime?> redeemedAt,
-      Value<String?> voidReason,
-      Value<int> rowid,
-    });
+      BaseReferences<_$AppDatabase, $PrintersTableTable, PrinterEntry>
+    ),
+    PrinterEntry,
+    PrefetchHooks Function()>;
+typedef $$VouchersTableTableCreateCompanionBuilder = VouchersTableCompanion
+    Function({
+  required String code,
+  required String locationId,
+  required String tierChar,
+  required String serial,
+  required double priceSnapshot,
+  Value<int> status,
+  required DateTime expiresAt,
+  required DateTime createdAt,
+  Value<DateTime?> redeemedAt,
+  Value<String?> voidReason,
+  Value<int> rowid,
+});
+typedef $$VouchersTableTableUpdateCompanionBuilder = VouchersTableCompanion
+    Function({
+  Value<String> code,
+  Value<String> locationId,
+  Value<String> tierChar,
+  Value<String> serial,
+  Value<double> priceSnapshot,
+  Value<int> status,
+  Value<DateTime> expiresAt,
+  Value<DateTime> createdAt,
+  Value<DateTime?> redeemedAt,
+  Value<String?> voidReason,
+  Value<int> rowid,
+});
 
 class $$VouchersTableTableFilterComposer
     extends Composer<_$AppDatabase, $VouchersTableTable> {
@@ -3607,54 +3543,34 @@ class $$VouchersTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get code => $composableBuilder(
-    column: $table.code,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.code, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get locationId => $composableBuilder(
-    column: $table.locationId,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.locationId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get tierChar => $composableBuilder(
-    column: $table.tierChar,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.tierChar, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get serial => $composableBuilder(
-    column: $table.serial,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.serial, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get priceSnapshot => $composableBuilder(
-    column: $table.priceSnapshot,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.priceSnapshot, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get status => $composableBuilder(
-    column: $table.status,
-    builder: (column) => ColumnFilters(column),
-  );
+  ColumnFilters<int> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get expiresAt => $composableBuilder(
-    column: $table.expiresAt,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.expiresAt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get redeemedAt => $composableBuilder(
-    column: $table.redeemedAt,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.redeemedAt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get voidReason => $composableBuilder(
-    column: $table.voidReason,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.voidReason, builder: (column) => ColumnFilters(column));
 }
 
 class $$VouchersTableTableOrderingComposer
@@ -3667,54 +3583,35 @@ class $$VouchersTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get code => $composableBuilder(
-    column: $table.code,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.code, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get locationId => $composableBuilder(
-    column: $table.locationId,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.locationId, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get tierChar => $composableBuilder(
-    column: $table.tierChar,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.tierChar, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get serial => $composableBuilder(
-    column: $table.serial,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.serial, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<double> get priceSnapshot => $composableBuilder(
-    column: $table.priceSnapshot,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.priceSnapshot,
+      builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get status => $composableBuilder(
-    column: $table.status,
-    builder: (column) => ColumnOrderings(column),
-  );
+  ColumnOrderings<int> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get expiresAt => $composableBuilder(
-    column: $table.expiresAt,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.expiresAt, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get redeemedAt => $composableBuilder(
-    column: $table.redeemedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.redeemedAt, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get voidReason => $composableBuilder(
-    column: $table.voidReason,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.voidReason, builder: (column) => ColumnOrderings(column));
 }
 
 class $$VouchersTableTableAnnotationComposer
@@ -3730,9 +3627,7 @@ class $$VouchersTableTableAnnotationComposer
       $composableBuilder(column: $table.code, builder: (column) => column);
 
   GeneratedColumn<String> get locationId => $composableBuilder(
-    column: $table.locationId,
-    builder: (column) => column,
-  );
+      column: $table.locationId, builder: (column) => column);
 
   GeneratedColumn<String> get tierChar =>
       $composableBuilder(column: $table.tierChar, builder: (column) => column);
@@ -3741,11 +3636,9 @@ class $$VouchersTableTableAnnotationComposer
       $composableBuilder(column: $table.serial, builder: (column) => column);
 
   GeneratedColumn<double> get priceSnapshot => $composableBuilder(
-    column: $table.priceSnapshot,
-    builder: (column) => column,
-  );
+      column: $table.priceSnapshot, builder: (column) => column);
 
-  GeneratedColumn<String> get status =>
+  GeneratedColumn<int> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
   GeneratedColumn<DateTime> get expiresAt =>
@@ -3755,37 +3648,29 @@ class $$VouchersTableTableAnnotationComposer
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get redeemedAt => $composableBuilder(
-    column: $table.redeemedAt,
-    builder: (column) => column,
-  );
+      column: $table.redeemedAt, builder: (column) => column);
 
   GeneratedColumn<String> get voidReason => $composableBuilder(
-    column: $table.voidReason,
-    builder: (column) => column,
-  );
+      column: $table.voidReason, builder: (column) => column);
 }
 
-class $$VouchersTableTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $VouchersTableTable,
-          VoucherEntry,
-          $$VouchersTableTableFilterComposer,
-          $$VouchersTableTableOrderingComposer,
-          $$VouchersTableTableAnnotationComposer,
-          $$VouchersTableTableCreateCompanionBuilder,
-          $$VouchersTableTableUpdateCompanionBuilder,
-          (
-            VoucherEntry,
-            BaseReferences<_$AppDatabase, $VouchersTableTable, VoucherEntry>,
-          ),
-          VoucherEntry,
-          PrefetchHooks Function()
-        > {
+class $$VouchersTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $VouchersTableTable,
+    VoucherEntry,
+    $$VouchersTableTableFilterComposer,
+    $$VouchersTableTableOrderingComposer,
+    $$VouchersTableTableAnnotationComposer,
+    $$VouchersTableTableCreateCompanionBuilder,
+    $$VouchersTableTableUpdateCompanionBuilder,
+    (
+      VoucherEntry,
+      BaseReferences<_$AppDatabase, $VouchersTableTable, VoucherEntry>
+    ),
+    VoucherEntry,
+    PrefetchHooks Function()> {
   $$VouchersTableTableTableManager(_$AppDatabase db, $VouchersTableTable table)
-    : super(
-        TableManagerState(
+      : super(TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -3794,124 +3679,338 @@ class $$VouchersTableTableTableManager
               $$VouchersTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$VouchersTableTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> code = const Value.absent(),
-                Value<String> locationId = const Value.absent(),
-                Value<String> tierChar = const Value.absent(),
-                Value<String> serial = const Value.absent(),
-                Value<double> priceSnapshot = const Value.absent(),
-                Value<String> status = const Value.absent(),
-                Value<DateTime> expiresAt = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<DateTime?> redeemedAt = const Value.absent(),
-                Value<String?> voidReason = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => VouchersTableCompanion(
-                code: code,
-                locationId: locationId,
-                tierChar: tierChar,
-                serial: serial,
-                priceSnapshot: priceSnapshot,
-                status: status,
-                expiresAt: expiresAt,
-                createdAt: createdAt,
-                redeemedAt: redeemedAt,
-                voidReason: voidReason,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String code,
-                required String locationId,
-                required String tierChar,
-                required String serial,
-                required double priceSnapshot,
-                required String status,
-                required DateTime expiresAt,
-                required DateTime createdAt,
-                Value<DateTime?> redeemedAt = const Value.absent(),
-                Value<String?> voidReason = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => VouchersTableCompanion.insert(
-                code: code,
-                locationId: locationId,
-                tierChar: tierChar,
-                serial: serial,
-                priceSnapshot: priceSnapshot,
-                status: status,
-                expiresAt: expiresAt,
-                createdAt: createdAt,
-                redeemedAt: redeemedAt,
-                voidReason: voidReason,
-                rowid: rowid,
-              ),
+          updateCompanionCallback: ({
+            Value<String> code = const Value.absent(),
+            Value<String> locationId = const Value.absent(),
+            Value<String> tierChar = const Value.absent(),
+            Value<String> serial = const Value.absent(),
+            Value<double> priceSnapshot = const Value.absent(),
+            Value<int> status = const Value.absent(),
+            Value<DateTime> expiresAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime?> redeemedAt = const Value.absent(),
+            Value<String?> voidReason = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              VouchersTableCompanion(
+            code: code,
+            locationId: locationId,
+            tierChar: tierChar,
+            serial: serial,
+            priceSnapshot: priceSnapshot,
+            status: status,
+            expiresAt: expiresAt,
+            createdAt: createdAt,
+            redeemedAt: redeemedAt,
+            voidReason: voidReason,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String code,
+            required String locationId,
+            required String tierChar,
+            required String serial,
+            required double priceSnapshot,
+            Value<int> status = const Value.absent(),
+            required DateTime expiresAt,
+            required DateTime createdAt,
+            Value<DateTime?> redeemedAt = const Value.absent(),
+            Value<String?> voidReason = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              VouchersTableCompanion.insert(
+            code: code,
+            locationId: locationId,
+            tierChar: tierChar,
+            serial: serial,
+            priceSnapshot: priceSnapshot,
+            status: status,
+            expiresAt: expiresAt,
+            createdAt: createdAt,
+            redeemedAt: redeemedAt,
+            voidReason: voidReason,
+            rowid: rowid,
+          ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$VouchersTableTable, VoucherEntry>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $VouchersTableTable,
-                    VoucherEntry
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
-        ),
-      );
+        ));
 }
 
-typedef $$VouchersTableTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $VouchersTableTable,
+typedef $$VouchersTableTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $VouchersTableTable,
+    VoucherEntry,
+    $$VouchersTableTableFilterComposer,
+    $$VouchersTableTableOrderingComposer,
+    $$VouchersTableTableAnnotationComposer,
+    $$VouchersTableTableCreateCompanionBuilder,
+    $$VouchersTableTableUpdateCompanionBuilder,
+    (
       VoucherEntry,
-      $$VouchersTableTableFilterComposer,
-      $$VouchersTableTableOrderingComposer,
-      $$VouchersTableTableAnnotationComposer,
-      $$VouchersTableTableCreateCompanionBuilder,
-      $$VouchersTableTableUpdateCompanionBuilder,
-      (
-        VoucherEntry,
-        BaseReferences<_$AppDatabase, $VouchersTableTable, VoucherEntry>,
-      ),
-      VoucherEntry,
-      PrefetchHooks Function()
-    >;
-typedef $$SessionsTableTableCreateCompanionBuilder =
-    SessionsTableCompanion Function({
-      required String sessionId,
-      required String voucherCode,
-      required String tierChar,
-      Value<String?> layoutType,
-      required String localImagePaths,
-      Value<String?> composedImagePath,
-      Value<String?> gifPath,
-      Value<String?> driveFileId,
-      Value<String?> driveShareUrl,
-      Value<bool> isUploaded,
-      Value<bool> isPrinted,
-      required DateTime createdAt,
-      Value<int> rowid,
-    });
-typedef $$SessionsTableTableUpdateCompanionBuilder =
-    SessionsTableCompanion Function({
-      Value<String> sessionId,
-      Value<String> voucherCode,
-      Value<String> tierChar,
-      Value<String?> layoutType,
-      Value<String> localImagePaths,
-      Value<String?> composedImagePath,
-      Value<String?> gifPath,
-      Value<String?> driveFileId,
-      Value<String?> driveShareUrl,
-      Value<bool> isUploaded,
-      Value<bool> isPrinted,
-      Value<DateTime> createdAt,
-      Value<int> rowid,
-    });
+      BaseReferences<_$AppDatabase, $VouchersTableTable, VoucherEntry>
+    ),
+    VoucherEntry,
+    PrefetchHooks Function()>;
+typedef $$SalesTableTableCreateCompanionBuilder = SalesTableCompanion Function({
+  required String code,
+  required String locationId,
+  required String tierChar,
+  required String serial,
+  required double priceSnapshot,
+  Value<int> status,
+  required DateTime expiresAt,
+  required DateTime createdAt,
+  required DateTime redeemedAt,
+  Value<int> rowid,
+});
+typedef $$SalesTableTableUpdateCompanionBuilder = SalesTableCompanion Function({
+  Value<String> code,
+  Value<String> locationId,
+  Value<String> tierChar,
+  Value<String> serial,
+  Value<double> priceSnapshot,
+  Value<int> status,
+  Value<DateTime> expiresAt,
+  Value<DateTime> createdAt,
+  Value<DateTime> redeemedAt,
+  Value<int> rowid,
+});
+
+class $$SalesTableTableFilterComposer
+    extends Composer<_$AppDatabase, $SalesTableTable> {
+  $$SalesTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get code => $composableBuilder(
+      column: $table.code, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get locationId => $composableBuilder(
+      column: $table.locationId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tierChar => $composableBuilder(
+      column: $table.tierChar, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get serial => $composableBuilder(
+      column: $table.serial, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get priceSnapshot => $composableBuilder(
+      column: $table.priceSnapshot, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get expiresAt => $composableBuilder(
+      column: $table.expiresAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get redeemedAt => $composableBuilder(
+      column: $table.redeemedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$SalesTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $SalesTableTable> {
+  $$SalesTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get code => $composableBuilder(
+      column: $table.code, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get locationId => $composableBuilder(
+      column: $table.locationId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tierChar => $composableBuilder(
+      column: $table.tierChar, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get serial => $composableBuilder(
+      column: $table.serial, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get priceSnapshot => $composableBuilder(
+      column: $table.priceSnapshot,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get expiresAt => $composableBuilder(
+      column: $table.expiresAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get redeemedAt => $composableBuilder(
+      column: $table.redeemedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SalesTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SalesTableTable> {
+  $$SalesTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get code =>
+      $composableBuilder(column: $table.code, builder: (column) => column);
+
+  GeneratedColumn<String> get locationId => $composableBuilder(
+      column: $table.locationId, builder: (column) => column);
+
+  GeneratedColumn<String> get tierChar =>
+      $composableBuilder(column: $table.tierChar, builder: (column) => column);
+
+  GeneratedColumn<String> get serial =>
+      $composableBuilder(column: $table.serial, builder: (column) => column);
+
+  GeneratedColumn<double> get priceSnapshot => $composableBuilder(
+      column: $table.priceSnapshot, builder: (column) => column);
+
+  GeneratedColumn<int> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get expiresAt =>
+      $composableBuilder(column: $table.expiresAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get redeemedAt => $composableBuilder(
+      column: $table.redeemedAt, builder: (column) => column);
+}
+
+class $$SalesTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SalesTableTable,
+    SaleEntry,
+    $$SalesTableTableFilterComposer,
+    $$SalesTableTableOrderingComposer,
+    $$SalesTableTableAnnotationComposer,
+    $$SalesTableTableCreateCompanionBuilder,
+    $$SalesTableTableUpdateCompanionBuilder,
+    (SaleEntry, BaseReferences<_$AppDatabase, $SalesTableTable, SaleEntry>),
+    SaleEntry,
+    PrefetchHooks Function()> {
+  $$SalesTableTableTableManager(_$AppDatabase db, $SalesTableTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SalesTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SalesTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SalesTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> code = const Value.absent(),
+            Value<String> locationId = const Value.absent(),
+            Value<String> tierChar = const Value.absent(),
+            Value<String> serial = const Value.absent(),
+            Value<double> priceSnapshot = const Value.absent(),
+            Value<int> status = const Value.absent(),
+            Value<DateTime> expiresAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> redeemedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SalesTableCompanion(
+            code: code,
+            locationId: locationId,
+            tierChar: tierChar,
+            serial: serial,
+            priceSnapshot: priceSnapshot,
+            status: status,
+            expiresAt: expiresAt,
+            createdAt: createdAt,
+            redeemedAt: redeemedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String code,
+            required String locationId,
+            required String tierChar,
+            required String serial,
+            required double priceSnapshot,
+            Value<int> status = const Value.absent(),
+            required DateTime expiresAt,
+            required DateTime createdAt,
+            required DateTime redeemedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SalesTableCompanion.insert(
+            code: code,
+            locationId: locationId,
+            tierChar: tierChar,
+            serial: serial,
+            priceSnapshot: priceSnapshot,
+            status: status,
+            expiresAt: expiresAt,
+            createdAt: createdAt,
+            redeemedAt: redeemedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SalesTableTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SalesTableTable,
+    SaleEntry,
+    $$SalesTableTableFilterComposer,
+    $$SalesTableTableOrderingComposer,
+    $$SalesTableTableAnnotationComposer,
+    $$SalesTableTableCreateCompanionBuilder,
+    $$SalesTableTableUpdateCompanionBuilder,
+    (SaleEntry, BaseReferences<_$AppDatabase, $SalesTableTable, SaleEntry>),
+    SaleEntry,
+    PrefetchHooks Function()>;
+typedef $$SessionsTableTableCreateCompanionBuilder = SessionsTableCompanion
+    Function({
+  required String sessionId,
+  required String voucherCode,
+  required String tierChar,
+  Value<String?> layoutType,
+  required String localImagePaths,
+  Value<String?> composedImagePath,
+  Value<String?> gifPath,
+  Value<String?> driveFileId,
+  Value<String?> driveShareUrl,
+  Value<bool> isUploaded,
+  Value<bool> isPrinted,
+  required DateTime createdAt,
+  Value<int> rowid,
+});
+typedef $$SessionsTableTableUpdateCompanionBuilder = SessionsTableCompanion
+    Function({
+  Value<String> sessionId,
+  Value<String> voucherCode,
+  Value<String> tierChar,
+  Value<String?> layoutType,
+  Value<String> localImagePaths,
+  Value<String?> composedImagePath,
+  Value<String?> gifPath,
+  Value<String?> driveFileId,
+  Value<String?> driveShareUrl,
+  Value<bool> isUploaded,
+  Value<bool> isPrinted,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
 
 class $$SessionsTableTableFilterComposer
     extends Composer<_$AppDatabase, $SessionsTableTable> {
@@ -3923,64 +4022,42 @@ class $$SessionsTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<String> get sessionId => $composableBuilder(
-    column: $table.sessionId,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.sessionId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get voucherCode => $composableBuilder(
-    column: $table.voucherCode,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.voucherCode, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get tierChar => $composableBuilder(
-    column: $table.tierChar,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.tierChar, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get layoutType => $composableBuilder(
-    column: $table.layoutType,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.layoutType, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get localImagePaths => $composableBuilder(
-    column: $table.localImagePaths,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.localImagePaths,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get composedImagePath => $composableBuilder(
-    column: $table.composedImagePath,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.composedImagePath,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get gifPath => $composableBuilder(
-    column: $table.gifPath,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.gifPath, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get driveFileId => $composableBuilder(
-    column: $table.driveFileId,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.driveFileId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get driveShareUrl => $composableBuilder(
-    column: $table.driveShareUrl,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.driveShareUrl, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isUploaded => $composableBuilder(
-    column: $table.isUploaded,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.isUploaded, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isPrinted => $composableBuilder(
-    column: $table.isPrinted,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.isPrinted, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
 }
 
 class $$SessionsTableTableOrderingComposer
@@ -3993,64 +4070,43 @@ class $$SessionsTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<String> get sessionId => $composableBuilder(
-    column: $table.sessionId,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.sessionId, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get voucherCode => $composableBuilder(
-    column: $table.voucherCode,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.voucherCode, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get tierChar => $composableBuilder(
-    column: $table.tierChar,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.tierChar, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get layoutType => $composableBuilder(
-    column: $table.layoutType,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.layoutType, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get localImagePaths => $composableBuilder(
-    column: $table.localImagePaths,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.localImagePaths,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get composedImagePath => $composableBuilder(
-    column: $table.composedImagePath,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.composedImagePath,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get gifPath => $composableBuilder(
-    column: $table.gifPath,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.gifPath, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get driveFileId => $composableBuilder(
-    column: $table.driveFileId,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.driveFileId, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get driveShareUrl => $composableBuilder(
-    column: $table.driveShareUrl,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.driveShareUrl,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get isUploaded => $composableBuilder(
-    column: $table.isUploaded,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.isUploaded, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get isPrinted => $composableBuilder(
-    column: $table.isPrinted,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.isPrinted, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
 
 class $$SessionsTableTableAnnotationComposer
@@ -4066,45 +4122,31 @@ class $$SessionsTableTableAnnotationComposer
       $composableBuilder(column: $table.sessionId, builder: (column) => column);
 
   GeneratedColumn<String> get voucherCode => $composableBuilder(
-    column: $table.voucherCode,
-    builder: (column) => column,
-  );
+      column: $table.voucherCode, builder: (column) => column);
 
   GeneratedColumn<String> get tierChar =>
       $composableBuilder(column: $table.tierChar, builder: (column) => column);
 
   GeneratedColumn<String> get layoutType => $composableBuilder(
-    column: $table.layoutType,
-    builder: (column) => column,
-  );
+      column: $table.layoutType, builder: (column) => column);
 
   GeneratedColumn<String> get localImagePaths => $composableBuilder(
-    column: $table.localImagePaths,
-    builder: (column) => column,
-  );
+      column: $table.localImagePaths, builder: (column) => column);
 
   GeneratedColumn<String> get composedImagePath => $composableBuilder(
-    column: $table.composedImagePath,
-    builder: (column) => column,
-  );
+      column: $table.composedImagePath, builder: (column) => column);
 
   GeneratedColumn<String> get gifPath =>
       $composableBuilder(column: $table.gifPath, builder: (column) => column);
 
   GeneratedColumn<String> get driveFileId => $composableBuilder(
-    column: $table.driveFileId,
-    builder: (column) => column,
-  );
+      column: $table.driveFileId, builder: (column) => column);
 
   GeneratedColumn<String> get driveShareUrl => $composableBuilder(
-    column: $table.driveShareUrl,
-    builder: (column) => column,
-  );
+      column: $table.driveShareUrl, builder: (column) => column);
 
   GeneratedColumn<bool> get isUploaded => $composableBuilder(
-    column: $table.isUploaded,
-    builder: (column) => column,
-  );
+      column: $table.isUploaded, builder: (column) => column);
 
   GeneratedColumn<bool> get isPrinted =>
       $composableBuilder(column: $table.isPrinted, builder: (column) => column);
@@ -4113,27 +4155,23 @@ class $$SessionsTableTableAnnotationComposer
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
 
-class $$SessionsTableTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $SessionsTableTable,
-          SessionEntry,
-          $$SessionsTableTableFilterComposer,
-          $$SessionsTableTableOrderingComposer,
-          $$SessionsTableTableAnnotationComposer,
-          $$SessionsTableTableCreateCompanionBuilder,
-          $$SessionsTableTableUpdateCompanionBuilder,
-          (
-            SessionEntry,
-            BaseReferences<_$AppDatabase, $SessionsTableTable, SessionEntry>,
-          ),
-          SessionEntry,
-          PrefetchHooks Function()
-        > {
+class $$SessionsTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SessionsTableTable,
+    SessionEntry,
+    $$SessionsTableTableFilterComposer,
+    $$SessionsTableTableOrderingComposer,
+    $$SessionsTableTableAnnotationComposer,
+    $$SessionsTableTableCreateCompanionBuilder,
+    $$SessionsTableTableUpdateCompanionBuilder,
+    (
+      SessionEntry,
+      BaseReferences<_$AppDatabase, $SessionsTableTable, SessionEntry>
+    ),
+    SessionEntry,
+    PrefetchHooks Function()> {
   $$SessionsTableTableTableManager(_$AppDatabase db, $SessionsTableTable table)
-    : super(
-        TableManagerState(
+      : super(TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -4142,112 +4180,100 @@ class $$SessionsTableTableTableManager
               $$SessionsTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$SessionsTableTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> sessionId = const Value.absent(),
-                Value<String> voucherCode = const Value.absent(),
-                Value<String> tierChar = const Value.absent(),
-                Value<String?> layoutType = const Value.absent(),
-                Value<String> localImagePaths = const Value.absent(),
-                Value<String?> composedImagePath = const Value.absent(),
-                Value<String?> gifPath = const Value.absent(),
-                Value<String?> driveFileId = const Value.absent(),
-                Value<String?> driveShareUrl = const Value.absent(),
-                Value<bool> isUploaded = const Value.absent(),
-                Value<bool> isPrinted = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => SessionsTableCompanion(
-                sessionId: sessionId,
-                voucherCode: voucherCode,
-                tierChar: tierChar,
-                layoutType: layoutType,
-                localImagePaths: localImagePaths,
-                composedImagePath: composedImagePath,
-                gifPath: gifPath,
-                driveFileId: driveFileId,
-                driveShareUrl: driveShareUrl,
-                isUploaded: isUploaded,
-                isPrinted: isPrinted,
-                createdAt: createdAt,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String sessionId,
-                required String voucherCode,
-                required String tierChar,
-                Value<String?> layoutType = const Value.absent(),
-                required String localImagePaths,
-                Value<String?> composedImagePath = const Value.absent(),
-                Value<String?> gifPath = const Value.absent(),
-                Value<String?> driveFileId = const Value.absent(),
-                Value<String?> driveShareUrl = const Value.absent(),
-                Value<bool> isUploaded = const Value.absent(),
-                Value<bool> isPrinted = const Value.absent(),
-                required DateTime createdAt,
-                Value<int> rowid = const Value.absent(),
-              }) => SessionsTableCompanion.insert(
-                sessionId: sessionId,
-                voucherCode: voucherCode,
-                tierChar: tierChar,
-                layoutType: layoutType,
-                localImagePaths: localImagePaths,
-                composedImagePath: composedImagePath,
-                gifPath: gifPath,
-                driveFileId: driveFileId,
-                driveShareUrl: driveShareUrl,
-                isUploaded: isUploaded,
-                isPrinted: isPrinted,
-                createdAt: createdAt,
-                rowid: rowid,
-              ),
+          updateCompanionCallback: ({
+            Value<String> sessionId = const Value.absent(),
+            Value<String> voucherCode = const Value.absent(),
+            Value<String> tierChar = const Value.absent(),
+            Value<String?> layoutType = const Value.absent(),
+            Value<String> localImagePaths = const Value.absent(),
+            Value<String?> composedImagePath = const Value.absent(),
+            Value<String?> gifPath = const Value.absent(),
+            Value<String?> driveFileId = const Value.absent(),
+            Value<String?> driveShareUrl = const Value.absent(),
+            Value<bool> isUploaded = const Value.absent(),
+            Value<bool> isPrinted = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SessionsTableCompanion(
+            sessionId: sessionId,
+            voucherCode: voucherCode,
+            tierChar: tierChar,
+            layoutType: layoutType,
+            localImagePaths: localImagePaths,
+            composedImagePath: composedImagePath,
+            gifPath: gifPath,
+            driveFileId: driveFileId,
+            driveShareUrl: driveShareUrl,
+            isUploaded: isUploaded,
+            isPrinted: isPrinted,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String sessionId,
+            required String voucherCode,
+            required String tierChar,
+            Value<String?> layoutType = const Value.absent(),
+            required String localImagePaths,
+            Value<String?> composedImagePath = const Value.absent(),
+            Value<String?> gifPath = const Value.absent(),
+            Value<String?> driveFileId = const Value.absent(),
+            Value<String?> driveShareUrl = const Value.absent(),
+            Value<bool> isUploaded = const Value.absent(),
+            Value<bool> isPrinted = const Value.absent(),
+            required DateTime createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SessionsTableCompanion.insert(
+            sessionId: sessionId,
+            voucherCode: voucherCode,
+            tierChar: tierChar,
+            layoutType: layoutType,
+            localImagePaths: localImagePaths,
+            composedImagePath: composedImagePath,
+            gifPath: gifPath,
+            driveFileId: driveFileId,
+            driveShareUrl: driveShareUrl,
+            isUploaded: isUploaded,
+            isPrinted: isPrinted,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$SessionsTableTable, SessionEntry>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $SessionsTableTable,
-                    SessionEntry
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
-        ),
-      );
+        ));
 }
 
-typedef $$SessionsTableTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $SessionsTableTable,
+typedef $$SessionsTableTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SessionsTableTable,
+    SessionEntry,
+    $$SessionsTableTableFilterComposer,
+    $$SessionsTableTableOrderingComposer,
+    $$SessionsTableTableAnnotationComposer,
+    $$SessionsTableTableCreateCompanionBuilder,
+    $$SessionsTableTableUpdateCompanionBuilder,
+    (
       SessionEntry,
-      $$SessionsTableTableFilterComposer,
-      $$SessionsTableTableOrderingComposer,
-      $$SessionsTableTableAnnotationComposer,
-      $$SessionsTableTableCreateCompanionBuilder,
-      $$SessionsTableTableUpdateCompanionBuilder,
-      (
-        SessionEntry,
-        BaseReferences<_$AppDatabase, $SessionsTableTable, SessionEntry>,
-      ),
-      SessionEntry,
-      PrefetchHooks Function()
-    >;
-typedef $$AdminAuthTableTableCreateCompanionBuilder =
-    AdminAuthTableCompanion Function({
-      Value<int> id,
-      required String passwordHash,
-      required DateTime updatedAt,
-    });
-typedef $$AdminAuthTableTableUpdateCompanionBuilder =
-    AdminAuthTableCompanion Function({
-      Value<int> id,
-      Value<String> passwordHash,
-      Value<DateTime> updatedAt,
-    });
+      BaseReferences<_$AppDatabase, $SessionsTableTable, SessionEntry>
+    ),
+    SessionEntry,
+    PrefetchHooks Function()>;
+typedef $$AdminAuthTableTableCreateCompanionBuilder = AdminAuthTableCompanion
+    Function({
+  Value<int> id,
+  required String passwordHash,
+  required DateTime updatedAt,
+});
+typedef $$AdminAuthTableTableUpdateCompanionBuilder = AdminAuthTableCompanion
+    Function({
+  Value<int> id,
+  Value<String> passwordHash,
+  Value<DateTime> updatedAt,
+});
 
 class $$AdminAuthTableTableFilterComposer
     extends Composer<_$AppDatabase, $AdminAuthTableTable> {
@@ -4259,19 +4285,13 @@ class $$AdminAuthTableTableFilterComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.id, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get passwordHash => $composableBuilder(
-    column: $table.passwordHash,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.passwordHash, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
 }
 
 class $$AdminAuthTableTableOrderingComposer
@@ -4284,19 +4304,14 @@ class $$AdminAuthTableTableOrderingComposer
     super.$removeJoinBuilderFromRootComposer,
   });
   ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.id, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get passwordHash => $composableBuilder(
-    column: $table.passwordHash,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.passwordHash,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 }
 
 class $$AdminAuthTableTableAnnotationComposer
@@ -4312,37 +4327,30 @@ class $$AdminAuthTableTableAnnotationComposer
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get passwordHash => $composableBuilder(
-    column: $table.passwordHash,
-    builder: (column) => column,
-  );
+      column: $table.passwordHash, builder: (column) => column);
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
-class $$AdminAuthTableTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $AdminAuthTableTable,
-          AdminAuthEntry,
-          $$AdminAuthTableTableFilterComposer,
-          $$AdminAuthTableTableOrderingComposer,
-          $$AdminAuthTableTableAnnotationComposer,
-          $$AdminAuthTableTableCreateCompanionBuilder,
-          $$AdminAuthTableTableUpdateCompanionBuilder,
-          (
-            AdminAuthEntry,
-            BaseReferences<_$AppDatabase, $AdminAuthTableTable, AdminAuthEntry>,
-          ),
-          AdminAuthEntry,
-          PrefetchHooks Function()
-        > {
+class $$AdminAuthTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AdminAuthTableTable,
+    AdminAuthEntry,
+    $$AdminAuthTableTableFilterComposer,
+    $$AdminAuthTableTableOrderingComposer,
+    $$AdminAuthTableTableAnnotationComposer,
+    $$AdminAuthTableTableCreateCompanionBuilder,
+    $$AdminAuthTableTableUpdateCompanionBuilder,
+    (
+      AdminAuthEntry,
+      BaseReferences<_$AppDatabase, $AdminAuthTableTable, AdminAuthEntry>
+    ),
+    AdminAuthEntry,
+    PrefetchHooks Function()> {
   $$AdminAuthTableTableTableManager(
-    _$AppDatabase db,
-    $AdminAuthTableTable table,
-  ) : super(
-        TableManagerState(
+      _$AppDatabase db, $AdminAuthTableTable table)
+      : super(TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
@@ -4351,60 +4359,48 @@ class $$AdminAuthTableTableTableManager
               $$AdminAuthTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
               $$AdminAuthTableTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<String> passwordHash = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
-              }) => AdminAuthTableCompanion(
-                id: id,
-                passwordHash: passwordHash,
-                updatedAt: updatedAt,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                required String passwordHash,
-                required DateTime updatedAt,
-              }) => AdminAuthTableCompanion.insert(
-                id: id,
-                passwordHash: passwordHash,
-                updatedAt: updatedAt,
-              ),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> passwordHash = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              AdminAuthTableCompanion(
+            id: id,
+            passwordHash: passwordHash,
+            updatedAt: updatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String passwordHash,
+            required DateTime updatedAt,
+          }) =>
+              AdminAuthTableCompanion.insert(
+            id: id,
+            passwordHash: passwordHash,
+            updatedAt: updatedAt,
+          ),
           withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$AdminAuthTableTable, AdminAuthEntry>(table),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $AdminAuthTableTable,
-                    AdminAuthEntry
-                  >(db, table, e),
-                ),
-              )
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: null,
-        ),
-      );
+        ));
 }
 
-typedef $$AdminAuthTableTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $AdminAuthTableTable,
+typedef $$AdminAuthTableTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AdminAuthTableTable,
+    AdminAuthEntry,
+    $$AdminAuthTableTableFilterComposer,
+    $$AdminAuthTableTableOrderingComposer,
+    $$AdminAuthTableTableAnnotationComposer,
+    $$AdminAuthTableTableCreateCompanionBuilder,
+    $$AdminAuthTableTableUpdateCompanionBuilder,
+    (
       AdminAuthEntry,
-      $$AdminAuthTableTableFilterComposer,
-      $$AdminAuthTableTableOrderingComposer,
-      $$AdminAuthTableTableAnnotationComposer,
-      $$AdminAuthTableTableCreateCompanionBuilder,
-      $$AdminAuthTableTableUpdateCompanionBuilder,
-      (
-        AdminAuthEntry,
-        BaseReferences<_$AppDatabase, $AdminAuthTableTable, AdminAuthEntry>,
-      ),
-      AdminAuthEntry,
-      PrefetchHooks Function()
-    >;
+      BaseReferences<_$AppDatabase, $AdminAuthTableTable, AdminAuthEntry>
+    ),
+    AdminAuthEntry,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4419,6 +4415,8 @@ class $AppDatabaseManager {
       $$PrintersTableTableTableManager(_db, _db.printersTable);
   $$VouchersTableTableTableManager get vouchersTable =>
       $$VouchersTableTableTableManager(_db, _db.vouchersTable);
+  $$SalesTableTableTableManager get salesTable =>
+      $$SalesTableTableTableManager(_db, _db.salesTable);
   $$SessionsTableTableTableManager get sessionsTable =>
       $$SessionsTableTableTableManager(_db, _db.sessionsTable);
   $$AdminAuthTableTableTableManager get adminAuthTable =>

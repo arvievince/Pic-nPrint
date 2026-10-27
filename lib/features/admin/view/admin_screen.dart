@@ -678,6 +678,7 @@ class _CameraSectionState extends State<_CameraSection> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _countdownCtrl;
   late final TextEditingController _gapCtrl;
+  late final TextEditingController _maxRetakesCtrl;
   bool _isSaving = false;
 
   @override
@@ -689,12 +690,16 @@ class _CameraSectionState extends State<_CameraSection> {
     _gapCtrl = TextEditingController(
       text: widget.settings['shot_gap_seconds'] ?? '2',
     );
+    _maxRetakesCtrl = TextEditingController(
+      text: widget.settings['max_retakes'] ?? '1',
+    );
   }
 
   @override
   void dispose() {
     _countdownCtrl.dispose();
     _gapCtrl.dispose();
+    _maxRetakesCtrl.dispose();
     super.dispose();
   }
 
@@ -706,11 +711,13 @@ class _CameraSectionState extends State<_CameraSection> {
     setState(() => _isSaving = true);
     final countdown = _countdownCtrl.text.trim();
     final gap = _gapCtrl.text.trim();
+    final maxRetakes = _maxRetakesCtrl.text.trim();
 
     context.read<AdminBloc>().add(
           AdminMultipleSettingsUpdated({
             'countdown_seconds': countdown,
             'shot_gap_seconds': gap,
+            'max_retakes': maxRetakes,
           }),
         );
 
@@ -736,7 +743,7 @@ class _CameraSectionState extends State<_CameraSection> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Configure countdown timer and delay interval between burst snapshots.',
+            'Configure countdown timer, delay interval between burst snapshots, and photo retakes.',
             style: Theme.of(
               context,
             ).textTheme.bodyMedium?.copyWith(color: AppColors.onSurface),
@@ -777,6 +784,27 @@ class _CameraSectionState extends State<_CameraSection> {
               final val = int.tryParse(v?.trim() ?? '');
               if (val == null || val < 1) {
                 return 'Please enter at least 1 second';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+          Text('Maximum Retakes Allowed',
+              style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _maxRetakesCtrl,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: const InputDecoration(
+              hintText: '1',
+              suffixText: 'retakes',
+              helperText: 'Number of times a user can retake photos in a session (0 to disable).',
+            ),
+            validator: (v) {
+              final val = int.tryParse(v?.trim() ?? '');
+              if (val == null || val < 0) {
+                return 'Please enter a valid number (0 or more)';
               }
               return null;
             },
@@ -2063,7 +2091,7 @@ class _VouchersSection extends StatefulWidget {
 
 class _VouchersSectionState extends State<_VouchersSection> {
   late Future<List<VoucherEntry>> _vouchersFuture;
-  String _activeTab = 'active'; // 'active', 'used', 'all'
+  int _activeStatus = 0; // 0: active, 1: used, 2: voided, -1: all
   ShotMode? _selectedTier;
   int _currentPage = 0;
   int _rowsPerPage = 10;
@@ -2268,7 +2296,7 @@ class _VouchersSectionState extends State<_VouchersSection> {
             final all = (snapshot.data ?? []).reversed.toList();
             final filtered = all.where((v) {
               final matchesStatus =
-                  _activeTab == 'all' ? true : v.status == _activeTab;
+                  _activeStatus == -1 ? true : v.status == _activeStatus;
               final matchesTier = _selectedTier == null
                   ? true
                   : v.tierChar == _selectedTier!.tierChar;
@@ -2322,8 +2350,8 @@ class _VouchersSectionState extends State<_VouchersSection> {
                                   border: Border.all(color: Colors.white12),
                                 ),
                                 child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    value: _activeTab,
+                                  child: DropdownButton<int>(
+                                    value: _activeStatus,
                                     dropdownColor: AppColors.surfaceVariant,
                                     style: const TextStyle(
                                         fontSize: 13, color: Colors.white),
@@ -2331,21 +2359,24 @@ class _VouchersSectionState extends State<_VouchersSection> {
                                         color: AppColors.onSurface, size: 20),
                                     items: const [
                                       DropdownMenuItem(
-                                          value: 'active',
+                                          value: 0,
                                           child:
                                               Text('Status: Active (Unused)')),
                                       DropdownMenuItem(
-                                          value: 'used',
+                                          value: 1,
                                           child:
                                               Text('Status: Used / Redeemed')),
                                       DropdownMenuItem(
-                                          value: 'all',
+                                          value: 2,
+                                          child: Text('Status: Voided')),
+                                      DropdownMenuItem(
+                                          value: -1,
                                           child: Text('Status: All Vouchers')),
                                     ],
                                     onChanged: (val) {
                                       if (val != null) {
                                         setState(() {
-                                          _activeTab = val;
+                                          _activeStatus = val;
                                           _currentPage = 0;
                                         });
                                       }
@@ -2403,7 +2434,7 @@ class _VouchersSectionState extends State<_VouchersSection> {
                                               .exportVouchersInventory(
                                             filtered,
                                             filterLabel:
-                                                '${_activeTab}_${_selectedTier?.name ?? "all"}',
+                                                '${_activeStatus == -1 ? "all" : _activeStatus == 0 ? "active" : _activeStatus == 1 ? "used" : "voided"}_${_selectedTier?.name ?? "all"}',
                                           ),
                                         ),
                               ),
@@ -2420,7 +2451,7 @@ class _VouchersSectionState extends State<_VouchersSection> {
                         child: Column(
                           children: [
                             Icon(
-                              _activeTab == 'active'
+                              _activeStatus == 0
                                   ? Icons.confirmation_number_outlined
                                   : Icons.inbox_rounded,
                               size: 54,
@@ -2428,7 +2459,7 @@ class _VouchersSectionState extends State<_VouchersSection> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              _activeTab == 'active'
+                              _activeStatus == 0
                                   ? 'No Active Unused Vouchers'
                                   : 'No Vouchers Found',
                               style: const TextStyle(
@@ -2436,7 +2467,7 @@ class _VouchersSectionState extends State<_VouchersSection> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              _activeTab == 'active'
+                              _activeStatus == 0
                                   ? 'Tap "Generate Vouchers" to create new customer tickets.'
                                   : 'Try adjusting your filters above.',
                               style:
@@ -2481,8 +2512,13 @@ class _VouchersSectionState extends State<_VouchersSection> {
                                         fontWeight: FontWeight.bold))),
                           ],
                           rows: pagedList.map((v) {
-                            final isActive = v.status == 'active';
-                            final isUsed = v.status == 'used';
+                            final isActive = v.status == 0;
+                            final isUsed = v.status == 1;
+                            final statusLabel = isActive
+                                ? 'ACTIVE'
+                                : isUsed
+                                    ? 'USED'
+                                    : 'VOIDED';
                             final mode =
                                 ShotModeExtension.fromTierChar(v.tierChar);
 
@@ -2557,7 +2593,7 @@ class _VouchersSectionState extends State<_VouchersSection> {
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
-                                      v.status.toUpperCase(),
+                                      statusLabel,
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
@@ -2634,7 +2670,7 @@ class _VouchersSectionState extends State<_VouchersSection> {
                                             );
                                             if (confirm == true) {
                                               await db.updateVoucherStatus(
-                                                  v.code, 'voided',
+                                                  v.code, 2,
                                                   voidReason: 'Admin voided');
                                               _loadVouchers();
                                             }
@@ -3043,7 +3079,7 @@ class _SalesSection extends StatefulWidget {
 }
 
 class _SalesSectionState extends State<_SalesSection> {
-  late Future<List<VoucherEntry>> _vouchersFuture;
+  late Future<List<SaleEntry>> _salesFuture;
   _SalesDateFilter _dateFilter = _SalesDateFilter.allTime;
   DateTimeRange? _customRange;
   ShotMode? _selectedTier;
@@ -3058,7 +3094,7 @@ class _SalesSectionState extends State<_SalesSection> {
 
   void _loadSales() {
     setState(() {
-      _vouchersFuture = context.read<AppDatabase>().getAllVouchers();
+      _salesFuture = context.read<AppDatabase>().getAllSales();
     });
   }
 
@@ -3127,8 +3163,8 @@ class _SalesSectionState extends State<_SalesSection> {
         const SizedBox(height: 20),
 
         // ── Data Content ─────────────────────────────────────────────────────
-        FutureBuilder<List<VoucherEntry>>(
-          future: _vouchersFuture,
+        FutureBuilder<List<SaleEntry>>(
+          future: _salesFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
@@ -3139,13 +3175,12 @@ class _SalesSectionState extends State<_SalesSection> {
               );
             }
 
-            final allVouchers = snapshot.data ?? [];
+            final allSales = snapshot.data ?? [];
             final range = _resolveDateRange();
 
-            // Filter to USED vouchers within the active date range
-            final usedSales = allVouchers.where((v) {
-              if (v.status != 'used') return false;
-              final timestamp = v.redeemedAt ?? v.createdAt;
+            // Filter to sales within the active date range
+            final usedSales = allSales.where((v) {
+              final timestamp = v.redeemedAt;
               if (range != null) {
                 if (timestamp.isBefore(range.start) ||
                     timestamp.isAfter(range.end)) {
@@ -3576,9 +3611,8 @@ class _SalesSectionState extends State<_SalesSection> {
                               rows: pagedSales.map((v) {
                                 final mode =
                                     ShotModeExtension.fromTierChar(v.tierChar);
-                                final redeemedStr = v.redeemedAt != null
-                                    ? v.redeemedAt.toString().substring(0, 16)
-                                    : '—';
+                                final redeemedStr =
+                                    v.redeemedAt.toString().substring(0, 16);
 
                                 return DataRow(
                                   cells: [

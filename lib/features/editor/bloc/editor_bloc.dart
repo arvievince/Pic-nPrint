@@ -19,10 +19,12 @@ import 'editor_state.dart';
 class EditorBloc extends Bloc<EditorEvent, EditorState> {
   final CompositionService _compositionService;
   final SessionModel session;
+  final String? logoPath;
 
   EditorBloc({
     required CompositionService compositionService,
     required this.session,
+    this.logoPath,
   })  : _compositionService = compositionService,
         super(const EditorState()) {
     on<StickerAdded>(_onStickerAdded);
@@ -98,6 +100,7 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
           stickers: state.stickers,
           texts: state.texts,
           borderAssetPath: state.borderAssetPath,
+          logoPath: logoPath,
         );
       }
       emit(state.copyWith(isComposing: false, composedPath: composedPath));

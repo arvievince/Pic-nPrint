@@ -6,10 +6,12 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
+import 'package:barcode_widget/barcode_widget.dart';
 
 import '../bloc/editor_bloc.dart';
 import '../bloc/editor_event.dart';
 import '../bloc/editor_state.dart';
+import '../../../core/database/app_database.dart';
 import '../../../core/models/models.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
@@ -26,6 +28,25 @@ class EditorScreen extends StatefulWidget {
 class _EditorScreenState extends State<EditorScreen> {
   final GlobalKey _canvasKey = GlobalKey();
   bool _isCapturing = false;
+  String? _logoPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLogo();
+  }
+
+  Future<void> _loadLogo() async {
+    final db = context.read<AppDatabase>();
+    final path = await db.getSetting('kiosk_logo_path');
+    if (path != null &&
+        path.trim().isNotEmpty &&
+        File(path.trim()).existsSync()) {
+      if (mounted) {
+        setState(() => _logoPath = path.trim());
+      }
+    }
+  }
 
   Future<void> _handleDone(BuildContext context) async {
     setState(() => _isCapturing = true);
@@ -61,7 +82,10 @@ class _EditorScreenState extends State<EditorScreen> {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => EditorBloc(
-          compositionService: context.read(), session: widget.session),
+        compositionService: context.read(),
+        session: widget.session,
+        logoPath: _logoPath,
+      ),
       child: BlocConsumer<EditorBloc, EditorState>(
         listener: (context, state) {
           if (state.composedPath != null && !state.isComposing) {
@@ -121,6 +145,7 @@ class _EditorScreenState extends State<EditorScreen> {
                     editorState: state,
                     canvasKey: _canvasKey,
                     isCapturing: _isCapturing,
+                    logoPath: _logoPath,
                   ),
                 ),
 
@@ -142,12 +167,14 @@ class _EditorCanvas extends StatelessWidget {
   final EditorState editorState;
   final GlobalKey canvasKey;
   final bool isCapturing;
+  final String? logoPath;
 
   const _EditorCanvas({
     required this.session,
     required this.editorState,
     required this.canvasKey,
     required this.isCapturing,
+    this.logoPath,
   });
 
   double _getAspectRatio() {
@@ -175,29 +202,15 @@ class _EditorCanvas extends StatelessWidget {
     }
   }
 
-  EdgeInsets _getBorderPadding() {
-    switch (editorState.borderAssetPath) {
-      case 'polaroid':
-        return const EdgeInsets.fromLTRB(16, 16, 16, 56);
-      case 'gold':
-        return const EdgeInsets.all(14);
-      case 'film':
-        return const EdgeInsets.symmetric(vertical: 30, horizontal: 8);
-      case 'pastel':
-        return const EdgeInsets.all(12);
-      case 'midnight':
-        return const EdgeInsets.all(16);
-      default:
-        return EdgeInsets.zero;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final isPolaroid = editorState.borderAssetPath == 'polaroid';
+    final hasLogo = logoPath != null && File(logoPath!).existsSync();
+    final double headerHeight = 48.0;
+    final double footerHeight = 60.0;
+
     return Center(
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        // margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         constraints: const BoxConstraints(maxWidth: 520),
         child: AspectRatio(
           aspectRatio: _getAspectRatio(),
@@ -205,7 +218,7 @@ class _EditorCanvas extends StatelessWidget {
             key: canvasKey,
             child: Container(
               decoration: BoxDecoration(
-                color: isPolaroid ? Colors.white : Colors.black,
+                color: Colors.white,
                 borderRadius:
                     isCapturing ? BorderRadius.zero : BorderRadius.circular(12),
               ),
@@ -215,30 +228,109 @@ class _EditorCanvas extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // ── 1. Base Multi-Photo Layer (Centered with Border Inset) ─────
-                    Padding(
-                        padding: _getBorderPadding(),
-                        child: _buildPhotoLayout()),
-
-                    // ── 2. Border Frame Overlay Layer ─────────────────────────────
-                    if (editorState.borderAssetPath != null)
-                      _BorderOverlay(borderId: editorState.borderAssetPath!),
-
-                    // ── 3. Polaroid Session ID Chin Text ──────────────────────────
-                    if (isPolaroid)
-                      Positioned(
-                        bottom: 14,
-                        left: 20,
-                        child: Text(
-                          'Session: ${session.sessionId}',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 0.5,
+                    // ── 1. Base Layout: Top Logo Bar + Middle Photos (with Border) + Bottom Footer ──
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Top Header with Logo (Always visible and displayed)
+                        SizedBox(
+                          height: headerHeight,
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 6,
+                              ),
+                              child: hasLogo
+                                  ? Image.file(
+                                      File(logoPath!),
+                                      fit: BoxFit.contain,
+                                      filterQuality: FilterQuality.high,
+                                    )
+                                  : Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: const [
+                                        Icon(
+                                          Icons.camera_alt_rounded,
+                                          color: AppColors.primary,
+                                          size: 20,
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Pic & Print',
+                                          style: TextStyle(
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 16,
+                                            letterSpacing: 1.2,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
                           ),
                         ),
-                      ),
+
+                        const SizedBox(
+                          height: 8,
+                        ),
+
+                        // Middle: Photo Layout edge-to-edge (no left/right space)
+                        Expanded(
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              _buildPhotoLayout(),
+                              if (editorState.borderAssetPath != null)
+                                _BorderOverlay(
+                                  borderId: editorState.borderAssetPath!,
+                                ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(
+                          height: 16,
+                        ),
+
+                        // Bottom Footer: Universal Session Barcode
+                        SizedBox(
+                          height: footerHeight,
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 0,
+                                horizontal: 8,
+                              ),
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 450,
+                                  maxHeight: 60,
+                                ),
+                                child: BarcodeWidget(
+                                  barcode: Barcode.code128(),
+                                  data: session.sessionId,
+                                  drawText: true,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5,
+                                  ),
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(
+                          height: 4,
+                        )
+                      ],
+                    ),
 
                     // ── 4. Sticker Overlays Layer ─────────────────────────────────
                     ...editorState.stickers.map(
@@ -279,11 +371,7 @@ class _EditorCanvas extends StatelessWidget {
 
       case LayoutType.verticalStrip:
         return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border:
-                hasBorder ? null : Border.all(color: Colors.white, width: 4),
-          ),
+          color: Colors.white,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -311,11 +399,7 @@ class _EditorCanvas extends StatelessWidget {
 
       case LayoutType.grid2x2:
         return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border:
-                hasBorder ? null : Border.all(color: Colors.white, width: 4),
-          ),
+          color: Colors.white,
           child: Column(
             children: [
               Expanded(
@@ -357,11 +441,7 @@ class _EditorCanvas extends StatelessWidget {
 
       case LayoutType.grid3x2:
         return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border:
-                hasBorder ? null : Border.all(color: Colors.white, width: 4),
-          ),
+          color: Colors.white,
           child: Column(
             children: [
               Expanded(
@@ -452,12 +532,11 @@ class _BorderOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (borderId) {
       case 'polaroid':
-        // Polaroid frame is created cleanly by container background and padding
         return const SizedBox.shrink();
 
       case 'gold':
         return Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             border: Border.all(color: const Color(0xFFFFD700), width: 6),
           ),
@@ -475,9 +554,9 @@ class _BorderOverlay extends StatelessWidget {
 
       case 'pastel':
         return Container(
-          margin: const EdgeInsets.all(8),
+          margin: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFFF80AB), width: 6),
           ),
         );
@@ -485,7 +564,7 @@ class _BorderOverlay extends StatelessWidget {
       case 'midnight':
         return Container(
           decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFF212121), width: 16),
+            border: Border.all(color: const Color(0xFF212121), width: 14),
           ),
         );
 

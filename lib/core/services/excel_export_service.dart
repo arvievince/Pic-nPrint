@@ -135,8 +135,14 @@ class ExcelExportService {
       _setCell(sheet, 0, rowIdx, TextCellValue(v.code), dataStyle);
       _setCell(sheet, 1, rowIdx, TextCellValue(mode.label), dataStyle);
       _setCell(sheet, 2, rowIdx, DoubleCellValue(v.priceSnapshot), numberStyle);
-      _setCell(
-          sheet, 3, rowIdx, TextCellValue(v.status.toUpperCase()), dataStyle);
+      final statusStr = v.status == 0
+          ? 'ACTIVE'
+          : v.status == 1
+              ? 'USED'
+              : v.status == 2
+                  ? 'VOIDED'
+                  : 'UNKNOWN';
+      _setCell(sheet, 3, rowIdx, TextCellValue(statusStr), dataStyle);
       _setCell(sheet, 4, rowIdx, TextCellValue(v.serial), dataStyle);
       _setCell(sheet, 5, rowIdx, TextCellValue(v.locationId), dataStyle);
       _setCell(sheet, 6, rowIdx, TextCellValue(_dateFormat.format(v.createdAt)),
@@ -164,7 +170,7 @@ class ExcelExportService {
 
   /// Exports redeemed sales history and analytics to Excel.
   static Future<String?> exportSalesReport({
-    required List<VoucherEntry> sales,
+    required List<SaleEntry> sales,
     required String dateFilterLabel,
     String? tierFilterLabel,
   }) async {
@@ -259,8 +265,7 @@ class ExcelExportService {
           sheet,
           3,
           rowIdx,
-          TextCellValue(
-              v.redeemedAt != null ? _dateFormat.format(v.redeemedAt!) : '—'),
+          TextCellValue(_dateFormat.format(v.redeemedAt)),
           dataStyle);
       _setCell(sheet, 4, rowIdx, TextCellValue(_dateFormat.format(v.createdAt)),
           dataStyle);

@@ -24,6 +24,7 @@ part 'app_database.g.dart';
   AssetsTable,
   PrintersTable,
   VouchersTable,
+  SalesTable,
   SessionsTable,
   AdminAuthTable,
 ])
@@ -32,7 +33,32 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async {
+          await m.createAll();
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(salesTable);
+            try {
+              await customStatement(
+                  "UPDATE vouchers_table SET status = 0 WHERE status = 'active';");
+              await customStatement(
+                  "UPDATE vouchers_table SET status = 1 WHERE status = 'used';");
+              await customStatement(
+                  "UPDATE vouchers_table SET status = 2 WHERE status = 'voided';");
+              await customStatement('''
+                INSERT OR IGNORE INTO sales_table (code, location_id, tier_char, serial, price_snapshot, status, expires_at, created_at, redeemed_at)
+                SELECT code, location_id, tier_char, serial, price_snapshot, 1, expires_at, created_at, COALESCE(redeemed_at, created_at)
+                FROM vouchers_table WHERE status = 1;
+              ''');
+            } catch (_) {}
+          }
+        },
+      );
 
   // ─── Settings ───────────────────────────────────────────────────────────────
 
@@ -96,12 +122,19 @@ class AppDatabase extends _$AppDatabase {
   Future<void> insertVoucher(VouchersTableCompanion v) =>
       into(vouchersTable).insert(v);
 
-  Future<void> updateVoucherStatus(String code, String status, {DateTime? redeemedAt, String? voidReason}) =>
+  Future<void> updateVoucherStatus(String code, int status, {DateTime? redeemedAt, String? voidReason}) =>
       (update(vouchersTable)..where((t) => t.code.equals(code))).write(VouchersTableCompanion(
         status: Value(status),
         redeemedAt: redeemedAt != null ? Value(redeemedAt) : const Value.absent(),
         voidReason: voidReason != null ? Value(voidReason) : const Value.absent(),
       ));
+
+  // ─── Sales ──────────────────────────────────────────────────────────────────
+
+  Future<List<SaleEntry>> getAllSales() => select(salesTable).get();
+
+  Future<void> insertSale(SalesTableCompanion sale) =>
+      into(salesTable).insertOnConflictUpdate(sale);
 
   // ─── Sessions ───────────────────────────────────────────────────────────────
 

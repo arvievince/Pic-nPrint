@@ -38,6 +38,10 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
   int _currentCountdown = 3;
   int _shotGapSeconds = 2;
   int _currentShotNumber = 1;
+  int _maxRetakes = 1;
+  int _retakesRemaining = 1;
+  int _selectedRetakeIndex = 0;
+  int? _retakeTargetIndex;
   final List<String> _capturedPaths = [];
 
   CaptureBloc({required AppDatabase db, required this.shotMode})
@@ -48,6 +52,9 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
     on<PhotoCaptured>(_onPhotoCaptured);
     on<CaptureNextShotStarted>(_onNextShotStarted);
     on<ImagesUploaded>(_onImagesUploaded);
+    on<CapturePhotoSelectedForRetake>(_onPhotoSelectedForRetake);
+    on<CaptureRetakeConfirmed>(_onRetakeConfirmed);
+    on<CaptureReviewConfirmed>(_onReviewConfirmed);
     on<CaptureRetake>(_onRetake);
     on<CaptureCompleted>(_onCompleted);
     on<CaptureFailed>(_onFailed);
@@ -63,13 +70,15 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
     }
 
     // Camera mode: load settings then start countdown for first shot
-    _initialCountdown = int.tryParse(
-            await _db.getSetting('countdown_seconds') ?? '3') ??
-        3;
+    _initialCountdown =
+        int.tryParse(await _db.getSetting('countdown_seconds') ?? '3') ?? 3;
     _currentCountdown = _initialCountdown;
-    _shotGapSeconds = int.tryParse(
-            await _db.getSetting('shot_gap_seconds') ?? '2') ??
-        2;
+    _shotGapSeconds =
+        int.tryParse(await _db.getSetting('shot_gap_seconds') ?? '2') ?? 2;
+    _maxRetakes = int.tryParse(await _db.getSetting('max_retakes') ?? '1') ?? 1;
+    _retakesRemaining = _maxRetakes;
+    _selectedRetakeIndex = 0;
+    _retakeTargetIndex = null;
     _currentShotNumber = 1;
     _capturedPaths.clear();
     _startCountdown(emit);
@@ -93,10 +102,36 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
   }
 
   void _onPhotoCaptured(PhotoCaptured event, Emitter<CaptureState> emit) {
+    // If this was a retake shot for a specific slot
+    if (_retakeTargetIndex != null) {
+      final target = _retakeTargetIndex!;
+      if (target >= 0 && target < _capturedPaths.length) {
+        _capturedPaths[target] = event.imagePath;
+      }
+      _retakeTargetIndex = null;
+      emit(CaptureReview(
+        capturedPaths: List.unmodifiable(_capturedPaths),
+        retakesRemaining: _retakesRemaining,
+        maxRetakes: _maxRetakes,
+        selectedIndex: _selectedRetakeIndex,
+      ));
+      return;
+    }
+
     _capturedPaths.add(event.imagePath);
 
     if (_capturedPaths.length >= shotMode.photoCount) {
-      emit(CaptureComplete(List.unmodifiable(_capturedPaths)));
+      if (_maxRetakes > 0) {
+        _selectedRetakeIndex = 0;
+        emit(CaptureReview(
+          capturedPaths: List.unmodifiable(_capturedPaths),
+          retakesRemaining: _retakesRemaining,
+          maxRetakes: _maxRetakes,
+          selectedIndex: 0,
+        ));
+      } else {
+        emit(CaptureComplete(List.unmodifiable(_capturedPaths)));
+      }
     } else {
       emit(CaptureInProgress(
         capturedPaths: List.unmodifiable(_capturedPaths),
@@ -131,7 +166,33 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
     }
   }
 
+  void _onPhotoSelectedForRetake(
+      CapturePhotoSelectedForRetake event, Emitter<CaptureState> emit) {
+    if (state is CaptureReview) {
+      _selectedRetakeIndex = event.index.clamp(0, _capturedPaths.length - 1);
+      emit((state as CaptureReview)
+          .copyWith(selectedIndex: _selectedRetakeIndex));
+    }
+  }
+
+  void _onRetakeConfirmed(
+      CaptureRetakeConfirmed event, Emitter<CaptureState> emit) {
+    if (_retakesRemaining <= 0) return;
+    _retakesRemaining--;
+    _retakeTargetIndex = _selectedRetakeIndex;
+    _currentShotNumber = _retakeTargetIndex! + 1;
+    _currentCountdown = _initialCountdown;
+    _startCountdown(emit);
+  }
+
+  void _onReviewConfirmed(
+      CaptureReviewConfirmed event, Emitter<CaptureState> emit) {
+    emit(CaptureComplete(List.unmodifiable(_capturedPaths)));
+  }
+
   void _onRetake(CaptureRetake event, Emitter<CaptureState> emit) {
+    if (_retakesRemaining <= 0) return;
+    _retakesRemaining--;
     _gapTimer?.cancel();
     _countdownTimer?.cancel();
     if (_capturedPaths.isNotEmpty) _capturedPaths.removeLast();
