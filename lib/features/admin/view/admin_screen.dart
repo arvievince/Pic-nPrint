@@ -681,6 +681,17 @@ class _CameraSectionState extends State<_CameraSection> {
   late final TextEditingController _maxRetakesCtrl;
   bool _isSaving = false;
 
+  // ── Event Mode ───────────────────────────────────────────────────────────
+  bool _eventModeEnabled = false;
+  bool _eventModeShowPrice = true;
+  // Which tiers are visible on the tier selection screen
+  final Map<String, bool> _eventTiers = {
+    'S': true,  // Single
+    'T': true,  // 3 Shots
+    'F': true,  // 4 Shots
+    'X': true,  // 6 Shots
+  };
+
   @override
   void initState() {
     super.initState();
@@ -693,6 +704,17 @@ class _CameraSectionState extends State<_CameraSection> {
     _maxRetakesCtrl = TextEditingController(
       text: widget.settings['max_retakes'] ?? '1',
     );
+
+    // ── Event Mode defaults from saved settings ───────────────────────────
+    _eventModeEnabled =
+        (widget.settings['event_mode_enabled'] ?? 'false').toLowerCase() == 'true';
+    _eventModeShowPrice =
+        (widget.settings['event_mode_price_display'] ?? 'true').toLowerCase() == 'true';
+    final tiersRaw = widget.settings['event_mode_tiers'] ?? 'S,T,F,X';
+    final enabledChars = tiersRaw.split(',').map((c) => c.trim().toUpperCase()).toSet();
+    for (final key in _eventTiers.keys) {
+      _eventTiers[key] = enabledChars.contains(key);
+    }
   }
 
   @override
@@ -713,11 +735,20 @@ class _CameraSectionState extends State<_CameraSection> {
     final gap = _gapCtrl.text.trim();
     final maxRetakes = _maxRetakesCtrl.text.trim();
 
+    // Build event mode tiers CSV from checkbox state
+    final tiersCSV = _eventTiers.entries
+        .where((e) => e.value)
+        .map((e) => e.key)
+        .join(',');
+
     context.read<AdminBloc>().add(
           AdminMultipleSettingsUpdated({
             'countdown_seconds': countdown,
             'shot_gap_seconds': gap,
             'max_retakes': maxRetakes,
+            'event_mode_enabled': _eventModeEnabled.toString(),
+            'event_mode_tiers': tiersCSV.isEmpty ? 'S,T,F,X' : tiersCSV,
+            'event_mode_price_display': _eventModeShowPrice.toString(),
           }),
         );
 
@@ -810,6 +841,109 @@ class _CameraSectionState extends State<_CameraSection> {
             },
           ),
           const SizedBox(height: 24),
+          // ─── Event Mode ─────────────────────────────────────────────────
+          const Divider(color: Colors.white12, height: 32),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.celebration_rounded,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Event Mode',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'When enabled, customers skip the voucher screen and choose a tier directly.',
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: AppColors.onSurface),
+          ),
+          const SizedBox(height: 16),
+          // Master toggle
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: SwitchListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              title: const Text(
+                'Enable Event Mode',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Bypass voucher entry for walk-in events.',
+                style: TextStyle(color: AppColors.onSurface, fontSize: 13),
+              ),
+              value: _eventModeEnabled,
+              activeThumbColor: AppColors.primary,
+              onChanged: (v) => setState(() => _eventModeEnabled = v),
+            ),
+          ),
+          // Options only visible when event mode is on
+          if (_eventModeEnabled) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Visible Tiers',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  _buildTierCheckbox('S', 'Single (1 shot)'),
+                  _buildTierCheckbox('T', '3 Shots'),
+                  _buildTierCheckbox('F', '4 Shots'),
+                  _buildTierCheckbox('X', '6 Shots'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: SwitchListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                title: const Text(
+                  'Show Price on Tier Cards',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text(
+                  'Display the tier price on the selection screen.',
+                  style: TextStyle(color: AppColors.onSurface, fontSize: 13),
+                ),
+                value: _eventModeShowPrice,
+                activeThumbColor: AppColors.primary,
+                onChanged: (v) => setState(() => _eventModeShowPrice = v),
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
           SizedBox(
             height: 52,
             child: ElevatedButton.icon(
@@ -828,6 +962,21 @@ class _CameraSectionState extends State<_CameraSection> {
           const SizedBox(height: 32),
         ],
       ),
+    );
+  }
+
+  Widget _buildTierCheckbox(String char, String label) {
+    return CheckboxListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      title: Text(label),
+      value: _eventTiers[char] ?? false,
+      fillColor: WidgetStateProperty.resolveWith<Color?>((states) {
+        if (states.contains(WidgetState.selected)) return AppColors.primary;
+        return null;
+      }),
+      checkColor: Colors.white,
+      onChanged: (v) => setState(() => _eventTiers[char] = v ?? false),
+      controlAffinity: ListTileControlAffinity.leading,
     );
   }
 }

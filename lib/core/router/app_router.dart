@@ -12,6 +12,7 @@ import '../../features/output/view/qr_screen.dart';
 import '../../features/output/view/thank_you_screen.dart';
 import '../../features/admin/view/admin_screen.dart';
 import '../../features/admin/view/first_run_screen.dart';
+import '../../features/tier_selection/view/tier_selection_screen.dart';
 import '../../core/models/models.dart';
 
 /// Fallback session used in debug mode if route extra is lost during hot reload/restart.
@@ -44,6 +45,7 @@ class AppRoute {
 
   static const String attract = 'attract'; // /
   static const String voucher = 'voucher'; // /voucher
+  static const String tierSelect = 'tier-select'; // /tier-select (Event Mode)
   static const String capture = 'capture'; // /capture
   static const String layout = 'layout'; // /layout
   static const String editor = 'editor'; // /editor
@@ -82,6 +84,13 @@ GoRouter createRouter() {
         path: '/voucher',
         name: AppRoute.voucher,
         builder: (context, state) => const VoucherScreen(),
+      ),
+
+      // ── 2b. Tier Selection (Event Mode — replaces voucher entry) ──────────
+      GoRoute(
+        path: '/tier-select',
+        name: AppRoute.tierSelect,
+        builder: (context, state) => const TierSelectionScreen(),
       ),
 
       // ── 3. Capture (camera / upload) ─────────────────────────────────────

@@ -29,6 +29,7 @@ class _AttractScreenState extends State<AttractScreen> {
   String _title = 'Pic & Print';
   String _subtitle = 'Your memories, printed instantly.';
   String? _logoPath;
+  bool _eventModeEnabled = false;
 
   @override
   void initState() {
@@ -54,6 +55,7 @@ class _AttractScreenState extends State<AttractScreen> {
       final title = await db.getSetting('kiosk_title');
       final subtitle = await db.getSetting('kiosk_subtitle');
       final logoPath = await db.getSetting('kiosk_logo_path');
+      final eventMode = await db.getSetting('event_mode_enabled');
       if (mounted) {
         setState(() {
           if (title != null && title.trim().isNotEmpty) {
@@ -69,6 +71,7 @@ class _AttractScreenState extends State<AttractScreen> {
           } else {
             _logoPath = null;
           }
+          _eventModeEnabled = eventMode?.toLowerCase() == 'true';
         });
       }
     } catch (_) {}
@@ -76,7 +79,11 @@ class _AttractScreenState extends State<AttractScreen> {
 
   void _onStartTap() {
     context.read<AttractBloc>().add(const AttractTapped());
-    context.goNamed(AppRoute.voucher);
+    if (_eventModeEnabled) {
+      context.goNamed(AppRoute.tierSelect);
+    } else {
+      context.goNamed(AppRoute.voucher);
+    }
   }
 
   @override
@@ -84,7 +91,11 @@ class _AttractScreenState extends State<AttractScreen> {
     return BlocListener<AttractBloc, AttractState>(
       listener: (context, state) {
         if (state is AttractNavigating) {
-          context.goNamed(AppRoute.voucher);
+          if (_eventModeEnabled) {
+            context.goNamed(AppRoute.tierSelect);
+          } else {
+            context.goNamed(AppRoute.voucher);
+          }
         }
       },
       child: BlocBuilder<AttractBloc, AttractState>(
