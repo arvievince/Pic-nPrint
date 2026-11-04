@@ -50,8 +50,10 @@ class CompositionService {
         (session.imagePaths.length == 4
             ? LayoutType.grid2x2
             : session.imagePaths.length == 6
-                ? LayoutType.grid3x2
-                : LayoutType.verticalStrip);
+                ? LayoutType.grid2x3
+                : session.imagePaths.length >= 8
+                    ? LayoutType.grid2x4
+                    : LayoutType.verticalStrip);
 
     // Run in isolate to avoid blocking UI
     await compute(
@@ -78,8 +80,10 @@ class CompositionService {
     required SessionModel session,
     required int frameDelayMs,
   }) async {
-    // Only for quad and hex
-    if (session.shotMode != ShotMode.quad && session.shotMode != ShotMode.hex) {
+    // Only for quad, hex, and octa
+    if (session.shotMode != ShotMode.quad &&
+        session.shotMode != ShotMode.hex &&
+        session.shotMode != ShotMode.octa) {
       return null;
     }
 
@@ -195,13 +199,18 @@ Future<void> _composeIsolate(_ComposeParams params) async {
       canvas = _buildGrid(images, columns: 2);
       break;
 
-    case LayoutType.grid3x2:
-      // 3 columns × 2 rows
-      canvas = _buildGrid(images, columns: 3);
+    case LayoutType.grid2x3:
+      // 2 columns × 3 rows
+      canvas = _buildGrid(images, columns: 2);
+      break;
+
+    case LayoutType.grid2x4:
+      // 2 columns × 4 rows
+      canvas = _buildGrid(images, columns: 2);
       break;
 
     case LayoutType.bendo:
-      // 2 columns staggered bento collage (3, 4, or 6 photos)
+      // 2 columns staggered bento collage (3, 4, 6, or 8 photos)
       canvas = _buildBendo(images, brandText: params.brandText);
       break;
   }
@@ -454,8 +463,8 @@ img.Image _buildBendo(List<img.Image> images, {String? brandText}) {
     drawBrandBadge(rightX, margin + rh0 + gap, colW, brandH);
     img.compositeImage(canvas, im3,
         dstX: rightX, dstY: margin + rh0 + gap + brandH + gap);
-  } else {
-    // 6 Shots (or 5+): Left 3 photos + Right 3 photos + brand badge
+  } else if (images.length <= 6) {
+    // 6 Shots: Left 3 photos + Right 3 photos + brand badge
     final leftAvailH = colH - (gap * 2);
     final lh0 = (leftAvailH * 2) ~/ 7;
     final lh1 = (leftAvailH * 3) ~/ 7;
@@ -488,6 +497,46 @@ img.Image _buildBendo(List<img.Image> images, {String? brandText}) {
         dstX: rightX, dstY: margin + rh0 + gap + brandH + gap);
     img.compositeImage(canvas, im5,
         dstX: rightX, dstY: margin + rh0 + gap + brandH + gap + rh1 + gap);
+  } else {
+    // 8 Shots: Left 4 photos + Right 4 photos + brand badge
+    final leftAvailH = colH - (gap * 3);
+    final lh0 = (leftAvailH * 3) ~/ 10;
+    final lh1 = (leftAvailH * 2) ~/ 10;
+    final lh2 = (leftAvailH * 3) ~/ 10;
+    final lh3 = leftAvailH - lh0 - lh1 - lh2;
+
+    final im0 = _cropAndResizeImage(images[0], colW, lh0);
+    final im1 = _cropAndResizeImage(images[1], colW, lh1);
+    final im2 = _cropAndResizeImage(images[2], colW, lh2);
+    final im3 = _cropAndResizeImage(images[3], colW, lh3);
+
+    img.compositeImage(canvas, im0, dstX: leftX, dstY: margin);
+    img.compositeImage(canvas, im1, dstX: leftX, dstY: margin + lh0 + gap);
+    img.compositeImage(canvas, im2,
+        dstX: leftX, dstY: margin + lh0 + gap + lh1 + gap);
+    img.compositeImage(canvas, im3,
+        dstX: leftX, dstY: margin + lh0 + gap + lh1 + gap + lh2 + gap);
+
+    const brandH = 50;
+    final rightAvailH = colH - brandH - (gap * 4);
+    final rh0 = (rightAvailH * 2) ~/ 10;
+    final rh1 = (rightAvailH * 3) ~/ 10;
+    final rh2 = (rightAvailH * 2) ~/ 10;
+    final rh3 = rightAvailH - rh0 - rh1 - rh2;
+
+    final im4 = _cropAndResizeImage(images[4], colW, rh0);
+    final im5 = _cropAndResizeImage(images[5], colW, rh1);
+    final im6 = _cropAndResizeImage(images[6], colW, rh2);
+    final im7 = _cropAndResizeImage(
+        images.length > 7 ? images[7] : images[0], colW, rh3);
+
+    img.compositeImage(canvas, im4, dstX: rightX, dstY: margin);
+    img.compositeImage(canvas, im5, dstX: rightX, dstY: margin + rh0 + gap);
+    drawBrandBadge(rightX, margin + rh0 + gap + rh1 + gap, colW, brandH);
+    img.compositeImage(canvas, im6,
+        dstX: rightX, dstY: margin + rh0 + gap + rh1 + gap + brandH + gap);
+    img.compositeImage(canvas, im7,
+        dstX: rightX, dstY: margin + rh0 + gap + rh1 + gap + brandH + gap + rh2 + gap);
   }
 
   return canvas;

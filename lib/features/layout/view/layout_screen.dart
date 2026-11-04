@@ -118,7 +118,9 @@ class _LayoutCard extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color: isSelected ? AppColors.primary.withOpacity(0.15) : AppColors.surface,
+        color: isSelected
+            ? AppColors.primary.withOpacity(0.15)
+            : AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isSelected ? AppColors.primary : Colors.transparent,
@@ -144,11 +146,12 @@ class _LayoutCard extends StatelessWidget {
                   children: [
                     Text(
                       layout.label,
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            color: isSelected
-                                ? AppColors.primary
-                                : AppColors.onBackground,
-                          ),
+                      style:
+                          Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.onBackground,
+                              ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -170,23 +173,39 @@ class _LayoutCard extends StatelessWidget {
 
   IconData _iconFor(LayoutType l) {
     switch (l) {
-      case LayoutType.single:        return Icons.crop_square_rounded;
-      case LayoutType.verticalStrip: return Icons.view_day_rounded;
-      case LayoutType.horizontalRow: return Icons.view_week_rounded;
-      case LayoutType.grid2x2:       return Icons.grid_view_rounded;
-      case LayoutType.grid3x2:       return Icons.apps_rounded;
-      case LayoutType.bendo:         return Icons.dashboard_customize_rounded;
+      case LayoutType.single:
+        return Icons.crop_square_rounded;
+      case LayoutType.verticalStrip:
+        return Icons.view_day_rounded;
+      case LayoutType.horizontalRow:
+        return Icons.view_week_rounded;
+      case LayoutType.grid2x2:
+        return Icons.grid_view_rounded;
+      case LayoutType.grid2x3:
+        return Icons.apps_rounded;
+      case LayoutType.grid2x4:
+        return Icons.view_compact_rounded;
+      case LayoutType.bendo:
+        return Icons.dashboard_customize_rounded;
     }
   }
 
   String _descFor(LayoutType l) {
     switch (l) {
-      case LayoutType.single:        return 'One photo, full frame';
-      case LayoutType.verticalStrip: return 'Classic vertical photo booth strip';
-      case LayoutType.horizontalRow: return 'All photos in a single horizontal strip';
-      case LayoutType.grid2x2:       return '4 photos arranged in a 2×2 grid';
-      case LayoutType.grid3x2:       return '6 photos arranged in a 3×2 grid';
-      case LayoutType.bendo:         return 'Creative staggered bento-box collage';
+      case LayoutType.single:
+        return 'One photo, full frame';
+      case LayoutType.verticalStrip:
+        return 'Classic vertical photo booth strip';
+      case LayoutType.horizontalRow:
+        return 'All photos in a single horizontal strip';
+      case LayoutType.grid2x2:
+        return '4 photos arranged in a 2×2 grid';
+      case LayoutType.grid2x3:
+        return '6 photos arranged in a 2×3 grid';
+      case LayoutType.grid2x4:
+        return '8 photos arranged in a 2×4 grid';
+      case LayoutType.bendo:
+        return 'Creative staggered bento-box collage';
     }
   }
 }

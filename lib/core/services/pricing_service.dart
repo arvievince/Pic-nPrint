@@ -13,9 +13,11 @@ class PricingService {
   /// Default baseline prices for each shot mode in PHP.
   static const Map<ShotMode, double> defaultPrices = {
     ShotMode.single: 50.0,
+    ShotMode.double: 65.0,
     ShotMode.triple: 80.0,
     ShotMode.quad: 100.0,
     ShotMode.hex: 120.0,
+    ShotMode.octa: 150.0,
   };
 
   PricingService(this._db);

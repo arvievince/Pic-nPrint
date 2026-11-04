@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../bloc/attract_bloc.dart';
 import '../bloc/attract_event.dart';
@@ -163,34 +164,32 @@ class _AttractScreenState extends State<AttractScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               // Logo — long-press opens admin
-                              GestureDetector(
-                                onLongPress: () =>
-                                    context.goNamed(AppRoute.admin),
-                                child: Container(
-                                  width: 120,
-                                  height: 120,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surface.withValues(
-                                      alpha: 0.8,
-                                    ),
-                                    borderRadius: BorderRadius.circular(24),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.primary.withValues(
-                                          alpha: 0.4,
-                                        ),
-                                        blurRadius: 30,
-                                        spreadRadius: 5,
-                                      ),
-                                    ],
-                                  ),
-                                  child: _logoPath != null && File(_logoPath!).existsSync()
-                                      ? ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(24),
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(14),
-                                            child: Image.file(
+                              Column(
+                                children: [
+                                  GestureDetector(
+                                    onLongPress: () =>
+                                        context.goNamed(AppRoute.admin),
+                                    child: Container(
+                                      width: 200,
+                                      height: 200,
+                                      // decoration: BoxDecoration(
+                                      //   color: AppColors.surface.withValues(
+                                      //     alpha: 0.8,
+                                      //   ),
+                                      //   borderRadius: BorderRadius.circular(24),
+                                      //   boxShadow: [
+                                      //     BoxShadow(
+                                      //       color: AppColors.primary.withValues(
+                                      //         alpha: 0.4,
+                                      //       ),
+                                      //       blurRadius: 30,
+                                      //       spreadRadius: 5,
+                                      //     ),
+                                      //   ],
+                                      // ),
+                                      child: _logoPath != null &&
+                                              File(_logoPath!).existsSync()
+                                          ? Image.file(
                                               File(_logoPath!),
                                               fit: BoxFit.contain,
                                               errorBuilder: (_, __, ___) =>
@@ -199,40 +198,39 @@ class _AttractScreenState extends State<AttractScreen> {
                                                 size: 60,
                                                 color: AppColors.primary,
                                               ),
+                                            )
+                                          : const Icon(
+                                              Icons.camera_alt_rounded,
+                                              size: 60,
+                                              color: AppColors.primary,
                                             ),
-                                          ),
-                                        )
-                                      : const Icon(
-                                          Icons.camera_alt_rounded,
-                                          size: 60,
-                                          color: AppColors.primary,
-                                        ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 40),
-
-                              Text(
-                                _title,
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.displayMedium
-                                    ?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 2,
                                     ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _title != '' ? _title : '',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.bricolageGrotesque(
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    _subtitle != ''
+                                        ? _subtitle
+                                        : 'Strike a pose. Take home a print.',
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyLarge
+                                        ?.copyWith(color: Colors.white70),
+                                  ),
+                                ],
                               ),
 
-                              const SizedBox(height: 12),
-
-                              Text(
-                                _subtitle,
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyLarge
-                                    ?.copyWith(color: Colors.white70),
-                              ),
-
-                              const SizedBox(height: 80),
+                              const SizedBox(height: 100),
 
                               // Tap-to-start pulse animation
                               _TapToBeginPulse(onTap: _onStartTap),
@@ -275,18 +273,18 @@ class _TapToBeginPulse extends StatefulWidget {
 class _TapToBeginPulseState extends State<_TapToBeginPulse>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
-  late final Animation<double> _opacity;
+  late final Animation<double> _scale;
 
   @override
   void initState() {
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
-    _opacity = Tween<double>(
-      begin: 0.4,
-      end: 1.0,
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 1.08,
     ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
@@ -300,27 +298,30 @@ class _TapToBeginPulseState extends State<_TapToBeginPulse>
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: widget.onTap,
-      child: FadeTransition(
-        opacity: _opacity,
+      child: ScaleTransition(
+        scale: _scale,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.white54, width: 1.5),
+            border: Border.all(color: Colors.black, width: 1.5),
             borderRadius: BorderRadius.circular(40),
-            color: Colors.white.withValues(alpha: 0.05),
+            color: Colors.black,
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.touch_app_rounded, color: Colors.white70, size: 22),
-              SizedBox(width: 10),
               Text(
-                'Tap anywhere to begin',
-                style: TextStyle(
+                'Tap to start',
+                // style: TextStyle(
+                //   color: Colors.white,
+                //   fontSize: 24,
+                //   fontWeight: FontWeight.w800,
+                //   letterSpacing: 1.2,
+                // ),
+                style: GoogleFonts.bricolageGrotesque(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                   color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 1.2,
                 ),
               ),
             ],

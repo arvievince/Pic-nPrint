@@ -8,7 +8,7 @@ import 'layout_state.dart';
 /// Available layouts by mode:
 ///   triple → [horizontalRow] only
 ///   quad   → [horizontalRow, grid2x2]
-///   hex    → [horizontalRow, grid3x2]
+///   hex    → [horizontalRow, grid2x3]
 ///
 /// Flow:
 ///   LayoutScreen → LayoutSelected (highlights option)
@@ -42,12 +42,16 @@ class LayoutBloc extends Bloc<LayoutEvent, LayoutState> {
     switch (mode) {
       case ShotMode.single:
         return [LayoutType.single];
+      case ShotMode.double:
+        return [LayoutType.verticalStrip];
       case ShotMode.triple:
         return [LayoutType.verticalStrip, LayoutType.bendo];
       case ShotMode.quad:
         return [LayoutType.verticalStrip, LayoutType.grid2x2, LayoutType.bendo];
       case ShotMode.hex:
-        return [LayoutType.verticalStrip, LayoutType.grid3x2, LayoutType.bendo];
+        return [LayoutType.verticalStrip, LayoutType.grid2x3, LayoutType.bendo];
+      case ShotMode.octa:
+        return [LayoutType.grid2x4, LayoutType.bendo];
     }
   }
 }

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart' show GoogleFonts;
 
 import '../../../core/database/app_database.dart';
 import '../../../core/models/models.dart';
@@ -12,7 +14,7 @@ import '../../../core/theme/app_theme.dart';
 /// The customer picks a shot tier (Single / 3 / 4 / 6 shots).
 /// A voucherless [SessionModel] is created and passed forward.
 ///
-/// Admin configures which tiers are visible via `event_mode_tiers` (CSV, e.g. "S,T,F,X")
+/// Admin configures which tiers are visible via `event_mode_tiers` (CSV, e.g. "S,D,T,F,X,O")
 /// and whether prices are shown via `event_mode_price_display`.
 class TierSelectionScreen extends StatefulWidget {
   const TierSelectionScreen({super.key});
@@ -22,6 +24,10 @@ class TierSelectionScreen extends StatefulWidget {
 }
 
 class _TierSelectionScreenState extends State<TierSelectionScreen> {
+  static const int _timeoutSeconds = 60;
+  int _remainingSeconds = _timeoutSeconds;
+  Timer? _timer;
+
   List<_TierOption> _tiers = [];
   bool _loading = true;
   bool _showPrice = true;
@@ -29,7 +35,40 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
   @override
   void initState() {
     super.initState();
+    _startTimer();
     _loadTiers();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_remainingSeconds > 1) {
+        setState(() => _remainingSeconds--);
+      } else {
+        _onTimeout();
+      }
+    });
+  }
+
+  void _resetTimer() {
+    if (_remainingSeconds != _timeoutSeconds) {
+      setState(() => _remainingSeconds = _timeoutSeconds);
+    }
+    _startTimer();
+  }
+
+  void _onTimeout() {
+    _timer?.cancel();
+    if (mounted) {
+      context.goNamed(AppRoute.attract);
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadTiers() async {
@@ -37,7 +76,7 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
       final db = context.read<AppDatabase>();
 
       // Load admin settings
-      final tiersRaw = await db.getSetting('event_mode_tiers') ?? 'S,T,F,X';
+      final tiersRaw = await db.getSetting('event_mode_tiers') ?? 'S,D,T,F,X,O';
       final showPriceRaw =
           await db.getSetting('event_mode_price_display') ?? 'true';
       final allPrices = await db.getAllPrices();
@@ -87,6 +126,7 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
   }
 
   void _navigateWithTier(_TierOption tier) {
+    _timer?.cancel();
     final session = _buildEventSession(tier);
     if (session.shotMode.photoCount == 1) {
       context.goNamed(AppRoute.capture, extra: session);
@@ -129,28 +169,74 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Choose Your Package'),
+        title: Text(
+          'Pic’n’Slip',
+          style: GoogleFonts.bricolageGrotesque(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => context.goNamed(AppRoute.attract),
+          onPressed: () {
+            _timer?.cancel();
+            context.goNamed(AppRoute.attract);
+          },
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.admin_panel_settings_rounded),
-            tooltip: 'Admin Panel',
-            onPressed: () => context.goNamed(AppRoute.admin),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.timer_outlined,
+                      size: 16,
+                      color: AppColors.onSurface,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${_remainingSeconds}s',
+                      style: GoogleFonts.bricolageGrotesque(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _tiers.isEmpty
-              ? _EmptyTiersView(onBack: () => context.goNamed(AppRoute.attract))
-              : _TierGrid(
-                  tiers: _tiers,
-                  showPrice: _showPrice,
-                  onSelect: _navigateWithTier,
-                ),
+      body: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) => _resetTimer(),
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _tiers.isEmpty
+                ? _EmptyTiersView(
+                    onBack: () {
+                      _timer?.cancel();
+                      context.goNamed(AppRoute.attract);
+                    },
+                  )
+                : _TierGrid(
+                    tiers: _tiers,
+                    showPrice: _showPrice,
+                    onSelect: _navigateWithTier,
+                  ),
+      ),
     );
   }
 }
@@ -170,54 +256,96 @@ class _TierGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // ── Heading ──────────────────────────────────────────────────────
-            Text(
-              'Choose Your Package',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tap a package below to get started.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppColors.onSurface),
-            ),
-            const SizedBox(height: 40),
-
-            // ── Cards Grid ───────────────────────────────────────────────────
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final crossAxisCount = constraints.maxWidth > 600 ? 2 : 1;
-                return GridView.builder(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 1.55,
-                  ),
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: tiers.length,
-                  itemBuilder: (context, i) => _TierCard(
-                    tier: tiers[i],
-                    showPrice: showPrice,
-                    onTap: () => onSelect(tiers[i]),
-                  ),
-                );
-              },
-            ),
-          ],
+    return Column(
+      children: [
+        const SizedBox(height: 20),
+        // ── Fixed Top Title Block ──────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Choose your package',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      fontSize: 28,
+                    ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'How many shots do you want to take?',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.onSurface,
+                      fontSize: 14,
+                    ),
+              ),
+            ],
+          ),
         ),
-      ),
+        const SizedBox(height: 16),
+
+        // ── Centered 2-Column Cards Area ────────────────────────────────────
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final availableWidth = constraints.maxWidth;
+              final availableHeight = constraints.maxHeight;
+
+              // Strictly 2 columns
+              const int crossAxisCount = 2;
+              const double targetCardHeight = 110.0;
+              const double spacing = 18.0;
+
+              final double maxContentWidth = availableWidth < 550
+                  ? (availableWidth - 24)
+                  : (availableWidth - 48).clamp(500.0, 980.0);
+
+              final double cardWidth =
+                  (maxContentWidth - (crossAxisCount - 1) * spacing) /
+                      crossAxisCount;
+              final double childAspectRatio = cardWidth / targetCardHeight;
+
+              return Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.center,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: maxContentWidth,
+                      maxHeight:
+                          (availableHeight - 16).clamp(200.0, double.infinity),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: GridView.builder(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          mainAxisSpacing: spacing,
+                          crossAxisSpacing: spacing,
+                          childAspectRatio: childAspectRatio,
+                        ),
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: tiers.length,
+                        itemBuilder: (context, i) => _TierCard(
+                          tier: tiers[i],
+                          showPrice: showPrice,
+                          onTap: () => onSelect(tiers[i]),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -283,7 +411,7 @@ class _TierCardState extends State<_TierCard>
         onTapCancel: _onTapCancel,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(18),
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -299,18 +427,18 @@ class _TierCardState extends State<_TierCard>
             boxShadow: [
               BoxShadow(
                 color: AppColors.primary.withValues(alpha: 0.15),
-                blurRadius: 20,
-                spreadRadius: 2,
+                blurRadius: 18,
+                spreadRadius: 1,
               ),
             ],
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Row(
             children: [
               // ── Icon cluster ────────────────────────────────────────────
               Container(
-                width: 68,
-                height: 68,
+                width: 62,
+                height: 62,
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(16),
@@ -319,7 +447,7 @@ class _TierCardState extends State<_TierCard>
                   child: _ShotCountIcon(count: count),
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 18),
 
               // ── Labels ──────────────────────────────────────────────────
               Expanded(
@@ -330,25 +458,31 @@ class _TierCardState extends State<_TierCard>
                     Text(
                       mode.label,
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: AppColors.onBackground,
-                        letterSpacing: 0.3,
+                        letterSpacing: 0.2,
+                        height: 1.2,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       '$count photo${count == 1 ? '' : 's'} per session',
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.onSurface,
+                        height: 1.2,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (widget.showPrice && widget.tier.price != null) ...[
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                            horizontal: 10, vertical: 3),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
@@ -356,7 +490,7 @@ class _TierCardState extends State<_TierCard>
                         child: Text(
                           '₱ ${widget.tier.price!.toStringAsFixed(2)}',
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: AppColors.primary,
                           ),
@@ -371,7 +505,7 @@ class _TierCardState extends State<_TierCard>
               const Icon(
                 Icons.arrow_forward_ios_rounded,
                 color: AppColors.primary,
-                size: 20,
+                size: 18,
               ),
             ],
           ),
@@ -392,10 +526,10 @@ class _ShotCountIcon extends StatelessWidget {
     return Stack(
       alignment: Alignment.center,
       children: [
-        Icon(
+        const Icon(
           Icons.camera_alt_rounded,
           color: AppColors.primary,
-          size: 28,
+          size: 26,
         ),
         Positioned(
           right: 0,

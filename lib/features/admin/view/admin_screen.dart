@@ -452,9 +452,11 @@ class _PricingSection extends StatefulWidget {
 class _PricingSectionState extends State<_PricingSection> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _singleCtrl;
+  late final TextEditingController _doubleCtrl;
   late final TextEditingController _tripleCtrl;
   late final TextEditingController _quadCtrl;
   late final TextEditingController _hexCtrl;
+  late final TextEditingController _octaCtrl;
   bool _isSaving = false;
 
   @override
@@ -463,6 +465,10 @@ class _PricingSectionState extends State<_PricingSection> {
     _singleCtrl = TextEditingController(
       text: widget.settings['price_S'] ??
           PricingService.defaultPrices[ShotMode.single]!.toStringAsFixed(2),
+    );
+    _doubleCtrl = TextEditingController(
+      text: widget.settings['price_D'] ??
+          PricingService.defaultPrices[ShotMode.double]!.toStringAsFixed(2),
     );
     _tripleCtrl = TextEditingController(
       text: widget.settings['price_T'] ??
@@ -476,14 +482,20 @@ class _PricingSectionState extends State<_PricingSection> {
       text: widget.settings['price_X'] ??
           PricingService.defaultPrices[ShotMode.hex]!.toStringAsFixed(2),
     );
+    _octaCtrl = TextEditingController(
+      text: widget.settings['price_O'] ??
+          PricingService.defaultPrices[ShotMode.octa]!.toStringAsFixed(2),
+    );
   }
 
   @override
   void dispose() {
     _singleCtrl.dispose();
+    _doubleCtrl.dispose();
     _tripleCtrl.dispose();
     _quadCtrl.dispose();
     _hexCtrl.dispose();
+    _octaCtrl.dispose();
     super.dispose();
   }
 
@@ -493,11 +505,18 @@ class _PricingSectionState extends State<_PricingSection> {
     }
 
     final single = double.tryParse(_singleCtrl.text.trim());
+    final doublePrice = double.tryParse(_doubleCtrl.text.trim());
     final triple = double.tryParse(_tripleCtrl.text.trim());
     final quad = double.tryParse(_quadCtrl.text.trim());
     final hex = double.tryParse(_hexCtrl.text.trim());
+    final octa = double.tryParse(_octaCtrl.text.trim());
 
-    if (single == null || triple == null || quad == null || hex == null) {
+    if (single == null ||
+        doublePrice == null ||
+        triple == null ||
+        quad == null ||
+        hex == null ||
+        octa == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter valid numeric prices for all tiers.'),
@@ -512,9 +531,11 @@ class _PricingSectionState extends State<_PricingSection> {
     try {
       final pricingMap = {
         ShotMode.single: single,
+        ShotMode.double: doublePrice,
         ShotMode.triple: triple,
         ShotMode.quad: quad,
         ShotMode.hex: hex,
+        ShotMode.octa: octa,
       };
 
       final pricingService = context.read<PricingService>();
@@ -622,8 +643,14 @@ class _PricingSectionState extends State<_PricingSection> {
             hint: '50.00',
           ),
           _buildPriceInput(
+            label: 'Double (2 Shots)',
+            subtitle: 'Vertical photo booth strip layout',
+            controller: _doubleCtrl,
+            hint: '65.00',
+          ),
+          _buildPriceInput(
             label: '3 Shots (Triple)',
-            subtitle: '3-photo strip or mini grid layout',
+            subtitle: '3-photo strip or bento layout',
             controller: _tripleCtrl,
             hint: '80.00',
           ),
@@ -638,6 +665,12 @@ class _PricingSectionState extends State<_PricingSection> {
             subtitle: '6-photo double strip or extended layout',
             controller: _hexCtrl,
             hint: '120.00',
+          ),
+          _buildPriceInput(
+            label: '8 Pack (8 Shots)',
+            subtitle: '2×4 grid or bento collage layout',
+            controller: _octaCtrl,
+            hint: '150.00',
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -687,9 +720,11 @@ class _CameraSectionState extends State<_CameraSection> {
   // Which tiers are visible on the tier selection screen
   final Map<String, bool> _eventTiers = {
     'S': true,  // Single
+    'D': true,  // Double (2 Shots)
     'T': true,  // 3 Shots
     'F': true,  // 4 Shots
     'X': true,  // 6 Shots
+    'O': true,  // 8 Shots
   };
 
   @override
@@ -710,7 +745,7 @@ class _CameraSectionState extends State<_CameraSection> {
         (widget.settings['event_mode_enabled'] ?? 'false').toLowerCase() == 'true';
     _eventModeShowPrice =
         (widget.settings['event_mode_price_display'] ?? 'true').toLowerCase() == 'true';
-    final tiersRaw = widget.settings['event_mode_tiers'] ?? 'S,T,F,X';
+    final tiersRaw = widget.settings['event_mode_tiers'] ?? 'S,D,T,F,X,O';
     final enabledChars = tiersRaw.split(',').map((c) => c.trim().toUpperCase()).toSet();
     for (final key in _eventTiers.keys) {
       _eventTiers[key] = enabledChars.contains(key);
@@ -747,7 +782,7 @@ class _CameraSectionState extends State<_CameraSection> {
             'shot_gap_seconds': gap,
             'max_retakes': maxRetakes,
             'event_mode_enabled': _eventModeEnabled.toString(),
-            'event_mode_tiers': tiersCSV.isEmpty ? 'S,T,F,X' : tiersCSV,
+            'event_mode_tiers': tiersCSV.isEmpty ? 'S,D,T,F,X,O' : tiersCSV,
             'event_mode_price_display': _eventModeShowPrice.toString(),
           }),
         );
@@ -914,9 +949,11 @@ class _CameraSectionState extends State<_CameraSection> {
               child: Column(
                 children: [
                   _buildTierCheckbox('S', 'Single (1 shot)'),
+                  _buildTierCheckbox('D', 'Double (2 shots)'),
                   _buildTierCheckbox('T', '3 Shots'),
                   _buildTierCheckbox('F', '4 Shots'),
                   _buildTierCheckbox('X', '6 Shots'),
+                  _buildTierCheckbox('O', '8 Shots'),
                 ],
               ),
             ),
@@ -3083,13 +3120,7 @@ class _VoucherGenerationDialogState extends State<_VoucherGenerationDialog> {
                   final isSelected = _selectedMode == mode;
                   final priceKey = 'price_${mode.tierChar}';
                   final price = widget.settings[priceKey] ??
-                      (mode == ShotMode.single
-                          ? '50'
-                          : mode == ShotMode.triple
-                              ? '80'
-                              : mode == ShotMode.quad
-                                  ? '100'
-                                  : '120');
+                      (PricingService.defaultPrices[mode]?.toStringAsFixed(0) ?? '50');
 
                   return ChoiceChip(
                     showCheckmark: false,
@@ -3342,12 +3373,16 @@ class _SalesSectionState extends State<_SalesSection> {
             // Aggregate metrics per tier
             int singleCount = 0;
             double singleRev = 0.0;
+            int doubleCount = 0;
+            double doubleRev = 0.0;
             int tripleCount = 0;
             double tripleRev = 0.0;
             int quadCount = 0;
             double quadRev = 0.0;
             int hexCount = 0;
             double hexRev = 0.0;
+            int octaCount = 0;
+            double octaRev = 0.0;
 
             for (final v in usedSales) {
               final tier = v.tierChar;
@@ -3355,6 +3390,9 @@ class _SalesSectionState extends State<_SalesSection> {
               if (tier == ShotMode.single.tierChar) {
                 singleCount++;
                 singleRev += price;
+              } else if (tier == ShotMode.double.tierChar) {
+                doubleCount++;
+                doubleRev += price;
               } else if (tier == ShotMode.triple.tierChar) {
                 tripleCount++;
                 tripleRev += price;
@@ -3364,11 +3402,14 @@ class _SalesSectionState extends State<_SalesSection> {
               } else if (tier == ShotMode.hex.tierChar) {
                 hexCount++;
                 hexRev += price;
+              } else if (tier == ShotMode.octa.tierChar) {
+                octaCount++;
+                octaRev += price;
               }
             }
 
             final totalCount = usedSales.length;
-            final totalRev = singleRev + tripleRev + quadRev + hexRev;
+            final totalRev = singleRev + doubleRev + tripleRev + quadRev + hexRev + octaRev;
 
             // Tier filtering for table
             final tableSales = usedSales
@@ -3479,6 +3520,14 @@ class _SalesSectionState extends State<_SalesSection> {
                           color: Colors.blueAccent,
                         ),
                         metricCard(
+                          title: 'Double (2 photos)',
+                          subtitle: '2 Shots',
+                          count: doubleCount,
+                          revenue: doubleRev,
+                          icon: Icons.view_day_rounded,
+                          color: Colors.cyanAccent,
+                        ),
+                        metricCard(
                           title: '3 Shots (Triple)',
                           subtitle: '3 Photos',
                           count: tripleCount,
@@ -3501,6 +3550,14 @@ class _SalesSectionState extends State<_SalesSection> {
                           revenue: hexRev,
                           icon: Icons.dashboard_rounded,
                           color: Colors.amberAccent,
+                        ),
+                        metricCard(
+                          title: '8 Pack (8 photos)',
+                          subtitle: '8 Shots',
+                          count: octaCount,
+                          revenue: octaRev,
+                          icon: Icons.view_compact_rounded,
+                          color: Colors.orangeAccent,
                         ),
                         metricCard(
                           title: 'Total Sales',

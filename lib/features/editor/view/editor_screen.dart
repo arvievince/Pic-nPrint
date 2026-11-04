@@ -197,20 +197,26 @@ class _EditorCanvas extends StatelessWidget {
         (paths.length == 4
             ? LayoutType.grid2x2
             : paths.length == 6
-                ? LayoutType.grid3x2
-                : LayoutType.verticalStrip);
+                ? LayoutType.grid2x3
+                : paths.length >= 8
+                    ? LayoutType.grid2x4
+                    : LayoutType.verticalStrip);
 
     switch (layout) {
       case LayoutType.single:
         return 3 / 4;
       case LayoutType.verticalStrip:
-        return paths.length >= 3 ? 1 / 2.2 : 9 / 16;
+        return paths.length == 2
+            ? 2 / 3
+            : (paths.length >= 3 ? 1 / 2.2 : 9 / 16);
       case LayoutType.horizontalRow:
         return paths.length >= 3 ? 16 / 10 : 4 / 3;
       case LayoutType.grid2x2:
         return 1.0;
-      case LayoutType.grid3x2:
-        return 3 / 2;
+      case LayoutType.grid2x3:
+        return 2 / 3;
+      case LayoutType.grid2x4:
+        return 2 / 3;
       case LayoutType.bendo:
         return 2 / 3;
     }
@@ -378,8 +384,10 @@ class _EditorCanvas extends StatelessWidget {
         (paths.length == 4
             ? LayoutType.grid2x2
             : paths.length == 6
-                ? LayoutType.grid3x2
-                : LayoutType.verticalStrip);
+                ? LayoutType.grid2x3
+                : paths.length >= 8
+                    ? LayoutType.grid2x4
+                    : LayoutType.verticalStrip);
 
     switch (layout) {
       case LayoutType.single:
@@ -455,42 +463,60 @@ class _EditorCanvas extends StatelessWidget {
           ),
         );
 
-      case LayoutType.grid3x2:
+      case LayoutType.grid2x3:
         return Container(
           color: Colors.white,
           child: Column(
             children: [
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (int i = 0; i < 3; i++) ...[
-                      if (i > 0) Container(width: 4, color: Colors.white),
-                      Expanded(
-                        child: _buildBaseImage(
-                          paths.length > i ? paths[i] : paths[0],
+              for (int row = 0; row < 3; row++) ...[
+                if (row > 0) Container(height: 4, color: Colors.white),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (int col = 0; col < 2; col++) ...[
+                        if (col > 0) Container(width: 4, color: Colors.white),
+                        Expanded(
+                          child: _buildBaseImage(
+                            paths.length > (row * 2 + col)
+                                ? paths[row * 2 + col]
+                                : paths[0],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              Container(height: 4, color: Colors.white),
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (int i = 3; i < 6; i++) ...[
-                      if (i > 3) Container(width: 4, color: Colors.white),
-                      Expanded(
-                        child: _buildBaseImage(
-                          paths.length > i ? paths[i] : paths[0],
+              ],
+            ],
+          ),
+        );
+
+      case LayoutType.grid2x4:
+        return Container(
+          color: Colors.white,
+          child: Column(
+            children: [
+              for (int row = 0; row < 4; row++) ...[
+                if (row > 0) Container(height: 4, color: Colors.white),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (int col = 0; col < 2; col++) ...[
+                        if (col > 0) Container(width: 4, color: Colors.white),
+                        Expanded(
+                          child: _buildBaseImage(
+                            paths.length > (row * 2 + col)
+                                ? paths[row * 2 + col]
+                                : paths[0],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         );
@@ -510,7 +536,7 @@ class _EditorCanvas extends StatelessWidget {
   Widget _buildBendoBrandTag() {
     final text = (brandText != null && brandText!.trim().isNotEmpty)
         ? brandText!.trim()
-        : 'Pic & Print';
+        : 'Snapbox.';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -608,8 +634,8 @@ class _EditorCanvas extends StatelessWidget {
               ),
             ],
           );
-        } else {
-          // ── 6-Shot Bendo (or 5+): 3 Left + 3 Right with brand tag ──
+        } else if (paths.length <= 6) {
+          // ── 6-Shot Bendo: 3 Left + 3 Right with brand tag ──
           final p0 = paths[0];
           final p1 = paths.length > 1 ? paths[1] : p0;
           final p2 = paths.length > 2 ? paths[2] : p0;
@@ -647,6 +673,53 @@ class _EditorCanvas extends StatelessWidget {
                       const SizedBox(height: 6),
                       Expanded(flex: 2, child: _buildBendoCard(p5)),
                     ],
+                  ],
+                ),
+              ),
+            ],
+          );
+        } else {
+          // ── 8-Shot Bendo: 4 Left + 4 Right with brand tag ──
+          final p0 = paths[0];
+          final p1 = paths.length > 1 ? paths[1] : p0;
+          final p2 = paths.length > 2 ? paths[2] : p0;
+          final p3 = paths.length > 3 ? paths[3] : p0;
+          final p4 = paths.length > 4 ? paths[4] : p0;
+          final p5 = paths.length > 5 ? paths[5] : p0;
+          final p6 = paths.length > 6 ? paths[6] : p0;
+          final p7 = paths.length > 7 ? paths[7] : p0;
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Left Column: 4 photos
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 3, child: _buildBendoCard(p0)),
+                    const SizedBox(height: 6),
+                    Expanded(flex: 2, child: _buildBendoCard(p1)),
+                    const SizedBox(height: 6),
+                    Expanded(flex: 3, child: _buildBendoCard(p2)),
+                    const SizedBox(height: 6),
+                    Expanded(flex: 2, child: _buildBendoCard(p3)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Right Column: 4 photos + brand tag
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 2, child: _buildBendoCard(p4)),
+                    const SizedBox(height: 6),
+                    Expanded(flex: 3, child: _buildBendoCard(p5)),
+                    _buildBendoBrandTag(),
+                    Expanded(flex: 2, child: _buildBendoCard(p6)),
+                    const SizedBox(height: 6),
+                    Expanded(flex: 3, child: _buildBendoCard(p7)),
                   ],
                 ),
               ),

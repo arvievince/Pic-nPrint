@@ -4,12 +4,13 @@ import 'package:drift/drift.dart';
 
 import '../database/app_database.dart';
 import '../models/models.dart';
+import 'pricing_service.dart';
 
 /// Handles voucher generation, validation, and redemption.
 ///
 /// Voucher format: LOC-T-SERIAL-CHK
 ///   LOC    = location ID (e.g. MNL1)
-///   T      = tier char  (S/T/F/X)
+///   T      = tier char  (S/D/T/F/X/O)
 ///   SERIAL = zero-padded 5-digit serial
 ///   CHK    = 4-char HMAC-SHA256 derived checksum (uppercase hex)
 ///
@@ -102,13 +103,7 @@ class VoucherService {
     final locationId = await _db.getSetting('location_id') ?? 'MNL1';
     final secret     = await _db.getSetting('voucher_secret') ?? '';
     final defaultPrice = double.tryParse(await _db.getSetting('price_${mode.tierChar}') ?? '') ??
-        (mode == ShotMode.single
-            ? 50.0
-            : mode == ShotMode.triple
-                ? 80.0
-                : mode == ShotMode.quad
-                    ? 100.0
-                    : 120.0);
+        (PricingService.defaultPrices[mode] ?? 50.0);
     final finalPrice = priceSnapshot ?? defaultPrice;
     final finalExpiry = expiresAt ?? DateTime.now().add(const Duration(days: 1));
 
