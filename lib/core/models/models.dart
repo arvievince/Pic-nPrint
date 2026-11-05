@@ -22,13 +22,13 @@ class VoucherModel extends Equatable {
 
   @override
   List<Object?> get props => [
-    code,
-    locationId,
-    shotMode,
-    serial,
-    expiresAt,
-    priceSnapshot,
-  ];
+        code,
+        locationId,
+        shotMode,
+        serial,
+        expiresAt,
+        priceSnapshot,
+      ];
 }
 
 /// A single active kiosk session, created after voucher redemption.
@@ -82,14 +82,14 @@ class SessionModel extends Equatable {
 
   @override
   List<Object?> get props => [
-    sessionId,
-    voucher,
-    shotMode,
-    layout,
-    imagePaths,
-    composedImagePath,
-    createdAt,
-  ];
+        sessionId,
+        voucher,
+        shotMode,
+        layout,
+        imagePaths,
+        composedImagePath,
+        createdAt,
+      ];
 }
 
 /// Represents a configured printer.
@@ -112,13 +112,13 @@ class PrinterModel extends Equatable {
 
   @override
   List<Object?> get props => [
-    id,
-    name,
-    transport,
-    address,
-    paperWidthMm,
-    isDefault,
-  ];
+        id,
+        name,
+        transport,
+        address,
+        paperWidthMm,
+        isDefault,
+      ];
 }
 
 /// Printer connection transport type.
@@ -184,6 +184,8 @@ class TextItem extends Equatable {
   final double fontSize;
   final int colorValue; // ARGB int
   final String fontFamily;
+  final double scale;
+  final double rotation;
 
   const TextItem({
     required this.id,
@@ -193,6 +195,8 @@ class TextItem extends Equatable {
     this.fontSize = 24,
     this.colorValue = 0xFFFFFFFF,
     this.fontFamily = 'Roboto',
+    this.scale = 1.0,
+    this.rotation = 0.0,
   });
 
   TextItem copyWith({
@@ -202,6 +206,8 @@ class TextItem extends Equatable {
     double? fontSize,
     int? colorValue,
     String? fontFamily,
+    double? scale,
+    double? rotation,
   }) {
     return TextItem(
       id: id,
@@ -211,9 +217,21 @@ class TextItem extends Equatable {
       fontSize: fontSize ?? this.fontSize,
       colorValue: colorValue ?? this.colorValue,
       fontFamily: fontFamily ?? this.fontFamily,
+      scale: scale ?? this.scale,
+      rotation: rotation ?? this.rotation,
     );
   }
 
   @override
-  List<Object?> get props => [id, text, x, y, fontSize, colorValue, fontFamily];
+  List<Object?> get props => [
+        id,
+        text,
+        x,
+        y,
+        fontSize,
+        colorValue,
+        fontFamily,
+        scale,
+        rotation,
+      ];
 }

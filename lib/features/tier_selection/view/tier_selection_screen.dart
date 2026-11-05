@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -27,6 +28,7 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
   static const int _timeoutSeconds = 60;
   int _remainingSeconds = _timeoutSeconds;
   Timer? _timer;
+  String? _logoPath;
 
   List<_TierOption> _tiers = [];
   bool _loading = true;
@@ -169,13 +171,24 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(
-          'Pic’n’Slip',
-          style: GoogleFonts.bricolageGrotesque(
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+        elevation: 0,
+        title: _logoPath != null && File(_logoPath!).existsSync()
+            ? Image.file(
+                File(_logoPath!),
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.camera_alt_outlined,
+                  size: 50,
+                  color: AppColors.onBackground,
+                ),
+              )
+            : Text(
+                'Pic’n’Slip',
+                style: GoogleFonts.bricolageGrotesque(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
@@ -266,12 +279,12 @@ class _TierGrid extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Choose your package',
+                'Choose your tier',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
-                      fontSize: 28,
+                      fontSize: 48,
                     ),
               ),
               const SizedBox(height: 6),
@@ -411,24 +424,21 @@ class _TierCardState extends State<_TierCard>
         onTapCancel: _onTapCancel,
         child: Container(
           decoration: BoxDecoration(
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(18),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF2A2A4E),
-                Color(0xFF1A1A3E),
-              ],
-            ),
             border: Border.all(
-              color: AppColors.primary.withValues(alpha: 0.35),
+              color: AppColors.cardBorder,
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.15),
-                blurRadius: 18,
-                spreadRadius: 1,
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.06),
+                blurRadius: 16,
               ),
             ],
           ),
@@ -540,7 +550,7 @@ class _ShotCountIcon extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.primary,
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.background, width: 1.5),
+              border: Border.all(color: AppColors.surface, width: 1.5),
             ),
             child: Center(
               child: Text(

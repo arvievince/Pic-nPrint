@@ -7,7 +7,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
-import 'package:barcode_widget/barcode_widget.dart';
 
 import '../bloc/editor_bloc.dart';
 import '../bloc/editor_event.dart';
@@ -147,7 +146,7 @@ class _EditorScreenState extends State<EditorScreen> {
             ),
             body: Column(
               children: [
-                // ── Canvas ────────────────────────────────────────────────────
+                // ────── Canvas ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
                 Expanded(
                   child: _EditorCanvas(
                     session: widget.session,
@@ -159,7 +158,7 @@ class _EditorScreenState extends State<EditorScreen> {
                   ),
                 ),
 
-                // ── Tool Tabs ─────────────────────────────────────────────────
+                // ────── Tool Tabs ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
                 _ToolBar(session: widget.session),
               ],
             ),
@@ -170,7 +169,7 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 }
 
-// ─── Canvas ───────────────────────────────────────────────────────────────────
+// ───────── Canvas ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 class _EditorCanvas extends StatelessWidget {
   final SessionModel session;
@@ -228,10 +227,33 @@ class _EditorCanvas extends StatelessWidget {
     final double headerHeight = 48.0;
     final double footerHeight = 60.0;
 
+    final double radius = isCapturing ? 0.0 : 16.0;
+
     return Center(
       child: Container(
-        // margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        constraints: const BoxConstraints(maxWidth: 520),
+        margin: isCapturing
+            ? EdgeInsets.zero
+            : const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        constraints: const BoxConstraints(maxWidth: 500),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          boxShadow: isCapturing
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.14),
+                    blurRadius: 28,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 10),
+                  ),
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    blurRadius: 40,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 14),
+                  ),
+                ],
+        ),
         child: AspectRatio(
           aspectRatio: _getAspectRatio(),
           child: RepaintBoundary(
@@ -239,16 +261,14 @@ class _EditorCanvas extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius:
-                    isCapturing ? BorderRadius.zero : BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(radius),
               ),
               child: ClipRRect(
-                borderRadius:
-                    isCapturing ? BorderRadius.zero : BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(radius),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // ── 1. Base Layout: Top Logo Bar + Middle Photos (with Border) + Bottom Footer ──
+                    // ────── 1. Base Layout: Top Logo Bar + Middle Photos (with Border) + Bottom Footer ──────
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -314,9 +334,9 @@ class _EditorCanvas extends StatelessWidget {
                           ),
                         ),
 
-                        const SizedBox(
-                          height: 16,
-                        ),
+                        // const SizedBox(
+                        //   height: 16,
+                        // ),
 
                         // Bottom Footer: Universal Session Barcode
                         SizedBox(
@@ -327,41 +347,41 @@ class _EditorCanvas extends StatelessWidget {
                                 vertical: 0,
                                 horizontal: 8,
                               ),
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 450,
-                                  maxHeight: 60,
-                                ),
-                                child: BarcodeWidget(
-                                  barcode: Barcode.code128(),
-                                  data: session.sessionId,
-                                  drawText: true,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.5,
-                                  ),
-                                  color: Colors.black,
-                                ),
-                              ),
+                              // child: ConstrainedBox(
+                              //   constraints: const BoxConstraints(
+                              //     maxWidth: 450,
+                              //     maxHeight: 60,
+                              //   ),
+                              //   child: BarcodeWidget(
+                              //     barcode: Barcode.code128(),
+                              //     data: session.sessionId,
+                              //     drawText: true,
+                              //     style: const TextStyle(
+                              //       color: Colors.white,
+                              //       fontSize: 9,
+                              //       fontWeight: FontWeight.w600,
+                              //       letterSpacing: 0.5,
+                              //     ),
+                              //     color: Colors.black,
+                              //   ),
+                              // ),
                             ),
                           ),
                         ),
 
-                        const SizedBox(
-                          height: 4,
-                        )
+                        // const SizedBox(
+                        //   height: 4,
+                        // )
                       ],
                     ),
 
-                    // ── 4. Sticker Overlays Layer ─────────────────────────────────
+                    // ────── 4. Sticker Overlays Layer ───────────────────────────────────────────────────────────────────────────────────────────────────
                     ...editorState.stickers.map(
                       (s) =>
                           _StickerWidget(sticker: s, isCapturing: isCapturing),
                     ),
 
-                    // ── 5. Text Overlays Layer ────────────────────────────────────
+                    // ────── 5. Text Overlays Layer ────────────────────────────────────────────────────────────────────────────────────────────────────────────
                     ...editorState.texts.map(
                       (t) => _TextWidget(textItem: t, isCapturing: isCapturing),
                     ),
@@ -577,7 +597,7 @@ class _EditorCanvas extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: () {
         if (paths.length <= 3) {
-          // ── 3-Shot Bendo: Left hero photo + Right 2 stacked photos with brand tag ──
+          // ────── 3-Shot Bendo: Left hero photo + Right 2 stacked photos with brand tag ──────
           final p0 = paths[0];
           final p1 = paths.length > 1 ? paths[1] : p0;
           final p2 = paths.length > 2 ? paths[2] : p0;
@@ -602,7 +622,7 @@ class _EditorCanvas extends StatelessWidget {
             ],
           );
         } else if (paths.length <= 4) {
-          // ── 4-Shot Bendo: Staggered 2x2 masonry with brand tag ──
+          // ────── 4-Shot Bendo: Staggered 2x2 masonry with brand tag ──────
           final p0 = paths[0];
           final p1 = paths.length > 1 ? paths[1] : p0;
           final p2 = paths.length > 2 ? paths[2] : p0;
@@ -635,7 +655,7 @@ class _EditorCanvas extends StatelessWidget {
             ],
           );
         } else if (paths.length <= 6) {
-          // ── 6-Shot Bendo: 3 Left + 3 Right with brand tag ──
+          // ────── 6-Shot Bendo: 3 Left + 3 Right with brand tag ──────
           final p0 = paths[0];
           final p1 = paths.length > 1 ? paths[1] : p0;
           final p2 = paths.length > 2 ? paths[2] : p0;
@@ -679,7 +699,7 @@ class _EditorCanvas extends StatelessWidget {
             ],
           );
         } else {
-          // ── 8-Shot Bendo: 4 Left + 4 Right with brand tag ──
+          // ────── 8-Shot Bendo: 4 Left + 4 Right with brand tag ──────
           final p0 = paths[0];
           final p1 = paths.length > 1 ? paths[1] : p0;
           final p2 = paths.length > 2 ? paths[2] : p0;
@@ -762,7 +782,7 @@ class _EditorCanvas extends StatelessWidget {
   }
 }
 
-// ─── Interactive Adjustable Photo Slot ────────────────────────────────────────
+// ───────── Interactive Adjustable Photo Slot ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 class _AdjustablePhotoSlot extends StatefulWidget {
   final String path;
@@ -991,7 +1011,7 @@ class _AdjustablePhotoSlotState extends State<_AdjustablePhotoSlot> {
   }
 }
 
-// ─── Border Frame Overlay ─────────────────────────────────────────────────────
+// ───────── Border Frame Overlay ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 class _BorderOverlay extends StatelessWidget {
   final String borderId;
@@ -1064,50 +1084,119 @@ class _BorderOverlay extends StatelessWidget {
   }
 }
 
-// ─── Sticker Widget ───────────────────────────────────────────────────────────
+// ───────── Sticker Widget ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-class _StickerWidget extends StatelessWidget {
+class _StickerWidget extends StatefulWidget {
   final StickerItem sticker;
   final bool isCapturing;
   const _StickerWidget({required this.sticker, this.isCapturing = false});
 
   @override
+  State<_StickerWidget> createState() => _StickerWidgetState();
+}
+
+class _StickerWidgetState extends State<_StickerWidget> {
+  // Global drag & pinch tracking
+  Offset _lastFocalPoint = Offset.zero;
+  double _baseScale = 1.0;
+  double _baseRotation = 0.0;
+
+  // Handle interaction tracking
+  Offset _center = Offset.zero;
+  double _startAngle = 0.0;
+  double _startDistance = 1.0;
+  double _initialRotation = 0.0;
+  double _initialScale = 1.0;
+
+  Offset _getGlobalCenter() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize) {
+      return box.localToGlobal(box.size.center(Offset.zero));
+    }
+    return Offset.zero;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final sticker = widget.sticker;
     final isEmoji = sticker.assetPath.startsWith('emoji:');
     final emojiChar =
         isEmoji ? sticker.assetPath.replaceFirst('emoji:', '') : '';
+    final handleCounterScale = 1.0 / sticker.scale.clamp(0.4, 4.0);
 
     return Positioned(
       left: sticker.x,
       top: sticker.y,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Drag and long-press area
-          GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onPanUpdate: isCapturing
-                ? null
-                : (d) {
-                    context.read<EditorBloc>().add(
-                          StickerUpdated(
-                            sticker.copyWith(
-                              x: sticker.x + d.delta.dx,
-                              y: sticker.y + d.delta.dy,
-                            ),
+      child: Transform.rotate(
+        angle: sticker.rotation,
+        child: Transform.scale(
+          scale: sticker.scale,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // Main content & gesture area
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onScaleStart: widget.isCapturing
+                    ? null
+                    : (details) {
+                        _lastFocalPoint = details.focalPoint;
+                        _baseScale = sticker.scale;
+                        _baseRotation = sticker.rotation;
+                      },
+                onScaleUpdate: widget.isCapturing
+                    ? null
+                    : (details) {
+                        final dx = details.focalPoint.dx - _lastFocalPoint.dx;
+                        final dy = details.focalPoint.dy - _lastFocalPoint.dy;
+                        _lastFocalPoint = details.focalPoint;
+
+                        if (details.pointerCount > 1) {
+                          // Two-finger pinch & rotate
+                          final newScale =
+                              (_baseScale * details.scale).clamp(0.4, 4.0);
+                          final newRotation = _baseRotation + details.rotation;
+                          context.read<EditorBloc>().add(
+                                StickerUpdated(
+                                  sticker.copyWith(
+                                    x: sticker.x + dx,
+                                    y: sticker.y + dy,
+                                    scale: newScale,
+                                    rotation: newRotation,
+                                  ),
+                                ),
+                              );
+                        } else {
+                          // Single-finger or mouse drag: always moves 1:1 on screen
+                          context.read<EditorBloc>().add(
+                                StickerUpdated(
+                                  sticker.copyWith(
+                                    x: sticker.x + dx,
+                                    y: sticker.y + dy,
+                                  ),
+                                ),
+                              );
+                        }
+                      },
+                onLongPress: widget.isCapturing
+                    ? null
+                    : () => context
+                        .read<EditorBloc>()
+                        .add(StickerDeleted(sticker.id)),
+                child: Container(
+                  decoration: widget.isCapturing
+                      ? null
+                      : BoxDecoration(
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.5),
+                            width: 1.5,
                           ),
-                        );
-                  },
-            onLongPress: isCapturing
-                ? null
-                : () =>
-                    context.read<EditorBloc>().add(StickerDeleted(sticker.id)),
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Transform.rotate(
-                angle: sticker.rotation,
-                child: Transform.scale(
-                  scale: sticker.scale,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                  padding: widget.isCapturing
+                      ? EdgeInsets.zero
+                      : const EdgeInsets.all(8.0),
                   child: isEmoji
                       ? Text(
                           emojiChar,
@@ -1135,142 +1224,581 @@ class _StickerWidget extends StatelessWidget {
                         ),
                 ),
               ),
-            ),
-          ),
 
-          // Delete button (hidden when capturing final snapshot)
-          if (!isCapturing)
-            Positioned(
-              top: 0,
-              right: 0,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  context.read<EditorBloc>().add(StickerDeleted(sticker.id));
-                },
-                child: Container(
-                  width: 26,
-                  height: 26,
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black45,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
+              // Control Handles (hidden during final image capture)
+              if (!widget.isCapturing) ...[
+                // Top-Right: Delete Handle
+                Positioned(
+                  top: -14,
+                  right: -14,
+                  child: Transform.scale(
+                    scale: handleCounterScale,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        context
+                            .read<EditorBloc>()
+                            .add(StickerDeleted(sticker.id));
+                      },
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black45,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Colors.white,
+                        ),
                       ),
-                    ],
+                    ),
                   ),
-                  child: const Icon(Icons.close, size: 16, color: Colors.white),
                 ),
-              ),
-            ),
-        ],
+
+                // Bottom-Right: Radial Resize Handle
+                Positioned(
+                  bottom: -14,
+                  right: -14,
+                  child: Transform.scale(
+                    scale: handleCounterScale,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        double nextScale = 1.0;
+                        if (sticker.scale < 1.2) {
+                          nextScale = 1.5;
+                        } else if (sticker.scale < 1.7) {
+                          nextScale = 2.0;
+                        } else if (sticker.scale < 2.2) {
+                          nextScale = 0.75;
+                        } else {
+                          nextScale = 1.0;
+                        }
+                        context.read<EditorBloc>().add(
+                              StickerUpdated(
+                                  sticker.copyWith(scale: nextScale)),
+                            );
+                      },
+                      onPanStart: (details) {
+                        _center = _getGlobalCenter();
+                        _startDistance =
+                            (details.globalPosition - _center).distance;
+                        if (_startDistance < 10) _startDistance = 10;
+                        _initialScale = sticker.scale;
+                      },
+                      onPanUpdate: (details) {
+                        final currentDistance =
+                            (details.globalPosition - _center).distance;
+                        final factor = currentDistance / _startDistance;
+                        final newScale =
+                            (_initialScale * factor).clamp(0.4, 4.0);
+                        context.read<EditorBloc>().add(
+                              StickerUpdated(
+                                sticker.copyWith(scale: newScale),
+                              ),
+                            );
+                      },
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black38,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.open_in_full_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Bottom-Left: Arc Rotate Handle
+                Positioned(
+                  bottom: -14,
+                  left: -14,
+                  child: Transform.scale(
+                    scale: handleCounterScale,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        final newRotation =
+                            (sticker.rotation + (math.pi / 4)) % (2 * math.pi);
+                        context.read<EditorBloc>().add(
+                              StickerUpdated(
+                                sticker.copyWith(rotation: newRotation),
+                              ),
+                            );
+                      },
+                      onPanStart: (details) {
+                        _center = _getGlobalCenter();
+                        _startAngle = math.atan2(
+                          details.globalPosition.dy - _center.dy,
+                          details.globalPosition.dx - _center.dx,
+                        );
+                        _initialRotation = sticker.rotation;
+                      },
+                      onPanUpdate: (details) {
+                        final currentAngle = math.atan2(
+                          details.globalPosition.dy - _center.dy,
+                          details.globalPosition.dx - _center.dx,
+                        );
+                        final deltaAngle = currentAngle - _startAngle;
+                        final newRotation = _initialRotation + deltaAngle;
+                        context.read<EditorBloc>().add(
+                              StickerUpdated(
+                                sticker.copyWith(rotation: newRotation),
+                              ),
+                            );
+                      },
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black38,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.rotate_right_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Top-Left: Reset Scale & Rotation
+                Positioned(
+                  top: -14,
+                  left: -14,
+                  child: Transform.scale(
+                    scale: handleCounterScale,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        context.read<EditorBloc>().add(
+                              StickerUpdated(
+                                sticker.copyWith(scale: 1.0, rotation: 0.0),
+                              ),
+                            );
+                      },
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border:
+                              Border.all(color: AppColors.cardBorder, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.restart_alt_rounded,
+                          size: 16,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-// ─── Text Widget ──────────────────────────────────────────────────────────────
+// ─── Text Widget ─────────────────────────────────────────────────────────────
 
-class _TextWidget extends StatelessWidget {
+class _TextWidget extends StatefulWidget {
   final TextItem textItem;
   final bool isCapturing;
   const _TextWidget({required this.textItem, this.isCapturing = false});
 
   @override
+  State<_TextWidget> createState() => _TextWidgetState();
+}
+
+class _TextWidgetState extends State<_TextWidget> {
+  // Global drag & pinch tracking
+  Offset _lastFocalPoint = Offset.zero;
+  double _baseScale = 1.0;
+  double _baseRotation = 0.0;
+
+  // Handle interaction tracking
+  Offset _center = Offset.zero;
+  double _startAngle = 0.0;
+  double _startDistance = 1.0;
+  double _initialRotation = 0.0;
+  double _initialScale = 1.0;
+
+  Offset _getGlobalCenter() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize) {
+      return box.localToGlobal(box.size.center(Offset.zero));
+    }
+    return Offset.zero;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final textItem = widget.textItem;
+    final handleCounterScale = 1.0 / textItem.scale.clamp(0.4, 4.0);
+
     return Positioned(
       left: textItem.x,
       top: textItem.y,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Drag and long-press area
-          GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onPanUpdate: isCapturing
-                ? null
-                : (d) {
-                    context.read<EditorBloc>().add(
-                          TextUpdated(
-                            textItem.copyWith(
-                              x: textItem.x + d.delta.dx,
-                              y: textItem.y + d.delta.dy,
-                            ),
-                          ),
-                        );
-                  },
-            onLongPress: isCapturing
-                ? null
-                : () =>
-                    context.read<EditorBloc>().add(TextDeleted(textItem.id)),
-            child: Padding(
-              padding: isCapturing
-                  ? const EdgeInsets.all(6.0)
-                  : const EdgeInsets.fromLTRB(6, 6, 20, 6),
-              child: Text(
-                textItem.text,
-                style: TextStyle(
-                  fontSize: textItem.fontSize,
-                  fontWeight: FontWeight.bold,
-                  color: Color(textItem.colorValue),
-                  fontFamily: textItem.fontFamily,
-                  shadows: const [
-                    Shadow(
-                      blurRadius: 6,
-                      color: Colors.black,
-                      offset: Offset(1.5, 1.5),
-                    ),
-                    Shadow(
-                      blurRadius: 6,
-                      color: Colors.black87,
-                      offset: Offset(-1, -1),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Delete button (hidden when capturing final snapshot)
-          if (!isCapturing)
-            Positioned(
-              top: 0,
-              right: 0,
-              child: GestureDetector(
+      child: Transform.rotate(
+        angle: textItem.rotation,
+        child: Transform.scale(
+          scale: textItem.scale,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // Main content & gesture area
+              GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  context.read<EditorBloc>().add(TextDeleted(textItem.id));
-                },
+                onScaleStart: widget.isCapturing
+                    ? null
+                    : (details) {
+                        _lastFocalPoint = details.focalPoint;
+                        _baseScale = textItem.scale;
+                        _baseRotation = textItem.rotation;
+                      },
+                onScaleUpdate: widget.isCapturing
+                    ? null
+                    : (details) {
+                        final dx = details.focalPoint.dx - _lastFocalPoint.dx;
+                        final dy = details.focalPoint.dy - _lastFocalPoint.dy;
+                        _lastFocalPoint = details.focalPoint;
+
+                        if (details.pointerCount > 1) {
+                          // Two-finger pinch & rotate
+                          final newScale =
+                              (_baseScale * details.scale).clamp(0.4, 4.0);
+                          final newRotation = _baseRotation + details.rotation;
+                          context.read<EditorBloc>().add(
+                                TextUpdated(
+                                  textItem.copyWith(
+                                    x: textItem.x + dx,
+                                    y: textItem.y + dy,
+                                    scale: newScale,
+                                    rotation: newRotation,
+                                  ),
+                                ),
+                              );
+                        } else {
+                          // Single-finger or mouse drag: always moves 1:1 on screen
+                          context.read<EditorBloc>().add(
+                                TextUpdated(
+                                  textItem.copyWith(
+                                    x: textItem.x + dx,
+                                    y: textItem.y + dy,
+                                  ),
+                                ),
+                              );
+                        }
+                      },
+                onLongPress: widget.isCapturing
+                    ? null
+                    : () => context
+                        .read<EditorBloc>()
+                        .add(TextDeleted(textItem.id)),
                 child: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black45,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
+                  decoration: widget.isCapturing
+                      ? null
+                      : BoxDecoration(
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.5),
+                            width: 1.5,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                  padding: widget.isCapturing
+                      ? const EdgeInsets.all(4.0)
+                      : const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: Text(
+                    textItem.text,
+                    style: TextStyle(
+                      fontSize: textItem.fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: Color(textItem.colorValue),
+                      fontFamily: textItem.fontFamily,
+                      shadows: const [
+                        // Shadow(
+                        //   blurRadius: 6,
+                        //   color: Colors.black,
+                        //   offset: Offset(1.5, 1.5),
+                        // ),
+                        // Shadow(
+                        //   blurRadius: 6,
+                        //   color: Colors.black87,
+                        //   offset: Offset(-1, -1),
+                        // ),
+                      ],
+                    ),
                   ),
-                  child: const Icon(Icons.close, size: 14, color: Colors.white),
                 ),
               ),
-            ),
-        ],
+
+              // Control Handles (hidden during final image capture)
+              if (!widget.isCapturing) ...[
+                // Top-Right: Delete Handle
+                Positioned(
+                  top: -14,
+                  right: -14,
+                  child: Transform.scale(
+                    scale: handleCounterScale,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        context
+                            .read<EditorBloc>()
+                            .add(TextDeleted(textItem.id));
+                      },
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black45,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Bottom-Right: Radial Resize Handle
+                Positioned(
+                  bottom: -14,
+                  right: -14,
+                  child: Transform.scale(
+                    scale: handleCounterScale,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        double nextScale = 1.0;
+                        if (textItem.scale < 1.2) {
+                          nextScale = 1.5;
+                        } else if (textItem.scale < 1.7) {
+                          nextScale = 2.0;
+                        } else if (textItem.scale < 2.2) {
+                          nextScale = 0.75;
+                        } else {
+                          nextScale = 1.0;
+                        }
+                        context.read<EditorBloc>().add(
+                              TextUpdated(textItem.copyWith(scale: nextScale)),
+                            );
+                      },
+                      onPanStart: (details) {
+                        _center = _getGlobalCenter();
+                        _startDistance =
+                            (details.globalPosition - _center).distance;
+                        if (_startDistance < 10) _startDistance = 10;
+                        _initialScale = textItem.scale;
+                      },
+                      onPanUpdate: (details) {
+                        final currentDistance =
+                            (details.globalPosition - _center).distance;
+                        final factor = currentDistance / _startDistance;
+                        final newScale =
+                            (_initialScale * factor).clamp(0.4, 4.0);
+                        context.read<EditorBloc>().add(
+                              TextUpdated(
+                                textItem.copyWith(scale: newScale),
+                              ),
+                            );
+                      },
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black38,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.open_in_full_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Bottom-Left: Arc Rotate Handle
+                Positioned(
+                  bottom: -14,
+                  left: -14,
+                  child: Transform.scale(
+                    scale: handleCounterScale,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        final newRotation =
+                            (textItem.rotation + (math.pi / 4)) % (2 * math.pi);
+                        context.read<EditorBloc>().add(
+                              TextUpdated(
+                                textItem.copyWith(rotation: newRotation),
+                              ),
+                            );
+                      },
+                      onPanStart: (details) {
+                        _center = _getGlobalCenter();
+                        _startAngle = math.atan2(
+                          details.globalPosition.dy - _center.dy,
+                          details.globalPosition.dx - _center.dx,
+                        );
+                        _initialRotation = textItem.rotation;
+                      },
+                      onPanUpdate: (details) {
+                        final currentAngle = math.atan2(
+                          details.globalPosition.dy - _center.dy,
+                          details.globalPosition.dx - _center.dx,
+                        );
+                        final deltaAngle = currentAngle - _startAngle;
+                        final newRotation = _initialRotation + deltaAngle;
+                        context.read<EditorBloc>().add(
+                              TextUpdated(
+                                textItem.copyWith(rotation: newRotation),
+                              ),
+                            );
+                      },
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black38,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.rotate_right_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Top-Left: Reset Scale & Rotation
+                Positioned(
+                  top: -14,
+                  left: -14,
+                  child: Transform.scale(
+                    scale: handleCounterScale,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        context.read<EditorBloc>().add(
+                              TextUpdated(
+                                textItem.copyWith(scale: 1.0, rotation: 0.0),
+                              ),
+                            );
+                      },
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border:
+                              Border.all(color: AppColors.cardBorder, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.restart_alt_rounded,
+                          size: 16,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-// ─── Tool Bar ─────────────────────────────────────────────────────────────────
+// ─── Tool Bar ────────────────────────────────────────────────────────────────
 
 class _ToolBar extends StatefulWidget {
   final SessionModel session;
@@ -1289,9 +1817,19 @@ class _ToolBarState extends State<_ToolBar> {
   Widget build(BuildContext context) {
     return Container(
       height: 210,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: const Border(
+          top: BorderSide(color: AppColors.cardBorder, width: 1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -1322,7 +1860,7 @@ class _ToolBarState extends State<_ToolBar> {
             ],
           ),
 
-          const Divider(height: 1, color: Colors.white12),
+          const Divider(height: 1, color: AppColors.cardBorder),
 
           // Content
           Expanded(
@@ -1488,7 +2026,7 @@ class _StickerPanel extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(color: AppColors.cardBorder),
             ),
             child: Text(emoji, style: const TextStyle(fontSize: 34)),
           ),
@@ -1531,7 +2069,7 @@ class _BorderPanel extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white12),
+              border: Border.all(color: AppColors.cardBorder),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1542,7 +2080,7 @@ class _BorderPanel extends StatelessWidget {
                   name,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.onBackground,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1605,10 +2143,10 @@ class _TextPanelState extends State<_TextPanel> {
               Expanded(
                 child: TextField(
                   controller: _controller,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: AppColors.onBackground),
                   decoration: InputDecoration(
                     hintText: 'Type text overlay...',
-                    hintStyle: const TextStyle(color: Colors.white38),
+                    hintStyle: const TextStyle(color: AppColors.onSurface),
                     filled: true,
                     fillColor: AppColors.surfaceVariant,
                     isDense: true,
@@ -1649,7 +2187,7 @@ class _TextPanelState extends State<_TextPanel> {
             children: [
               const Text(
                 'Color:',
-                style: TextStyle(color: Colors.white70, fontSize: 12),
+                style: TextStyle(color: AppColors.onSurface, fontSize: 12),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -1666,8 +2204,9 @@ class _TextPanelState extends State<_TextPanel> {
                           color: c,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color:
-                                isSelected ? AppColors.primary : Colors.white30,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.cardBorder,
                             width: isSelected ? 3 : 1,
                           ),
                         ),

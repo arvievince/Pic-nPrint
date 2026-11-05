@@ -90,7 +90,12 @@ class _RouterAppState extends State<_RouterApp> {
     return MaterialApp.router(
       title: 'PicnSlip',
       debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.dark,
+      themeMode: ThemeMode.light,
+      theme: AppTheme.light.copyWith(
+        textTheme: GoogleFonts.bricolageGrotesqueTextTheme(
+          AppTheme.light.textTheme,
+        ),
+      ),
       darkTheme: AppTheme.dark.copyWith(
         textTheme: GoogleFonts.bricolageGrotesqueTextTheme(
           AppTheme.dark.textTheme,

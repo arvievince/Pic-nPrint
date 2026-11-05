@@ -258,7 +258,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
                             const SizedBox(height: 12),
                             Text(state.message,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.white)),
+                                style: const TextStyle(
+                                    color: AppColors.onBackground)),
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: () => context.read<CaptureBloc>().add(
@@ -457,7 +458,8 @@ class _MethodButton extends StatelessWidget {
               const SizedBox(height: 12),
               Text(label,
                   style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w600)),
+                      color: AppColors.onBackground,
+                      fontWeight: FontWeight.w600)),
             ],
           ),
         ),

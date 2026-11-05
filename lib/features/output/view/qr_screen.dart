@@ -72,7 +72,7 @@ class _QrScreenState extends State<QrScreen> {
                 'Your Photo is Ready!',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  color: Colors.white,
+                  color: AppColors.onBackground,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -81,7 +81,7 @@ class _QrScreenState extends State<QrScreen> {
                 'Scan the QR code to save your photo.\nLink valid for 7 days.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.white70,
+                  color: AppColors.onSurface,
                 ),
               ),
               const SizedBox(height: 48),
@@ -93,11 +93,12 @@ class _QrScreenState extends State<QrScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: AppColors.cardBorder),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withOpacity(0.3),
-                        blurRadius: 40,
-                        spreadRadius: 5,
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        blurRadius: 32,
+                        spreadRadius: 2,
                       ),
                     ],
                   ),
@@ -124,7 +125,7 @@ class _QrScreenState extends State<QrScreen> {
                 'Session: ${widget.data.sessionId}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Colors.white38,
+                  color: AppColors.onSurface,
                   fontSize: 14,
                   letterSpacing: 1.5,
                   fontFamily: 'monospace',
@@ -137,7 +138,7 @@ class _QrScreenState extends State<QrScreen> {
               Text(
                 'Returning in $_remaining seconds',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white54, fontSize: 16),
+                style: const TextStyle(color: AppColors.onSurface, fontSize: 16),
               ),
               const SizedBox(height: 16),
 

@@ -104,7 +104,8 @@ class _ThankYouScreenState extends State<ThankYouScreen>
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF00E676).withValues(alpha: 0.4),
+                              color: const Color(0xFF00E676)
+                                  .withValues(alpha: 0.4),
                               blurRadius: 36,
                               spreadRadius: 8,
                             ),
@@ -124,11 +125,12 @@ class _ThankYouScreenState extends State<ThankYouScreen>
                     Text(
                       'Thank You!',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.5,
-                          ),
+                      style:
+                          Theme.of(context).textTheme.displayMedium?.copyWith(
+                                color: AppColors.onBackground,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.5,
+                              ),
                     ),
 
                     const SizedBox(height: 14),
@@ -138,7 +140,7 @@ class _ThankYouScreenState extends State<ThankYouScreen>
                       'Please collect your printed photos from the tray.\nWe hope you enjoyed your photo session!',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white70,
+                            color: AppColors.onSurface,
                             height: 1.4,
                           ),
                     ),
@@ -153,12 +155,12 @@ class _ThankYouScreenState extends State<ThankYouScreen>
                         decoration: BoxDecoration(
                           color: AppColors.surfaceVariant,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white12),
+                          border: Border.all(color: AppColors.cardBorder),
                         ),
                         child: Text(
                           'Session: ${widget.sessionId}',
                           style: const TextStyle(
-                            color: Colors.white54,
+                            color: AppColors.onSurface,
                             fontSize: 13,
                             letterSpacing: 1.2,
                             fontFamily: 'monospace',
@@ -173,7 +175,7 @@ class _ThankYouScreenState extends State<ThankYouScreen>
                     Text(
                       'Returning to home in $_remaining seconds',
                       style: const TextStyle(
-                        color: Colors.white38,
+                        color: AppColors.onSurface,
                         fontSize: 14,
                       ),
                     ),

@@ -1799,6 +1799,11 @@ class _BrandingSectionState extends State<_BrandingSection> {
   bool _isSaving = false;
   bool _isUploadingLogo = false;
   String? _logoPath;
+  String? _polaroid1Path;
+  String? _polaroid2Path;
+  String? _polaroid3Path;
+  String? _polaroid4Path;
+  int? _uploadingPolaroidIndex;
 
   @override
   void initState() {
@@ -1821,6 +1826,17 @@ class _BrandingSectionState extends State<_BrandingSection> {
     _footerCtrl = TextEditingController(
       text: widget.settings['receipt_footer'] ?? 'Visit us again soon!',
     );
+    _polaroid1Path = _validPathOrNull(widget.settings['attract_polaroid_1_path']);
+    _polaroid2Path = _validPathOrNull(widget.settings['attract_polaroid_2_path']);
+    _polaroid3Path = _validPathOrNull(widget.settings['attract_polaroid_3_path']);
+    _polaroid4Path = _validPathOrNull(widget.settings['attract_polaroid_4_path']);
+  }
+
+  String? _validPathOrNull(String? path) {
+    if (path != null && path.trim().isNotEmpty && File(path.trim()).existsSync()) {
+      return path.trim();
+    }
+    return null;
   }
 
   Future<void> _pickAndUploadLogo() async {
@@ -1887,6 +1903,94 @@ class _BrandingSectionState extends State<_BrandingSection> {
       const SnackBar(
         content: Text(
             'Logo removed. Default camera icon will be used on attract screen.'),
+        backgroundColor: AppColors.success,
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadPolaroid(int index) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    setState(() => _uploadingPolaroidIndex = index);
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final brandingDir = Directory(p.join(appDir.path, 'branding'));
+      if (!brandingDir.existsSync()) {
+        brandingDir.createSync(recursive: true);
+      }
+      final ext = p.extension(picked.path).isNotEmpty
+          ? p.extension(picked.path)
+          : '.png';
+      final destPath = p.join(brandingDir.path, 'attract_polaroid_$index$ext');
+      await File(picked.path).copy(destPath);
+
+      if (mounted) {
+        context.read<AdminBloc>().add(
+              AdminSettingUpdated(
+                key: 'attract_polaroid_${index}_path',
+                value: destPath,
+              ),
+            );
+        setState(() {
+          if (index == 1) _polaroid1Path = destPath;
+          if (index == 2) _polaroid2Path = destPath;
+          if (index == 3) _polaroid3Path = destPath;
+          if (index == 4) _polaroid4Path = destPath;
+          _uploadingPolaroidIndex = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Polaroid #$index uploaded successfully!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploadingPolaroidIndex = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save Polaroid photo: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _removePolaroid(int index) {
+    String? path;
+    if (index == 1) path = _polaroid1Path;
+    if (index == 2) path = _polaroid2Path;
+    if (index == 3) path = _polaroid3Path;
+    if (index == 4) path = _polaroid4Path;
+
+    try {
+      if (path != null && path.isNotEmpty) {
+        final f = File(path);
+        if (f.existsSync()) {
+          f.deleteSync();
+        }
+      }
+    } catch (_) {}
+
+    context.read<AdminBloc>().add(
+          AdminSettingUpdated(
+            key: 'attract_polaroid_${index}_path',
+            value: '',
+          ),
+        );
+    setState(() {
+      if (index == 1) _polaroid1Path = null;
+      if (index == 2) _polaroid2Path = null;
+      if (index == 3) _polaroid3Path = null;
+      if (index == 4) _polaroid4Path = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Polaroid #$index removed.'),
         backgroundColor: AppColors.success,
       ),
     );
@@ -2127,6 +2231,92 @@ class _BrandingSectionState extends State<_BrandingSection> {
             ),
           ),
           const SizedBox(height: 28),
+
+          // ── Attract Screen Polaroid Cards ──────────────────────────────────
+          Card(
+            color: AppColors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: AppColors.onSurface.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.collections_rounded,
+                        color: AppColors.primary,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Attract Screen Polaroids',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Configure the floating Polaroid photos on the attract screen. If no photo is uploaded, that card is hidden.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isCompact = constraints.maxWidth < 620;
+                      return GridView.count(
+                        crossAxisCount: isCompact ? 2 : 4,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 14,
+                        childAspectRatio: isCompact ? 0.72 : 0.65,
+                        children: [
+                          _buildPolaroidAdminSlot(
+                            index: 1,
+                            title: 'Top-Left',
+                            angleLabel: '-12°',
+                            imagePath: _polaroid1Path,
+                          ),
+                          _buildPolaroidAdminSlot(
+                            index: 2,
+                            title: 'Top-Right',
+                            angleLabel: '+9°',
+                            imagePath: _polaroid2Path,
+                          ),
+                          _buildPolaroidAdminSlot(
+                            index: 3,
+                            title: 'Bottom-Left',
+                            angleLabel: '-8°',
+                            imagePath: _polaroid3Path,
+                          ),
+                          _buildPolaroidAdminSlot(
+                            index: 4,
+                            title: 'Bottom-Right',
+                            angleLabel: '+7°',
+                            imagePath: _polaroid4Path,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+
           Text('Kiosk App Title',
               style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 6),
@@ -2176,6 +2366,145 @@ class _BrandingSectionState extends State<_BrandingSection> {
             ),
           ),
           const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPolaroidAdminSlot({
+    required int index,
+    required String title,
+    required String angleLabel,
+    required String? imagePath,
+  }) {
+    final hasImage = imagePath != null &&
+        imagePath.isNotEmpty &&
+        File(imagePath).existsSync();
+    final isUploading = _uploadingPolaroidIndex == index;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.onSurface.withValues(alpha: 0.1),
+        ),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  angleLabel,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Mini Polaroid preview
+          Expanded(
+            child: Center(
+              child: Container(
+                width: 76,
+                height: 96,
+                padding: const EdgeInsets.fromLTRB(6, 6, 6, 18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: hasImage
+                      ? Image.file(
+                          File(imagePath),
+                          fit: BoxFit.cover,
+                        )
+                      : Container(
+                          color: AppColors.surfaceVariant,
+                          child: const Center(
+                            child: Icon(
+                              Icons.add_photo_alternate_outlined,
+                              size: 24,
+                              color: AppColors.onSurface,
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Buttons
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 32,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    onPressed: isUploading
+                        ? null
+                        : () => _pickAndUploadPolaroid(index),
+                    child: isUploading
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(hasImage ? 'Change' : 'Upload'),
+                  ),
+                ),
+              ),
+              if (hasImage) ...[
+                const SizedBox(width: 6),
+                SizedBox(
+                  height: 32,
+                  width: 32,
+                  child: IconButton(
+                    iconSize: 16,
+                    padding: EdgeInsets.zero,
+                    color: AppColors.error,
+                    icon: const Icon(Icons.delete_outline_rounded),
+                    tooltip: 'Remove',
+                    onPressed: () => _removePolaroid(index),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );
