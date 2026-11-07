@@ -48,9 +48,10 @@ class _LayoutView extends StatelessWidget {
       appBar: AppBar(
         title: Text('Choose Layout — ${session.shotMode.label}'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => context.pop(),
-        ),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            onPressed: () {
+              context.goNamed(AppRoute.tierSelect);
+            }),
       ),
       body: BlocBuilder<LayoutBloc, LayoutState>(
         builder: (context, state) {

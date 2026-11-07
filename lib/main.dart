@@ -1,3 +1,5 @@
+import 'package:device_preview_plus/device_preview_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -29,8 +31,12 @@ void main() async {
   // ── Check first-run ───────────────────────────────────────────────────────
   // (FirstRunScreen check happens in AttractScreen — if no password is set,
   //  the admin route redirects to /first-run)
-
-  runApp(MyApp(db: db, storageService: storageService));
+  runApp(
+    DevicePreview(
+      enabled: kDebugMode,
+      builder: (context) => MyApp(db: db, storageService: storageService),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -90,6 +96,8 @@ class _RouterAppState extends State<_RouterApp> {
     return MaterialApp.router(
       title: 'PicnSlip',
       debugShowCheckedModeBanner: false,
+      locale: DevicePreview.locale(context),
+      builder: DevicePreview.appBuilder,
       themeMode: ThemeMode.light,
       theme: AppTheme.light.copyWith(
         textTheme: GoogleFonts.bricolageGrotesqueTextTheme(

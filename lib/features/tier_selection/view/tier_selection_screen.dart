@@ -9,6 +9,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/models/models.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/responsive.dart';
 
 /// Shown in Event Mode instead of VoucherScreen.
 ///
@@ -29,6 +30,7 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
   int _remainingSeconds = _timeoutSeconds;
   Timer? _timer;
   String? _logoPath;
+  String? _title;
 
   List<_TierOption> _tiers = [];
   bool _loading = true;
@@ -81,6 +83,8 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
       final tiersRaw = await db.getSetting('event_mode_tiers') ?? 'S,D,T,F,X,O';
       final showPriceRaw =
           await db.getSetting('event_mode_price_display') ?? 'true';
+      final logoPath = await db.getSetting('kiosk_logo_path');
+      final title = await db.getSetting('kiosk_title');
       final allPrices = await db.getAllPrices();
 
       final priceMap = {for (final p in allPrices) p.tierChar: p.price};
@@ -113,6 +117,19 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
       setState(() {
         _tiers = tierOptions;
         _showPrice = showPriceRaw.toLowerCase() == 'true';
+        if (logoPath != null && logoPath.trim().isNotEmpty) {
+          final trimmed = logoPath.trim();
+          if (trimmed.startsWith('assets/') || File(trimmed).existsSync()) {
+            _logoPath = trimmed;
+          } else {
+            _logoPath = null;
+          }
+        } else {
+          _logoPath = null;
+        }
+        if (title != null && title.trim().isNotEmpty) {
+          _title = title.trim();
+        }
         _loading = false;
       });
     } catch (_) {
@@ -169,68 +186,70 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF8F6F0),
       appBar: AppBar(
+        backgroundColor: const Color(0xFFF8F6F0),
         elevation: 0,
-        title: _logoPath != null && File(_logoPath!).existsSync()
-            ? Image.file(
-                File(_logoPath!),
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Icon(
-                  Icons.camera_alt_outlined,
-                  size: 50,
-                  color: AppColors.onBackground,
-                ),
-              )
-            : Text(
-                'Pic’n’Slip',
-                style: GoogleFonts.bricolageGrotesque(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () {
-            _timer?.cancel();
-            context.goNamed(AppRoute.attract);
-          },
+        title: SizedBox(
+          height: 38,
+          child: _logoPath != null
+              ? (_logoPath!.startsWith('assets/')
+                  ? Image.asset(
+                      _logoPath!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => _buildFallbackTitle(),
+                    )
+                  : (File(_logoPath!).existsSync()
+                      ? Image.file(
+                          File(_logoPath!),
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => _buildFallbackTitle(),
+                        )
+                      : _buildFallbackTitle()))
+              : _buildFallbackTitle(),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.timer_outlined,
-                      size: 16,
-                      color: AppColors.onSurface,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${_remainingSeconds}s',
-                      style: GoogleFonts.bricolageGrotesque(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.onSurface,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+        centerTitle: true,
+        // leading: IconButton(
+        //   icon: const Icon(Icons.arrow_back_ios_new_rounded),
+        //   onPressed: () {
+        //     _timer?.cancel();
+        //     context.goNamed(AppRoute.attract);
+        //   },
+        // ),
+        // actions: [
+        //   Padding(
+        //     padding: const EdgeInsets.only(right: 16),
+        //     child: Center(
+        //       child: Container(
+        //         padding:
+        //             const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        //         decoration: BoxDecoration(
+        //           color: AppColors.surfaceVariant,
+        //           borderRadius: BorderRadius.circular(16),
+        //         ),
+        //         child: Row(
+        //           mainAxisSize: MainAxisSize.min,
+        //           children: [
+        //             const Icon(
+        //               Icons.timer_outlined,
+        //               size: 16,
+        //               color: AppColors.onSurface,
+        //             ),
+        //             const SizedBox(width: 4),
+        //             Text(
+        //               '${_remainingSeconds}s',
+        //               style: GoogleFonts.bricolageGrotesque(
+        //                 fontSize: 13,
+        //                 fontWeight: FontWeight.w600,
+        //                 color: AppColors.onSurface,
+        //               ),
+        //             ),
+        //           ],
+        //         ),
+        //       ),
+        //     ),
+        //   ),
+        // ],
       ),
       body: Listener(
         behavior: HitTestBehavior.translucent,
@@ -252,6 +271,16 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
       ),
     );
   }
+
+  Widget _buildFallbackTitle() {
+    return Text(
+      _title ?? 'Pic’n’Slip',
+      style: GoogleFonts.bricolageGrotesque(
+        fontSize: 20,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+  }
 }
 
 // ─── Tier Grid ────────────────────────────────────────────────────────────────
@@ -269,121 +298,228 @@ class _TierGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const SizedBox(height: 20),
-        // ── Fixed Top Title Block ──────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Choose your tier',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                      fontSize: 48,
-                    ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'How many shots do you want to take?',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.onSurface,
-                      fontSize: 14,
-                    ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final availableHeight = constraints.maxHeight;
+        final screenType = Responsive.fromWidth(availableWidth);
 
-        // ── Centered 2-Column Cards Area ────────────────────────────────────
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final availableWidth = constraints.maxWidth;
-              final availableHeight = constraints.maxHeight;
+        // ── Responsive Header Typography & Spacing ──
+        final double titleFontSize = switch (screenType) {
+          ScreenType.compact => (availableWidth * 0.08).clamp(24.0, 32.0),
+          ScreenType.medium => 38.0,
+          ScreenType.expanded => 48.0,
+          ScreenType.large => 56.0,
+        };
 
-              // Strictly 2 columns
-              const int crossAxisCount = 2;
-              const double targetCardHeight = 110.0;
-              const double spacing = 18.0;
+        final double subtitleFontSize = switch (screenType) {
+          ScreenType.compact => 13.0,
+          ScreenType.medium => 15.0,
+          ScreenType.expanded => 17.0,
+          ScreenType.large => 19.0,
+        };
 
-              final double maxContentWidth = availableWidth < 550
-                  ? (availableWidth - 24)
-                  : (availableWidth - 48).clamp(500.0, 980.0);
+        final double headerTopGap = switch (screenType) {
+          ScreenType.compact => 8.0,
+          ScreenType.medium => 14.0,
+          _ => 20.0,
+        };
 
-              final double cardWidth =
-                  (maxContentWidth - (crossAxisCount - 1) * spacing) /
-                      crossAxisCount;
-              final double childAspectRatio = cardWidth / targetCardHeight;
+        final double headerBottomGap = switch (screenType) {
+          ScreenType.compact => 10.0,
+          ScreenType.medium => 14.0,
+          _ => 18.0,
+        };
 
-              return Center(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.center,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: maxContentWidth,
-                      maxHeight:
-                          (availableHeight - 16).clamp(200.0, double.infinity),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      child: GridView.builder(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          mainAxisSpacing: spacing,
-                          crossAxisSpacing: spacing,
-                          childAspectRatio: childAspectRatio,
+        // ── Responsive Grid Settings ──
+        final int count = tiers.length;
+        final int crossAxisCount = _calculateCrossAxisCount(
+          width: availableWidth,
+          tierCount: count,
+          screenType: screenType,
+        );
+
+        final double spacing = switch (screenType) {
+          ScreenType.compact => 12.0,
+          ScreenType.medium => 16.0,
+          _ => 20.0,
+        };
+
+        final double childAspectRatio = switch (screenType) {
+          ScreenType.compact => 0.68,
+          ScreenType.medium => 0.70,
+          _ => 0.72,
+        };
+
+        final double targetCardWidth = switch (screenType) {
+          ScreenType.compact =>
+            (availableWidth / crossAxisCount - spacing).clamp(130.0, 240.0),
+          ScreenType.medium => 260.0,
+          ScreenType.expanded => 300.0,
+          ScreenType.large => 340.0,
+        };
+
+        final double maxContentWidth = (crossAxisCount * targetCardWidth +
+                (crossAxisCount - 1) * spacing)
+            .clamp(
+                280.0, availableWidth - (screenType.isCompact ? 24.0 : 40.0));
+
+        final int rows = (count / crossAxisCount).ceil();
+        final double cardHeight = targetCardWidth / childAspectRatio;
+        final double requiredGridHeight =
+            (rows * cardHeight) + ((rows - 1) * spacing) + 48;
+        // On compact/small screens or when height is constrained, make cards scrollable
+        final bool shouldScroll = screenType.isCompact ||
+            availableHeight < requiredGridHeight ||
+            rows > 2 ||
+            availableHeight < 720;
+
+        return Column(
+          children: [
+            SizedBox(height: headerTopGap),
+            // ── Top Title Block ────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Choose your tier',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.8,
+                          fontSize: titleFontSize,
+                          color: const Color(0xFF111827),
+                          height: 1.1,
                         ),
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: tiers.length,
-                        itemBuilder: (context, i) => _TierCard(
-                          tier: tiers[i],
-                          showPrice: showPrice,
-                          onTap: () => onSelect(tiers[i]),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'How many shots do you want to take?',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF6B7280),
+                          fontSize: subtitleFontSize,
+                          height: 1.2,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: headerBottomGap),
+
+            // ── Responsive Cards Area ──────────────────────────────────────────
+            Expanded(
+              child: shouldScroll
+                  ? Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: maxContentWidth),
+                        child: GridView.builder(
+                          padding: EdgeInsets.fromLTRB(
+                            screenType.isCompact ? 16 : 20,
+                            8,
+                            screenType.isCompact ? 16 : 20,
+                            40,
+                          ),
+                          // physics: const BouncingScrollPhysics(
+                          //   parent: AlwaysScrollableScrollPhysics(),
+                          // ),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: crossAxisCount,
+                            mainAxisSpacing: spacing,
+                            crossAxisSpacing: spacing,
+                            childAspectRatio: childAspectRatio,
+                          ),
+                          itemCount: tiers.length,
+                          itemBuilder: (context, i) => _TierPolaroidCard(
+                            tier: tiers[i],
+                            showPrice: showPrice,
+                            screenType: screenType,
+                            onTap: () => onSelect(tiers[i]),
+                          ),
+                        ),
+                      ),
+                    )
+                  : Center(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.center,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: maxContentWidth,
+                            maxHeight: (availableHeight - 16)
+                                .clamp(180.0, double.infinity),
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: screenType.isCompact ? 16 : 20,
+                              vertical: 8,
+                            ),
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                mainAxisSpacing: spacing,
+                                crossAxisSpacing: spacing,
+                                childAspectRatio: childAspectRatio,
+                              ),
+                              itemCount: tiers.length,
+                              itemBuilder: (context, i) => _TierPolaroidCard(
+                                tier: tiers[i],
+                                showPrice: showPrice,
+                                screenType: screenType,
+                                onTap: () => onSelect(tiers[i]),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  static int _calculateCrossAxisCount({
+    required double width,
+    required int tierCount,
+    required ScreenType screenType,
+  }) {
+    if (tierCount <= 1) return 1;
+    return 2;
   }
 }
 
-// ─── Tier Card ────────────────────────────────────────────────────────────────
+// ─── Tier Polaroid Card ───────────────────────────────────────────────────────
 
-class _TierCard extends StatefulWidget {
+class _TierPolaroidCard extends StatefulWidget {
   final _TierOption tier;
   final bool showPrice;
   final VoidCallback onTap;
+  final ScreenType screenType;
 
-  const _TierCard({
+  const _TierPolaroidCard({
     required this.tier,
     required this.showPrice,
     required this.onTap,
+    this.screenType = ScreenType.expanded,
   });
 
   @override
-  State<_TierCard> createState() => _TierCardState();
+  State<_TierPolaroidCard> createState() => _TierPolaroidCardState();
 }
 
-class _TierCardState extends State<_TierCard>
+class _TierPolaroidCardState extends State<_TierPolaroidCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _scale;
+  bool _isHovered = false;
 
   @override
   void initState() {
@@ -416,108 +552,214 @@ class _TierCardState extends State<_TierCard>
   Widget build(BuildContext context) {
     final mode = widget.tier.mode;
     final count = mode.photoCount;
+    final pastelBg = _getPastelColor(mode);
+
+    // ── Responsive Dimensions & Typography per Card ──
+    final double cardPadding = switch (widget.screenType) {
+      ScreenType.compact => 10.0,
+      ScreenType.medium => 12.0,
+      ScreenType.expanded => 14.0,
+      ScreenType.large => 16.0,
+    };
+
+    final double cardRadius = switch (widget.screenType) {
+      ScreenType.compact => 18.0,
+      ScreenType.medium => 20.0,
+      ScreenType.expanded => 24.0,
+      ScreenType.large => 28.0,
+    };
+
+    final double previewRadius = switch (widget.screenType) {
+      ScreenType.compact => 14.0,
+      _ => 18.0,
+    };
+
+    final double numberSize = switch (widget.screenType) {
+      ScreenType.compact => 22.0,
+      ScreenType.medium => 24.0,
+      ScreenType.expanded => 26.0,
+      ScreenType.large => 30.0,
+    };
+
+    final double unitSize = switch (widget.screenType) {
+      ScreenType.compact => 12.0,
+      ScreenType.medium => 13.0,
+      ScreenType.expanded => 14.0,
+      ScreenType.large => 16.0,
+    };
+
+    final double labelSize = switch (widget.screenType) {
+      ScreenType.compact => 15.0,
+      ScreenType.medium => 16.0,
+      ScreenType.expanded => 18.0,
+      ScreenType.large => 20.0,
+    };
+
+    final double descSize = switch (widget.screenType) {
+      ScreenType.compact => 11.0,
+      ScreenType.medium => 11.5,
+      ScreenType.expanded => 12.5,
+      ScreenType.large => 14.0,
+    };
+
+    final double priceSize = switch (widget.screenType) {
+      ScreenType.compact => 11.0,
+      ScreenType.medium => 11.5,
+      ScreenType.expanded => 12.5,
+      ScreenType.large => 14.0,
+    };
+
+    final double stripScale = switch (widget.screenType) {
+      ScreenType.compact => 1.05,
+      ScreenType.medium => 1.15,
+      ScreenType.expanded => 1.25,
+      ScreenType.large => 1.35,
+    };
+
+    final double gapBetweenPreviewAndText = switch (widget.screenType) {
+      ScreenType.compact => 8.0,
+      ScreenType.medium => 10.0,
+      _ => 12.0,
+    };
+
     return ScaleTransition(
       scale: _scale,
-      child: GestureDetector(
-        onTapDown: _onTapDown,
-        onTapUp: _onTapUp,
-        onTapCancel: _onTapCancel,
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: AppColors.cardBorder,
-              width: 1.5,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: GestureDetector(
+          onTapDown: _onTapDown,
+          onTapUp: _onTapUp,
+          onTapCancel: _onTapCancel,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(cardRadius),
+              border: Border.all(
+                color: _isHovered
+                    ? const Color(0xFF1E1E1E)
+                    : const Color(0xFFE5E5E5),
+                width: _isHovered ? 2.0 : 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _isHovered
+                      ? Colors.black.withValues(alpha: 0.12)
+                      : Colors.black.withValues(alpha: 0.04),
+                  blurRadius: _isHovered ? 20 : 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.06),
-                blurRadius: 16,
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              // ── Icon cluster ────────────────────────────────────────────
-              Container(
-                width: 62,
-                height: 62,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
+            padding: EdgeInsets.all(cardPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ── Pastel Preview Box with Floating Strip ───────
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: pastelBg,
+                      borderRadius: BorderRadius.circular(previewRadius),
+                    ),
+                    alignment: Alignment.center,
+                    child: Transform.scale(
+                      scale: stripScale,
+                      child: _TierStripVisual(mode: mode),
+                    ),
+                  ),
                 ),
-                child: Center(
-                  child: _ShotCountIcon(count: count),
-                ),
-              ),
-              const SizedBox(width: 18),
+                SizedBox(height: gapBetweenPreviewAndText),
 
-              // ── Labels ──────────────────────────────────────────────────
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      mode.label,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.onBackground,
-                        letterSpacing: 0.2,
-                        height: 1.2,
+                // ── Lower Info Block ────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Number + 'shot'/'shots'
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            '$count',
+                            style: GoogleFonts.bricolageGrotesque(
+                              fontSize: numberSize,
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFF111827),
+                              height: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            count == 1 ? 'shot' : 'shots',
+                            style: TextStyle(
+                              fontSize: unitSize,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF6B7280),
+                            ),
+                          ),
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '$count photo${count == 1 ? '' : 's'} per session',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.onSurface,
-                        height: 1.2,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (widget.showPrice && widget.tier.price != null) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
+                      const SizedBox(height: 3),
+
+                      // Mode Label
+                      Text(
+                        mode.label,
+                        style: GoogleFonts.bricolageGrotesque(
+                          fontSize: labelSize,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF111827),
+                          height: 1.15,
                         ),
-                        child: Text(
-                          '₱ ${widget.tier.price!.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+
+                      // Subtitle
+                      Text(
+                        _getTierSubtitle(mode),
+                        style: TextStyle(
+                          fontSize: descSize,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF6B7280),
+                          height: 1.15,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      // Price (if enabled)
+                      if (widget.showPrice && widget.tier.price != null) ...[
+                        SizedBox(
+                            height: widget.screenType.isCompact ? 5.0 : 7.0),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: widget.screenType.isCompact ? 6 : 8,
+                            vertical: widget.screenType.isCompact ? 2 : 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '₱ ${widget.tier.price!.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: priceSize,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-
-              // ── Arrow ───────────────────────────────────────────────────
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: AppColors.primary,
-                size: 18,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -525,48 +767,331 @@ class _TierCardState extends State<_TierCard>
   }
 }
 
-// ─── Shot Count Icon ──────────────────────────────────────────────────────────
+// ─── Tier Strip Visual ────────────────────────────────────────────────────────
 
-class _ShotCountIcon extends StatelessWidget {
-  final int count;
-  const _ShotCountIcon({required this.count});
+class _TierStripVisual extends StatelessWidget {
+  final ShotMode mode;
+
+  const _TierStripVisual({required this.mode});
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        const Icon(
-          Icons.camera_alt_rounded,
-          color: AppColors.primary,
-          size: 26,
-        ),
-        Positioned(
-          right: 0,
-          bottom: 0,
-          child: Container(
-            width: 22,
-            height: 22,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.surface, width: 1.5),
-            ),
-            child: Center(
-              child: Text(
-                '$count',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  height: 1,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
+    switch (mode) {
+      case ShotMode.single:
+        return _buildSingle();
+      case ShotMode.double:
+        return _buildDouble();
+      case ShotMode.triple:
+        return _buildTriple();
+      case ShotMode.quad:
+        return _buildQuad();
+      case ShotMode.hex:
+        return _buildHex();
+      case ShotMode.octa:
+        return _buildOcta();
+    }
+  }
+
+  // 1 Shot: Single Square Box
+  Widget _buildSingle() {
+    const double size = 68.0;
+    return _StripContainer(
+      angle: 0.04,
+      backgroundColor: Colors.white,
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+      child: const _MiniSquareBox(
+        size: size,
+        color: Color(0xFFE5E5E5),
+      ),
     );
+  }
+
+  // 2 Shots: 2 Vertical Square Boxes (1x2 strip)
+  Widget _buildDouble() {
+    const double size = 46.0;
+    return _StripContainer(
+      angle: 0.04,
+      backgroundColor: Colors.white,
+      padding: const EdgeInsets.fromLTRB(7, 7, 7, 10),
+      chinTextColor: Colors.white70,
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+          SizedBox(height: 5),
+          _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+        ],
+      ),
+    );
+  }
+
+  // 3 Shots: 3 Vertical Square Boxes (1x3 strip)
+  Widget _buildTriple() {
+    const double size = 34.0;
+    return _StripContainer(
+      angle: -0.04,
+      backgroundColor: Colors.white,
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 10),
+      chinTextColor: Colors.black45,
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+          SizedBox(height: 4),
+          _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+          SizedBox(height: 4),
+          _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+        ],
+      ),
+    );
+  }
+
+  // 4 Shots: 2x2 Grid of Square Boxes
+  Widget _buildQuad() {
+    const double size = 38.0;
+    return _StripContainer(
+      angle: 0.03,
+      backgroundColor: Colors.white,
+      padding: const EdgeInsets.fromLTRB(7, 7, 7, 10),
+      chinTextColor: Colors.white60,
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+              SizedBox(width: 5),
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+            ],
+          ),
+          SizedBox(height: 5),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+              SizedBox(width: 5),
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 6 Shots: 2x3 Grid of Square Boxes (2 columns of 3)
+  Widget _buildHex() {
+    const double size = 28.0;
+    return _StripContainer(
+      angle: -0.03,
+      backgroundColor: Colors.white,
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 9),
+      chinTextColor: Colors.black45,
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+              SizedBox(width: 4),
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+            ],
+          ),
+          SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+              SizedBox(width: 4),
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+            ],
+          ),
+          SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+              SizedBox(width: 4),
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 8 Shots: 2x4 Grid of Square Boxes (2 columns of 4)
+  Widget _buildOcta() {
+    const double size = 23.0;
+    return _StripContainer(
+      angle: 0.03,
+      backgroundColor: Colors.white,
+      padding: const EdgeInsets.fromLTRB(5, 5, 5, 8),
+      chinTextColor: Colors.black45,
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+              SizedBox(width: 4),
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+            ],
+          ),
+          SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+              SizedBox(width: 4),
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+            ],
+          ),
+          SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+              SizedBox(width: 4),
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+            ],
+          ),
+          SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+              SizedBox(width: 4),
+              _MiniSquareBox(size: size, color: Color(0xFFE5E5E5)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Square Box Widget (Guaranteed Square with White Center Circle) ───────────
+
+class _MiniSquareBox extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _MiniSquareBox({
+    required this.size,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(size * 0.10),
+      ),
+      // child: Center(
+      //   child: Container(
+      //     width: size * 0.44,
+      //     height: size * 0.44,
+      //     decoration: const BoxDecoration(
+      //       color: Colors.white,
+      //       shape: BoxShape.circle,
+      //     ),
+      //   ),
+      // ),
+    );
+  }
+}
+
+// ─── Floating Strip Container with Drop Shadow ────────────────────────────────
+
+class _StripContainer extends StatelessWidget {
+  final double angle;
+  final Color backgroundColor;
+  final EdgeInsets padding;
+  final Widget child;
+  final Color? chinTextColor;
+
+  const _StripContainer({
+    required this.angle,
+    required this.backgroundColor,
+    required this.padding,
+    required this.child,
+    this.chinTextColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.rotate(
+      angle: angle,
+      child: Container(
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.16),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+              spreadRadius: 1,
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: padding,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            child,
+            const SizedBox(height: 7),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+Color _getPastelColor(ShotMode mode) {
+  switch (mode) {
+    case ShotMode.single:
+      return const Color(0xFFF5F5F7);
+    case ShotMode.double:
+      return const Color(0xFFF5F5F7);
+    case ShotMode.triple:
+      return const Color(0xFFF5F5F7);
+    case ShotMode.quad:
+      return const Color(0xFFF5F5F7);
+    case ShotMode.hex:
+      return const Color(0xFFF5F5F7);
+    case ShotMode.octa:
+      return const Color(0xFFF5F5F7);
+  }
+}
+
+String _getTierSubtitle(ShotMode mode) {
+  switch (mode) {
+    case ShotMode.single:
+      return 'One perfect shot';
+    case ShotMode.double:
+      return 'Quick duo';
+    case ShotMode.triple:
+      return 'Classic mini strip';
+    case ShotMode.quad:
+      return 'Classic 2×2 grid';
+    case ShotMode.hex:
+      return 'Group favourite';
+    case ShotMode.octa:
+      return 'The ultimate set';
   }
 }
 

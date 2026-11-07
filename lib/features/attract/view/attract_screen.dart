@@ -11,6 +11,7 @@ import '../bloc/attract_state.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/polaroid_card.dart';
 
 /// The idle / attract screen — shown when no customer is using the kiosk.
 ///
@@ -184,7 +185,7 @@ class _AttractScreenState extends State<AttractScreen> {
                         Positioned(
                           top: height * 0.08,
                           left: width * 0.08,
-                          child: _PolaroidCard(
+                          child: PolaroidCard(
                             width: cardWidth,
                             height: cardHeight,
                             angleDegrees: -12.0,
@@ -197,7 +198,7 @@ class _AttractScreenState extends State<AttractScreen> {
                         Positioned(
                           top: height * 0.12,
                           right: width * 0.09,
-                          child: _PolaroidCard(
+                          child: PolaroidCard(
                             width: cardWidth,
                             height: cardHeight,
                             angleDegrees: 9.0,
@@ -210,7 +211,7 @@ class _AttractScreenState extends State<AttractScreen> {
                         Positioned(
                           bottom: height * 0.14,
                           left: width * 0.09,
-                          child: _PolaroidCard(
+                          child: PolaroidCard(
                             width: cardWidth,
                             height: cardHeight,
                             angleDegrees: -8.0,
@@ -223,7 +224,7 @@ class _AttractScreenState extends State<AttractScreen> {
                         Positioned(
                           bottom: height * 0.10,
                           right: width * 0.08,
-                          child: _PolaroidCard(
+                          child: PolaroidCard(
                             width: cardWidth,
                             height: cardHeight,
                             angleDegrees: 7.0,
@@ -336,68 +337,6 @@ class _AttractScreenState extends State<AttractScreen> {
       [Color(0xFFFDF4FF), Color(0xFFEFF6FF)],
     ];
     return palettes[index % palettes.length];
-  }
-}
-
-/// A realistic, rotated Polaroid card widget.
-class _PolaroidCard extends StatelessWidget {
-  final double width;
-  final double height;
-  final double angleDegrees;
-  final String imagePath;
-
-  const _PolaroidCard({
-    required this.width,
-    required this.height,
-    required this.angleDegrees,
-    required this.imagePath,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final double rad = angleDegrees * (math.pi / 180.0);
-    final double innerPadding = width * 0.065;
-    final double bottomPadding =
-        width * 0.22; // Classic thick Polaroid bottom chin
-
-    return Transform.rotate(
-      angle: rad,
-      child: Container(
-        width: width,
-        height: height,
-        padding: EdgeInsets.fromLTRB(
-          innerPadding,
-          innerPadding,
-          innerPadding,
-          bottomPadding,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(width * 0.04),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-              spreadRadius: 1,
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(width * 0.02),
-          child: Image.file(
-            File(imagePath),
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-          ),
-        ),
-      ),
-    );
   }
 }
 
