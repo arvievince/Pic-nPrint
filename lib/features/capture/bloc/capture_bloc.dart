@@ -44,9 +44,24 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
   int? _retakeTargetIndex;
   final List<String> _capturedPaths = [];
 
-  CaptureBloc({required AppDatabase db, required this.shotMode})
-      : _db = db,
-        super(const CaptureMethodSelection()) {
+  CaptureBloc({
+    required AppDatabase db,
+    required this.shotMode,
+    List<String>? initialPaths,
+    int? retakeIndex,
+  })  : _db = db,
+        _retakeTargetIndex = retakeIndex,
+        super(retakeIndex != null
+            ? CaptureReadyForRetake(
+                retakeIndex: retakeIndex,
+                shotNumber: retakeIndex + 1,
+                totalShots: shotMode.photoCount,
+                retakesRemaining: 1,
+              )
+            : const CaptureMethodSelection()) {
+    if (initialPaths != null) {
+      _capturedPaths.addAll(initialPaths);
+    }
     on<CaptureMethodChosen>(_onMethodChosen);
     on<CaptureCountdownTick>(_onCountdownTick);
     on<PhotoCaptured>(_onPhotoCaptured);
@@ -71,16 +86,25 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
       return;
     }
 
-    // Camera mode: load settings then start countdown for first shot
+    // Camera mode: load settings then start countdown
     _initialCountdown =
         int.tryParse(await _db.getSetting('countdown_seconds') ?? '3') ?? 3;
     _currentCountdown = _initialCountdown;
     _shotGapSeconds =
         int.tryParse(await _db.getSetting('shot_gap_seconds') ?? '2') ?? 2;
+
+    if (_retakeTargetIndex != null) {
+      // Single-shot retake mode: start countdown for the target slot only.
+      // Do NOT clear _capturedPaths and do NOT nullify _retakeTargetIndex here.
+      _currentShotNumber = _retakeTargetIndex! + 1;
+      _startCountdown(emit);
+      return;
+    }
+
+    // Normal fresh capture
     _maxRetakes = int.tryParse(await _db.getSetting('max_retakes') ?? '1') ?? 1;
     _retakesRemaining = _maxRetakes;
     _selectedRetakeIndex = 0;
-    _retakeTargetIndex = null;
     _currentShotNumber = 1;
     _capturedPaths.clear();
     _startCountdown(emit);
@@ -111,29 +135,14 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
         _capturedPaths[target] = event.imagePath;
       }
       _retakeTargetIndex = null;
-      emit(CaptureReview(
-        capturedPaths: List.unmodifiable(_capturedPaths),
-        retakesRemaining: _retakesRemaining,
-        maxRetakes: _maxRetakes,
-        selectedIndex: _selectedRetakeIndex,
-      ));
+      emit(CaptureComplete(List.unmodifiable(_capturedPaths)));
       return;
     }
 
     _capturedPaths.add(event.imagePath);
 
     if (_capturedPaths.length >= shotMode.photoCount) {
-      if (_maxRetakes > 0) {
-        _selectedRetakeIndex = 0;
-        emit(CaptureReview(
-          capturedPaths: List.unmodifiable(_capturedPaths),
-          retakesRemaining: _retakesRemaining,
-          maxRetakes: _maxRetakes,
-          selectedIndex: 0,
-        ));
-      } else {
-        emit(CaptureComplete(List.unmodifiable(_capturedPaths)));
-      }
+      emit(CaptureComplete(List.unmodifiable(_capturedPaths)));
     } else {
       emit(CaptureInProgress(
         capturedPaths: List.unmodifiable(_capturedPaths),
@@ -158,6 +167,18 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
   }
 
   void _onImagesUploaded(ImagesUploaded event, Emitter<CaptureState> emit) {
+    if (_retakeTargetIndex != null) {
+      if (event.imagePaths.isNotEmpty) {
+        final target = _retakeTargetIndex!;
+        if (target >= 0 && target < _capturedPaths.length) {
+          _capturedPaths[target] = event.imagePaths.first;
+        }
+        _retakeTargetIndex = null;
+        emit(CaptureComplete(List.unmodifiable(_capturedPaths)));
+      }
+      return;
+    }
+
     if (event.imagePaths.length == shotMode.photoCount) {
       emit(CaptureComplete(List.unmodifiable(event.imagePaths)));
     } else {

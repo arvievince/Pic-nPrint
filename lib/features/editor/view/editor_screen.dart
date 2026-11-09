@@ -31,6 +31,30 @@ class _EditorScreenState extends State<EditorScreen> {
   String? _logoPath;
   String? _brandText;
   late CameraFilter _activeFilter;
+  int? _selectedPhotoIndex;
+
+  void _handleRetake() {
+    final photoCount = widget.session.imagePaths.length;
+    if (_selectedPhotoIndex == null && photoCount > 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Tap a photo on the canvas to choose which one to retake.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      setState(() => _selectedPhotoIndex = 0);
+      return;
+    }
+    final targetIndex = _selectedPhotoIndex ?? 0;
+    context.goNamed(
+      AppRoute.capture,
+      extra: {
+        'session': widget.session,
+        'retakeIndex': targetIndex,
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -119,33 +143,11 @@ class _EditorScreenState extends State<EditorScreen> {
           return Scaffold(
             backgroundColor: AppColors.surface,
             appBar: AppBar(
-              title: const Text('Edit Photo'),
+              title: const Text('Your Prints'),
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded),
                 onPressed: isProcessing ? null : () => context.pop(),
               ),
-              actions: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: TextButton(
-                    onPressed: isProcessing ? null : () => _handleDone(context),
-                    child: isProcessing
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text(
-                            'Done',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 17,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
             ),
             body: Column(
               children: [
@@ -159,6 +161,13 @@ class _EditorScreenState extends State<EditorScreen> {
                     logoPath: _logoPath,
                     brandText: _brandText,
                     activeFilter: _activeFilter,
+                    selectedPhotoIndex: _selectedPhotoIndex,
+                    onSelectPhoto: (index) {
+                      setState(() {
+                        _selectedPhotoIndex =
+                            (_selectedPhotoIndex == index) ? null : index;
+                      });
+                    },
                   ),
                 ),
 
@@ -169,6 +178,9 @@ class _EditorScreenState extends State<EditorScreen> {
                   onFilterChanged: (filter) {
                     setState(() => _activeFilter = filter);
                   },
+                  selectedPhotoIndex: _selectedPhotoIndex,
+                  onRetake: _handleRetake,
+                  onDone: () => _handleDone(context),
                 ),
               ],
             ),
@@ -189,6 +201,8 @@ class _EditorCanvas extends StatelessWidget {
   final String? logoPath;
   final String? brandText;
   final CameraFilter activeFilter;
+  final int? selectedPhotoIndex;
+  final ValueChanged<int>? onSelectPhoto;
 
   const _EditorCanvas({
     required this.session,
@@ -198,6 +212,8 @@ class _EditorCanvas extends StatelessWidget {
     this.logoPath,
     this.brandText,
     required this.activeFilter,
+    this.selectedPhotoIndex,
+    this.onSelectPhoto,
   });
 
   double _getAspectRatio() {
@@ -246,7 +262,7 @@ class _EditorCanvas extends StatelessWidget {
         margin: isCapturing
             ? EdgeInsets.zero
             : const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        constraints: const BoxConstraints(maxWidth: 500),
+        constraints: const BoxConstraints(maxWidth: 560),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(radius),
           boxShadow: isCapturing
@@ -407,11 +423,79 @@ class _EditorCanvas extends StatelessWidget {
     );
   }
 
+  Widget _buildSelectableImage(String path, int index) {
+    final isSelected = !isCapturing && selectedPhotoIndex == index;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: isCapturing ? null : () => onSelectPhoto?.call(index),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _buildBaseImage(path),
+          if (isSelected) ...[
+            // Highlight selection border
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: AppColors.primary,
+                      width: 3.5,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Selection Badge Tag
+            Positioned(
+              top: 8,
+              left: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black38,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: Colors.white,
+                      size: 13,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Photo #${index + 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildPhotoLayout() {
     final paths = session.imagePaths;
 
     if (paths.isEmpty) return _errorPlaceholder();
-    if (paths.length == 1) return _buildBaseImage(paths.first);
+    if (paths.length == 1) return _buildSelectableImage(paths.first, 0);
     final layout = session.layout ??
         (paths.length == 4
             ? LayoutType.grid2x2
@@ -433,7 +517,7 @@ class _EditorCanvas extends StatelessWidget {
             children: [
               for (int i = 0; i < paths.length; i++) ...[
                 if (i > 0) Container(height: 4, color: Colors.white),
-                Expanded(child: _buildBaseImage(paths[i])),
+                Expanded(child: _buildSelectableImage(paths[i], i)),
               ],
             ],
           ),
@@ -447,7 +531,7 @@ class _EditorCanvas extends StatelessWidget {
             children: [
               for (int i = 0; i < paths.length; i++) ...[
                 if (i > 0) Container(width: 4, color: Colors.white),
-                Expanded(child: _buildBaseImage(paths[i])),
+                Expanded(child: _buildSelectableImage(paths[i], i)),
               ],
             ],
           ),
@@ -462,11 +546,12 @@ class _EditorCanvas extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(child: _buildBaseImage(paths[0])),
+                    Expanded(child: _buildSelectableImage(paths[0], 0)),
                     Container(width: 4, color: Colors.white),
                     Expanded(
-                      child: _buildBaseImage(
+                      child: _buildSelectableImage(
                         paths.length > 1 ? paths[1] : paths[0],
+                        1,
                       ),
                     ),
                   ],
@@ -478,14 +563,16 @@ class _EditorCanvas extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
-                      child: _buildBaseImage(
+                      child: _buildSelectableImage(
                         paths.length > 2 ? paths[2] : paths[0],
+                        2,
                       ),
                     ),
                     Container(width: 4, color: Colors.white),
                     Expanded(
-                      child: _buildBaseImage(
+                      child: _buildSelectableImage(
                         paths.length > 3 ? paths[3] : paths[0],
+                        3,
                       ),
                     ),
                   ],
@@ -509,10 +596,11 @@ class _EditorCanvas extends StatelessWidget {
                       for (int col = 0; col < 2; col++) ...[
                         if (col > 0) Container(width: 4, color: Colors.white),
                         Expanded(
-                          child: _buildBaseImage(
+                          child: _buildSelectableImage(
                             paths.length > (row * 2 + col)
                                 ? paths[row * 2 + col]
                                 : paths[0],
+                            row * 2 + col,
                           ),
                         ),
                       ],
@@ -538,10 +626,11 @@ class _EditorCanvas extends StatelessWidget {
                       for (int col = 0; col < 2; col++) ...[
                         if (col > 0) Container(width: 4, color: Colors.white),
                         Expanded(
-                          child: _buildBaseImage(
+                          child: _buildSelectableImage(
                             paths.length > (row * 2 + col)
                                 ? paths[row * 2 + col]
                                 : paths[0],
+                            row * 2 + col,
                           ),
                         ),
                       ],
@@ -558,10 +647,10 @@ class _EditorCanvas extends StatelessWidget {
     }
   }
 
-  Widget _buildBendoCard(String path) {
+  Widget _buildBendoCard(String path, int index) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: _buildBaseImage(path),
+      child: _buildSelectableImage(path, index),
     );
   }
 
@@ -618,16 +707,16 @@ class _EditorCanvas extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: _buildBendoCard(p0),
+                child: _buildBendoCard(p0, 0),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(child: _buildBendoCard(p1)),
+                    Expanded(child: _buildBendoCard(p1, 1)),
                     _buildBendoBrandTag(),
-                    Expanded(child: _buildBendoCard(p2)),
+                    Expanded(child: _buildBendoCard(p2, 2)),
                   ],
                 ),
               ),
@@ -647,9 +736,9 @@ class _EditorCanvas extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 2, child: _buildBendoCard(p0)),
+                    Expanded(flex: 2, child: _buildBendoCard(p0, 0)),
                     const SizedBox(height: 16),
-                    Expanded(flex: 3, child: _buildBendoCard(p1)),
+                    Expanded(flex: 3, child: _buildBendoCard(p1, 1)),
                   ],
                 ),
               ),
@@ -658,9 +747,9 @@ class _EditorCanvas extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 3, child: _buildBendoCard(p2)),
+                    Expanded(flex: 3, child: _buildBendoCard(p2, 2)),
                     _buildBendoBrandTag(),
-                    Expanded(flex: 2, child: _buildBendoCard(p3)),
+                    Expanded(flex: 2, child: _buildBendoCard(p3, 3)),
                   ],
                 ),
               ),
@@ -684,11 +773,11 @@ class _EditorCanvas extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 2, child: _buildBendoCard(p0)),
+                    Expanded(flex: 2, child: _buildBendoCard(p0, 0)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 3, child: _buildBendoCard(p1)),
+                    Expanded(flex: 3, child: _buildBendoCard(p1, 1)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 2, child: _buildBendoCard(p2)),
+                    Expanded(flex: 2, child: _buildBendoCard(p2, 2)),
                   ],
                 ),
               ),
@@ -698,12 +787,12 @@ class _EditorCanvas extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 3, child: _buildBendoCard(p3)),
+                    Expanded(flex: 3, child: _buildBendoCard(p3, 3)),
                     _buildBendoBrandTag(),
-                    Expanded(flex: 2, child: _buildBendoCard(p4)),
+                    Expanded(flex: 2, child: _buildBendoCard(p4, 4)),
                     if (paths.length >= 6) ...[
                       const SizedBox(height: 6),
-                      Expanded(flex: 2, child: _buildBendoCard(p5)),
+                      Expanded(flex: 2, child: _buildBendoCard(p5, 5)),
                     ],
                   ],
                 ),
@@ -729,13 +818,13 @@ class _EditorCanvas extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 3, child: _buildBendoCard(p0)),
+                    Expanded(flex: 3, child: _buildBendoCard(p0, 0)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 2, child: _buildBendoCard(p1)),
+                    Expanded(flex: 2, child: _buildBendoCard(p1, 1)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 3, child: _buildBendoCard(p2)),
+                    Expanded(flex: 3, child: _buildBendoCard(p2, 2)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 2, child: _buildBendoCard(p3)),
+                    Expanded(flex: 2, child: _buildBendoCard(p3, 3)),
                   ],
                 ),
               ),
@@ -745,13 +834,13 @@ class _EditorCanvas extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 2, child: _buildBendoCard(p4)),
+                    Expanded(flex: 2, child: _buildBendoCard(p4, 4)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 3, child: _buildBendoCard(p5)),
+                    Expanded(flex: 3, child: _buildBendoCard(p5, 5)),
                     _buildBendoBrandTag(),
-                    Expanded(flex: 2, child: _buildBendoCard(p6)),
+                    Expanded(flex: 2, child: _buildBendoCard(p6, 6)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 3, child: _buildBendoCard(p7)),
+                    Expanded(flex: 3, child: _buildBendoCard(p7, 7)),
                   ],
                 ),
               ),
@@ -1824,11 +1913,17 @@ class _ToolBar extends StatefulWidget {
   final SessionModel session;
   final CameraFilter activeFilter;
   final ValueChanged<CameraFilter> onFilterChanged;
+  final int? selectedPhotoIndex;
+  final VoidCallback onRetake;
+  final VoidCallback onDone;
 
   const _ToolBar({
     required this.session,
     required this.activeFilter,
     required this.onFilterChanged,
+    this.selectedPhotoIndex,
+    required this.onRetake,
+    required this.onDone,
   });
 
   @override
@@ -1843,61 +1938,64 @@ class _ToolBarState extends State<_ToolBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 210,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: const Border(
-          top: BorderSide(color: AppColors.cardBorder, width: 1),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
+      // decoration: BoxDecoration(
+      //   color: AppColors.surface,
+      //   borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      //   border: const Border(
+      //     top: BorderSide(color: AppColors.cardBorder, width: 1),
+      //   ),
+      //   boxShadow: [
+      //     BoxShadow(
+      //       color: Colors.black.withValues(alpha: 0.05),
+      //       blurRadius: 10,
+      //       offset: const Offset(0, -2),
+      //     ),
+      //   ],
+      // ),
       child: Column(
         children: [
-          // Tab selector
-          Row(
-            children: [
-              _Tab(
-                label: 'Filters',
-                icon: Icons.auto_awesome_rounded,
-                index: 0,
-                selected: _selectedTab,
-                onTap: (i) => setState(() => _selectedTab = i),
+          // Segmented pill tab control
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEECE6),
+                borderRadius: BorderRadius.circular(24),
               ),
-              _Tab(
-                label: 'Stickers',
-                icon: Icons.emoji_emotions_rounded,
-                index: 1,
-                selected: _selectedTab,
-                onTap: (i) => setState(() => _selectedTab = i),
+              child: Row(
+                children: [
+                  _Tab(
+                    label: 'Filters',
+                    index: 0,
+                    selected: _selectedTab,
+                    onTap: (i) => setState(() => _selectedTab = i),
+                  ),
+                  _Tab(
+                    label: 'Stickers',
+                    index: 1,
+                    selected: _selectedTab,
+                    onTap: (i) => setState(() => _selectedTab = i),
+                  ),
+                  _Tab(
+                    label: 'Frame',
+                    index: 2,
+                    selected: _selectedTab,
+                    onTap: (i) => setState(() => _selectedTab = i),
+                  ),
+                  _Tab(
+                    label: 'Text',
+                    index: 3,
+                    selected: _selectedTab,
+                    onTap: (i) => setState(() => _selectedTab = i),
+                  ),
+                ],
               ),
-              _Tab(
-                label: 'Borders',
-                icon: Icons.crop_square_rounded,
-                index: 2,
-                selected: _selectedTab,
-                onTap: (i) => setState(() => _selectedTab = i),
-              ),
-              _Tab(
-                label: 'Text',
-                icon: Icons.text_fields_rounded,
-                index: 3,
-                selected: _selectedTab,
-                onTap: (i) => setState(() => _selectedTab = i),
-              ),
-            ],
+            ),
           ),
 
-          const Divider(height: 1, color: AppColors.cardBorder),
-
           // Content
-          Expanded(
+          SizedBox(
+            height: 130,
             child: IndexedStack(
               index: _selectedTab,
               children: [
@@ -1954,6 +2052,62 @@ class _ToolBarState extends State<_ToolBar> {
               ],
             ),
           ),
+
+          // ── Bottom Action Row: Retake & Done / Print ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+            child: Row(
+              children: [
+                // Retake Button — narrow pill
+                SizedBox(
+                  width: 130,
+                  child: OutlinedButton.icon(
+                    onPressed: widget.onRetake,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black,
+                      side: const BorderSide(color: Colors.black, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    icon: const Icon(Icons.replay_rounded, size: 18),
+                    label: const Text(
+                      'Retake',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Done / Print Button — wide black pill
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: widget.onDone,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    icon: const Icon(Icons.print_rounded, size: 18),
+                    label: const Text(
+                      'Done / Print',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1962,14 +2116,12 @@ class _ToolBarState extends State<_ToolBar> {
 
 class _Tab extends StatelessWidget {
   final String label;
-  final IconData icon;
   final int index;
   final int selected;
   final ValueChanged<int> onTap;
 
   const _Tab({
     required this.label,
-    required this.icon,
     required this.index,
     required this.selected,
     required this.onTap,
@@ -1981,35 +2133,22 @@ class _Tab extends StatelessWidget {
     return Expanded(
       child: GestureDetector(
         onTap: () => onTap(index),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.all(4),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: isSelected ? AppColors.primary : Colors.transparent,
-                width: 3,
-              ),
-            ),
+            color: isSelected ? Colors.black : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected ? AppColors.primary : AppColors.onSurface,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: isSelected ? AppColors.primary : AppColors.onSurface,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  fontSize: 14,
-                ),
-              ),
-            ],
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isSelected ? Colors.white : const Color(0xFF6B7280),
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              fontSize: 13,
+            ),
           ),
         ),
       ),
@@ -2030,76 +2169,100 @@ class _FilterPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: CameraFilter.values.map((filter) {
-            final isSelected = filter == activeFilter;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: GestureDetector(
-                onTap: () => onSelect(filter),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFFFF5C38)
-                        : const Color(0xFFF1EFE9),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSelected
-                          ? const Color(0xFFFF5C38)
-                          : const Color(0xFFE2DDD2),
-                      width: isSelected ? 2 : 1,
-                    ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: const Color(0xFFFF5C38)
-                                  .withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isSelected
-                            ? Icons.check_circle_rounded
-                            : Icons.auto_awesome_rounded,
-                        color:
-                            isSelected ? Colors.white : const Color(0xFF4B5563),
-                        size: 24,
+    return ListView.builder(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      itemCount: CameraFilter.values.length,
+      itemBuilder: (context, index) {
+        final filter = CameraFilter.values[index];
+        final isSelected = filter == activeFilter;
+        return GestureDetector(
+          onTap: () => onSelect(filter),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            margin: const EdgeInsets.only(right: 10),
+            width: 82,
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.black : const Color(0xFFF5F3EE),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected ? Colors.black : const Color(0xFFD6D2C8),
+                width: isSelected ? 2 : 1,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        filter.label,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w600,
-                          color: isSelected
-                              ? Colors.white
-                              : const Color(0xFF1E1E1E),
-                        ),
-                      ),
-                    ],
+                    ]
+                  : null,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isSelected ? Icons.check_circle_rounded : _filterIcon(filter),
+                  color: isSelected ? Colors.white : const Color(0xFF4B5563),
+                  size: 24,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  filter.label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: isSelected ? Colors.white : const Color(0xFF1E1E1E),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
+                const SizedBox(height: 2),
+                Text(
+                  _filterSubtitle(filter),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 9,
+                    color:
+                        isSelected ? Colors.white70 : const Color(0xFF9CA3AF),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  IconData _filterIcon(CameraFilter filter) {
+    switch (filter) {
+      case CameraFilter.natural:
+        return Icons.wb_sunny_rounded;
+      case CameraFilter.noir:
+        return Icons.monochrome_photos_rounded;
+      case CameraFilter.retro:
+        return Icons.photo_filter_rounded;
+      case CameraFilter.pop:
+        return Icons.auto_awesome_rounded;
+      case CameraFilter.fade:
+        return Icons.blur_on_rounded;
+    }
+  }
+
+  String _filterSubtitle(CameraFilter filter) {
+    switch (filter) {
+      case CameraFilter.natural:
+        return 'Default look';
+      case CameraFilter.noir:
+        return 'Monochrome';
+      case CameraFilter.retro:
+        return 'Retro feel';
+      case CameraFilter.pop:
+        return 'Vivid pop';
+      case CameraFilter.fade:
+        return 'Soft fade';
+    }
   }
 }
 
@@ -2146,15 +2309,22 @@ class _StickerPanel extends StatelessWidget {
           onTap: () => onAdd('emoji:$emoji'),
           child: Container(
             margin: const EdgeInsets.only(right: 12),
-            width: 64,
-            height: 64,
+            width: 72,
+            height: 72,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
+              color: const Color(0xFFF5F3EE),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.cardBorder),
+              border: Border.all(color: const Color(0xFFD6D2C8)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: Text(emoji, style: const TextStyle(fontSize: 34)),
+            child: Text(emoji, style: const TextStyle(fontSize: 36)),
           ),
         );
       },
@@ -2191,24 +2361,31 @@ class _BorderPanel extends StatelessWidget {
           onTap: () => onSelect(id),
           child: Container(
             margin: const EdgeInsets.only(right: 12),
-            width: 80,
+            width: 82,
             decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.cardBorder),
+              color: const Color(0xFFF5F3EE),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFD6D2C8)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, color: AppColors.primary, size: 28),
+                Icon(icon, color: const Color(0xFF4B5563), size: 26),
                 const SizedBox(height: 6),
                 Text(
                   name,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: AppColors.onBackground,
+                    color: Color(0xFF1E1E1E),
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],

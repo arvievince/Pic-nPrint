@@ -23,7 +23,8 @@ import '../../../core/theme/app_theme.dart';
 /// photo framing guide, live filter preview, and bottom circular shutter.
 class CaptureScreen extends StatefulWidget {
   final SessionModel session;
-  const CaptureScreen({super.key, required this.session});
+  final int? retakeIndex;
+  const CaptureScreen({super.key, required this.session, this.retakeIndex});
 
   @override
   State<CaptureScreen> createState() => _CaptureScreenState();
@@ -189,10 +190,14 @@ class _CaptureScreenState extends State<CaptureScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => CaptureBloc(
-        db: context.read(),
-        shotMode: widget.session.shotMode,
-      ),
+      create: (context) {
+        return CaptureBloc(
+          db: context.read(),
+          shotMode: widget.session.shotMode,
+          initialPaths: widget.session.imagePaths,
+          retakeIndex: widget.retakeIndex,
+        );
+      },
       child: BlocConsumer<CaptureBloc, CaptureState>(
         listener: (context, state) async {
           if (state is CaptureTaking) {
@@ -364,23 +369,6 @@ class _CaptureScreenState extends State<CaptureScreen> {
                     ],
                   ),
 
-                  // ── Review & Retake Overlay (When All Shots Captured) ──────
-                  if (state is CaptureReview)
-                    _ReviewOverlay(
-                      state: state,
-                      shotMode: widget.session.shotMode,
-                      selectedFilter: _selectedFilter,
-                      onSelectPhoto: (index) => context
-                          .read<CaptureBloc>()
-                          .add(CapturePhotoSelectedForRetake(index)),
-                      onRetake: () => context
-                          .read<CaptureBloc>()
-                          .add(const CaptureRetakeConfirmed()),
-                      onConfirm: () => context
-                          .read<CaptureBloc>()
-                          .add(const CaptureReviewConfirmed()),
-                    ),
-
                   // ── Error Dialog Overlay ───────────────────────────────────
                   if (state is CaptureError) _buildErrorOverlay(context, state),
                 ],
@@ -483,11 +471,13 @@ class _CaptureScreenState extends State<CaptureScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  state is CaptureReadyForRetake
-                      ? (totalShots > 1
-                          ? 'Retaking Photo ${state.shotNumber}'
-                          : 'Retaking Photo')
-                      : '$shotsTaken/$totalShots shots',
+                  widget.retakeIndex != null
+                      ? 'Retaking Photo ${widget.retakeIndex! + 1}'
+                      : (state is CaptureReadyForRetake
+                          ? (totalShots > 1
+                              ? 'Retaking Photo ${state.shotNumber}'
+                              : 'Retaking Photo')
+                          : '$shotsTaken/$totalShots shots'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -506,8 +496,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
                 right: 20,
                 child: Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.65),
                       borderRadius: BorderRadius.circular(20),
@@ -697,13 +687,19 @@ class _CaptureScreenState extends State<CaptureScreen> {
         alignment: Alignment.center,
         children: [
           // Cancel retake pill button
-          if (isRetakeMode)
+          if (isRetakeMode || widget.retakeIndex != null)
             Positioned(
               left: 20,
               child: TextButton.icon(
-                onPressed: () => context
-                    .read<CaptureBloc>()
-                    .add(const CaptureRetakeCancelled()),
+                onPressed: () {
+                  if (widget.retakeIndex != null) {
+                    context.goNamed(AppRoute.editor, extra: widget.session);
+                  } else {
+                    context
+                        .read<CaptureBloc>()
+                        .add(const CaptureRetakeCancelled());
+                  }
+                },
                 icon: const Icon(
                   Icons.arrow_back_rounded,
                   size: 18,
@@ -728,14 +724,38 @@ class _CaptureScreenState extends State<CaptureScreen> {
               ),
             ),
 
+          // Gallery Upload Button
+          Positioned(
+              right: 20,
+              child: IconButton(
+                onPressed: isBusy ? null : () => _pickImages(context),
+                tooltip: 'Upload from gallery',
+                icon: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEBE7DD),
+                    shape: BoxShape.circle,
+                    border:
+                        Border.all(color: const Color(0xFF1E1E1E), width: 1.5),
+                  ),
+                  child: const Icon(
+                    Icons.photo_library_outlined,
+                    size: 22,
+                    color: Color(0xFF1E1E1E),
+                  ),
+                ),
+              ),
+            ),
+
           // Centered Shutter Button
           GestureDetector(
             onTap: isBusy
                 ? null
                 : () {
-                    if (isRetakeMode) {
+                    if (widget.retakeIndex != null || isRetakeMode) {
                       context.read<CaptureBloc>().add(
-                            const CaptureRetakeShutterPressed(),
+                            const CaptureMethodChosen(CaptureMethod.camera),
                           );
                     } else {
                       context.read<CaptureBloc>().add(
@@ -889,8 +909,18 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
   Future<void> _pickImages(BuildContext context) async {
     final picker = ImagePicker();
-    final count = context.read<CaptureBloc>().shotMode.photoCount;
+    final isRetake = widget.retakeIndex != null;
 
+    if (isRetake) {
+      // Retake mode: select exactly 1 photo to replace the chosen slot
+      final file = await picker.pickImage(source: ImageSource.gallery);
+      if (file != null && context.mounted) {
+        context.read<CaptureBloc>().add(ImagesUploaded([file.path]));
+      }
+      return;
+    }
+
+    final count = context.read<CaptureBloc>().shotMode.photoCount;
     List<String> paths = [];
     if (count == 1) {
       final file = await picker.pickImage(source: ImageSource.gallery);
@@ -966,303 +996,4 @@ class _DashedBorderPainter extends CustomPainter {
       dashLength != oldDelegate.dashLength ||
       dashGap != oldDelegate.dashGap ||
       radius != oldDelegate.radius;
-}
-
-// ─── Review & Retake Overlay ─────────────────────────────────────────────────
-
-class _ReviewOverlay extends StatelessWidget {
-  final CaptureReview state;
-  final ShotMode shotMode;
-  final CameraFilter selectedFilter;
-  final ValueChanged<int> onSelectPhoto;
-  final VoidCallback onRetake;
-  final VoidCallback onConfirm;
-
-  const _ReviewOverlay({
-    required this.state,
-    required this.shotMode,
-    required this.selectedFilter,
-    required this.onSelectPhoto,
-    required this.onRetake,
-    required this.onConfirm,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isSingle = state.capturedPaths.length <= 1;
-    final canRetake = state.retakesRemaining > 0;
-    final targetNum = state.selectedIndex + 1;
-
-    return Container(
-      color: Colors.black87,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            children: [
-              // ── Header Bar ───────────────────────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isSingle ? 'Review Photo' : 'Review Your Photos',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (!isSingle) ...[
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Tap a photo to choose which one to retake',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: canRetake
-                          ? AppColors.primary.withValues(alpha: 0.25)
-                          : Colors.white12,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: canRetake ? AppColors.primary : Colors.white24,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.replay_rounded,
-                          size: 16,
-                          color: canRetake ? AppColors.primary : Colors.white60,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${state.retakesRemaining}/${state.maxRetakes} retakes left',
-                          style: TextStyle(
-                            color: canRetake ? Colors.white : Colors.white60,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // ── Photo Grid / Single View ─────────────────────────────
-              Expanded(
-                child: isSingle
-                    ? Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxWidth: 380,
-                            maxHeight: 460,
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: ColorFiltered(
-                              colorFilter: selectedFilter.colorFilter,
-                              child: Image.file(
-                                File(state.capturedPaths.first),
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    : LayoutBuilder(
-                        builder: (context, constraints) {
-                          final count = state.capturedPaths.length;
-                          final crossAxisCount = count <= 2
-                              ? 2
-                              : count <= 4
-                                  ? 2
-                                  : 3;
-                          return GridView.builder(
-                            itemCount: count,
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: crossAxisCount,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: 3 / 4,
-                            ),
-                            itemBuilder: (context, index) {
-                              final isSelected = state.selectedIndex == index;
-                              final path = state.capturedPaths[index];
-
-                              return GestureDetector(
-                                onTap: () => onSelectPhoto(index),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? AppColors.primary
-                                          : Colors.white24,
-                                      width: isSelected ? 3.5 : 1.5,
-                                    ),
-                                    boxShadow: isSelected
-                                        ? [
-                                            BoxShadow(
-                                              color: AppColors.primary
-                                                  .withValues(alpha: 0.4),
-                                              blurRadius: 10,
-                                              spreadRadius: 2,
-                                            )
-                                          ]
-                                        : null,
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(11),
-                                    child: Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        ColorFiltered(
-                                          colorFilter: selectedFilter.colorFilter,
-                                          child: Image.file(
-                                            File(path),
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                        Positioned(
-                                          top: 8,
-                                          left: 8,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.black87,
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                            child: Text(
-                                              'Photo ${index + 1}',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        if (isSelected)
-                                          Positioned(
-                                            top: 8,
-                                            right: 8,
-                                            child: Container(
-                                              padding: const EdgeInsets.all(4),
-                                              decoration: const BoxDecoration(
-                                                color: AppColors.primary,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(
-                                                Icons.check_rounded,
-                                                color: Colors.white,
-                                                size: 14,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── Bottom Action Buttons ────────────────────────────────
-              Row(
-                children: [
-                  // Retake Button
-                  Expanded(
-                    flex: 1,
-                    child: OutlinedButton.icon(
-                      onPressed: canRetake ? onRetake : null,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor:
-                            canRetake ? Colors.white : Colors.white38,
-                        side: BorderSide(
-                          color: canRetake ? AppColors.primary : Colors.white24,
-                          width: 1.5,
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      icon: Icon(
-                        Icons.replay_rounded,
-                        color: canRetake ? AppColors.primary : Colors.white38,
-                      ),
-                      label: Text(
-                        canRetake
-                            ? (isSingle
-                                ? 'Retake Photo'
-                                : 'Retake Photo #$targetNum')
-                            : 'No Retakes Left',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-
-                  // Confirm / Continue Button
-                  Expanded(
-                    flex: 1,
-                    child: ElevatedButton.icon(
-                      onPressed: onConfirm,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      icon: const Icon(Icons.arrow_forward_rounded, size: 20),
-                      label: const Text(
-                        'Keep & Continue',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

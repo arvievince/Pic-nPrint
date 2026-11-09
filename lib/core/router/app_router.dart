@@ -99,11 +99,23 @@ GoRouter createRouter() {
         path: '/capture',
         name: AppRoute.capture,
         redirect: (context, state) {
-          if (kReleaseMode && state.extra is! SessionModel) return '/';
+          if (kReleaseMode &&
+              state.extra is! SessionModel &&
+              state.extra is! Map<String, dynamic>) {
+            return '/';
+          }
           return null;
         },
         builder: (context, state) {
-          final session = state.extra is SessionModel ? state.extra as SessionModel : _getFallbackSession();
+          if (state.extra is Map<String, dynamic>) {
+            final map = state.extra as Map<String, dynamic>;
+            final session = map['session'] as SessionModel;
+            final retakeIndex = map['retakeIndex'] as int?;
+            return CaptureScreen(session: session, retakeIndex: retakeIndex);
+          }
+          final session = state.extra is SessionModel
+              ? state.extra as SessionModel
+              : _getFallbackSession();
           return CaptureScreen(session: session);
         },
       ),
