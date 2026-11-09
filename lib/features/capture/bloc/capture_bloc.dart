@@ -54,6 +54,8 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
     on<ImagesUploaded>(_onImagesUploaded);
     on<CapturePhotoSelectedForRetake>(_onPhotoSelectedForRetake);
     on<CaptureRetakeConfirmed>(_onRetakeConfirmed);
+    on<CaptureRetakeShutterPressed>(_onRetakeShutterPressed);
+    on<CaptureRetakeCancelled>(_onRetakeCancelled);
     on<CaptureReviewConfirmed>(_onReviewConfirmed);
     on<CaptureRetake>(_onRetake);
     on<CaptureCompleted>(_onCompleted);
@@ -178,11 +180,33 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
   void _onRetakeConfirmed(
       CaptureRetakeConfirmed event, Emitter<CaptureState> emit) {
     if (_retakesRemaining <= 0) return;
-    _retakesRemaining--;
     _retakeTargetIndex = _selectedRetakeIndex;
     _currentShotNumber = _retakeTargetIndex! + 1;
+    emit(CaptureReadyForRetake(
+      retakeIndex: _retakeTargetIndex!,
+      shotNumber: _currentShotNumber,
+      totalShots: shotMode.photoCount,
+      retakesRemaining: _retakesRemaining,
+    ));
+  }
+
+  void _onRetakeShutterPressed(
+      CaptureRetakeShutterPressed event, Emitter<CaptureState> emit) {
+    if (_retakesRemaining <= 0) return;
+    _retakesRemaining--;
     _currentCountdown = _initialCountdown;
     _startCountdown(emit);
+  }
+
+  void _onRetakeCancelled(
+      CaptureRetakeCancelled event, Emitter<CaptureState> emit) {
+    _retakeTargetIndex = null;
+    emit(CaptureReview(
+      capturedPaths: List.unmodifiable(_capturedPaths),
+      retakesRemaining: _retakesRemaining,
+      maxRetakes: _maxRetakes,
+      selectedIndex: _selectedRetakeIndex,
+    ));
   }
 
   void _onReviewConfirmed(

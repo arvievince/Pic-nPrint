@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+export 'camera_filter.dart';
 
 /// App-wide color palette and theme tokens.
 /// All features import from here — never hardcode colors in widgets.

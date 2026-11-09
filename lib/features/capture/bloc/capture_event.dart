@@ -54,6 +54,16 @@ class CaptureRetakeConfirmed extends CaptureEvent {
   const CaptureRetakeConfirmed();
 }
 
+/// User pressed the circular shutter button while in CaptureReadyForRetake mode.
+class CaptureRetakeShutterPressed extends CaptureEvent {
+  const CaptureRetakeShutterPressed();
+}
+
+/// User cancelled retake to return to review screen.
+class CaptureRetakeCancelled extends CaptureEvent {
+  const CaptureRetakeCancelled();
+}
+
 /// User accepted all photos in review and wants to proceed to editor.
 class CaptureReviewConfirmed extends CaptureEvent {
   const CaptureReviewConfirmed();

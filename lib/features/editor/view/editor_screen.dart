@@ -30,10 +30,12 @@ class _EditorScreenState extends State<EditorScreen> {
   bool _isCapturing = false;
   String? _logoPath;
   String? _brandText;
+  late CameraFilter _activeFilter;
 
   @override
   void initState() {
     super.initState();
+    _activeFilter = CameraFilter.fromName(widget.session.filter);
     _loadBranding();
   }
 
@@ -99,6 +101,7 @@ class _EditorScreenState extends State<EditorScreen> {
           if (state.composedPath != null && !state.isComposing) {
             final updated = widget.session.copyWith(
               composedImagePath: state.composedPath,
+              filter: _activeFilter.name,
             );
             context.goNamed(AppRoute.output, extra: updated);
           }
@@ -155,11 +158,18 @@ class _EditorScreenState extends State<EditorScreen> {
                     isCapturing: _isCapturing,
                     logoPath: _logoPath,
                     brandText: _brandText,
+                    activeFilter: _activeFilter,
                   ),
                 ),
 
                 // ────── Tool Tabs ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-                _ToolBar(session: widget.session),
+                _ToolBar(
+                  session: widget.session,
+                  activeFilter: _activeFilter,
+                  onFilterChanged: (filter) {
+                    setState(() => _activeFilter = filter);
+                  },
+                ),
               ],
             ),
           );
@@ -178,6 +188,7 @@ class _EditorCanvas extends StatelessWidget {
   final bool isCapturing;
   final String? logoPath;
   final String? brandText;
+  final CameraFilter activeFilter;
 
   const _EditorCanvas({
     required this.session,
@@ -186,6 +197,7 @@ class _EditorCanvas extends StatelessWidget {
     required this.isCapturing,
     this.logoPath,
     this.brandText,
+    required this.activeFilter,
   });
 
   double _getAspectRatio() {
@@ -755,6 +767,7 @@ class _EditorCanvas extends StatelessWidget {
       key: ValueKey(path),
       path: path,
       isCapturing: isCapturing,
+      activeFilter: activeFilter,
     );
   }
 
@@ -787,11 +800,13 @@ class _EditorCanvas extends StatelessWidget {
 class _AdjustablePhotoSlot extends StatefulWidget {
   final String path;
   final bool isCapturing;
+  final CameraFilter activeFilter;
 
   const _AdjustablePhotoSlot({
     super.key,
     required this.path,
     this.isCapturing = false,
+    required this.activeFilter,
   });
 
   @override
@@ -867,7 +882,7 @@ class _AdjustablePhotoSlotState extends State<_AdjustablePhotoSlot> {
   @override
   Widget build(BuildContext context) {
     final file = File(widget.path);
-    final imageWidget = file.existsSync()
+    final rawImage = file.existsSync()
         ? Image.file(
             file,
             fit: BoxFit.fill,
@@ -878,6 +893,11 @@ class _AdjustablePhotoSlotState extends State<_AdjustablePhotoSlot> {
             fit: BoxFit.fill,
             errorBuilder: (_, __, ___) => _slotErrorPlaceholder(),
           );
+
+    final imageWidget = ColorFiltered(
+      colorFilter: widget.activeFilter.colorFilter,
+      child: rawImage,
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1802,7 +1822,14 @@ class _TextWidgetState extends State<_TextWidget> {
 
 class _ToolBar extends StatefulWidget {
   final SessionModel session;
-  const _ToolBar({required this.session});
+  final CameraFilter activeFilter;
+  final ValueChanged<CameraFilter> onFilterChanged;
+
+  const _ToolBar({
+    required this.session,
+    required this.activeFilter,
+    required this.onFilterChanged,
+  });
 
   @override
   State<_ToolBar> createState() => _ToolBarState();
@@ -1837,23 +1864,30 @@ class _ToolBarState extends State<_ToolBar> {
           Row(
             children: [
               _Tab(
+                label: 'Filters',
+                icon: Icons.auto_awesome_rounded,
+                index: 0,
+                selected: _selectedTab,
+                onTap: (i) => setState(() => _selectedTab = i),
+              ),
+              _Tab(
                 label: 'Stickers',
                 icon: Icons.emoji_emotions_rounded,
-                index: 0,
+                index: 1,
                 selected: _selectedTab,
                 onTap: (i) => setState(() => _selectedTab = i),
               ),
               _Tab(
                 label: 'Borders',
                 icon: Icons.crop_square_rounded,
-                index: 1,
+                index: 2,
                 selected: _selectedTab,
                 onTap: (i) => setState(() => _selectedTab = i),
               ),
               _Tab(
                 label: 'Text',
                 icon: Icons.text_fields_rounded,
-                index: 2,
+                index: 3,
                 selected: _selectedTab,
                 onTap: (i) => setState(() => _selectedTab = i),
               ),
@@ -1867,6 +1901,12 @@ class _ToolBarState extends State<_ToolBar> {
             child: IndexedStack(
               index: _selectedTab,
               children: [
+                // 0. Filters Panel
+                _FilterPanel(
+                  activeFilter: widget.activeFilter,
+                  onSelect: widget.onFilterChanged,
+                ),
+
                 // 1. Stickers Panel
                 _StickerPanel(
                   onAdd: (path) {
@@ -1971,6 +2011,92 @@ class _Tab extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Filter Panel ────────────────────────────────────────────────────────────
+
+class _FilterPanel extends StatelessWidget {
+  final CameraFilter activeFilter;
+  final ValueChanged<CameraFilter> onSelect;
+
+  const _FilterPanel({
+    required this.activeFilter,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: CameraFilter.values.map((filter) {
+            final isSelected = filter == activeFilter;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: GestureDetector(
+                onTap: () => onSelect(filter),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? const Color(0xFFFF5C38)
+                        : const Color(0xFFF1EFE9),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected
+                          ? const Color(0xFFFF5C38)
+                          : const Color(0xFFE2DDD2),
+                      width: isSelected ? 2 : 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFFFF5C38)
+                                  .withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isSelected
+                            ? Icons.check_circle_rounded
+                            : Icons.auto_awesome_rounded,
+                        color:
+                            isSelected ? Colors.white : const Color(0xFF4B5563),
+                        size: 24,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        filter.label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w600,
+                          color: isSelected
+                              ? Colors.white
+                              : const Color(0xFF1E1E1E),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
         ),
       ),
     );

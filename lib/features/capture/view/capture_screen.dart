@@ -17,127 +17,6 @@ import '../../../core/models/models.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 
-// ─── Camera Filter Presets ───────────────────────────────────────────────────
-
-enum CameraFilter {
-  natural('Natural', [
-    1,
-    0,
-    0,
-    0,
-    0,
-    0,
-    1,
-    0,
-    0,
-    0,
-    0,
-    0,
-    1,
-    0,
-    0,
-    0,
-    0,
-    0,
-    1,
-    0,
-  ]),
-  noir('Noir', [
-    0.2126,
-    0.7152,
-    0.0722,
-    0,
-    0,
-    0.2126,
-    0.7152,
-    0.0722,
-    0,
-    0,
-    0.2126,
-    0.7152,
-    0.0722,
-    0,
-    0,
-    0,
-    0,
-    0,
-    1,
-    0,
-  ]),
-  retro('Retro', [
-    0.393,
-    0.769,
-    0.189,
-    0,
-    0,
-    0.349,
-    0.686,
-    0.168,
-    0,
-    0,
-    0.272,
-    0.534,
-    0.131,
-    0,
-    0,
-    0,
-    0,
-    0,
-    1,
-    0,
-  ]),
-  pop('Pop', [
-    1.25,
-    0,
-    0,
-    0,
-    -10,
-    0,
-    1.25,
-    0,
-    0,
-    -10,
-    0,
-    0,
-    1.25,
-    0,
-    -10,
-    0,
-    0,
-    0,
-    1,
-    0,
-  ]),
-  fade('Fade', [
-    0.88,
-    0.06,
-    0.06,
-    0,
-    18,
-    0.06,
-    0.88,
-    0.06,
-    0,
-    18,
-    0.06,
-    0.06,
-    0.88,
-    0,
-    18,
-    0,
-    0,
-    0,
-    1,
-    0,
-  ]);
-
-  final String label;
-  final List<double> matrix;
-  const CameraFilter(this.label, this.matrix);
-
-  ColorFilter get colorFilter => ColorFilter.matrix(matrix);
-}
-
 // ─── Capture Screen ──────────────────────────────────────────────────────────
 
 /// Camera capture screen featuring a centered rounded live camera viewport,
@@ -324,6 +203,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
             _cameraController = null;
             final updated = widget.session.copyWith(
               imagePaths: state.imagePaths,
+              filter: _selectedFilter.name,
             );
             if (context.mounted) {
               context.goNamed(AppRoute.editor, extra: updated);
@@ -341,6 +221,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
             shotsTaken = state.capturedPaths.length;
           } else if (state is CaptureReview) {
             shotsTaken = state.capturedPaths.length;
+          } else if (state is CaptureReadyForRetake) {
+            shotsTaken = state.retakeIndex;
           }
 
           final mode = widget.session.shotMode;
@@ -356,7 +238,15 @@ class _CaptureScreenState extends State<CaptureScreen> {
                   size: 18,
                   color: Color(0xFF1E1E1E),
                 ),
-                onPressed: () => context.goNamed(AppRoute.tierSelect),
+                onPressed: () {
+                  if (state is CaptureReadyForRetake) {
+                    context
+                        .read<CaptureBloc>()
+                        .add(const CaptureRetakeCancelled());
+                  } else {
+                    context.goNamed(AppRoute.tierSelect);
+                  }
+                },
               ),
               title: SizedBox(
                 height: 38,
@@ -479,6 +369,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
                     _ReviewOverlay(
                       state: state,
                       shotMode: widget.session.shotMode,
+                      selectedFilter: _selectedFilter,
                       onSelectPhoto: (index) => context
                           .read<CaptureBloc>()
                           .add(CapturePhotoSelectedForRetake(index)),
@@ -578,7 +469,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
               ),
             ),
 
-            // ── Layer 3: Top-Left Progress Badge ("0/1 shots") ─────────
+            // ── Layer 3: Top-Left Progress Badge ("0/1 shots" or "Retaking Photo 1")
             Positioned(
               top: 18,
               left: 18,
@@ -586,11 +477,17 @@ class _CaptureScreenState extends State<CaptureScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.60),
+                  color: (state is CaptureReadyForRetake)
+                      ? const Color(0xFFFF5238)
+                      : Colors.black.withValues(alpha: 0.60),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '$shotsTaken/$totalShots shots',
+                  state is CaptureReadyForRetake
+                      ? (totalShots > 1
+                          ? 'Retaking Photo ${state.shotNumber}'
+                          : 'Retaking Photo')
+                      : '$shotsTaken/$totalShots shots',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -600,6 +497,47 @@ class _CaptureScreenState extends State<CaptureScreen> {
                 ),
               ),
             ),
+
+            // ── Prompt for Retake Ready State ─────────────────────────
+            if (state is CaptureReadyForRetake)
+              Positioned(
+                bottom: 20,
+                left: 20,
+                right: 20,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.camera_alt_rounded,
+                          color: Color(0xFFFF7253),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Press shutter when ready to retake',
+                          style: GoogleFonts.bricolageGrotesque(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
 
             // ── Layer 4: Countdown Numbers Overlay (3, 2, 1, Get ready!)
             if (state is CaptureCountingDown)
@@ -751,19 +689,59 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
   Widget _buildBottomControls(BuildContext context, CaptureState state) {
     final isBusy = state is CaptureCountingDown || state is CaptureTaking;
+    final isRetakeMode = state is CaptureReadyForRetake;
+
     return SizedBox(
       height: 76,
       child: Stack(
         alignment: Alignment.center,
         children: [
+          // Cancel retake pill button
+          if (isRetakeMode)
+            Positioned(
+              left: 20,
+              child: TextButton.icon(
+                onPressed: () => context
+                    .read<CaptureBloc>()
+                    .add(const CaptureRetakeCancelled()),
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  size: 18,
+                  color: Color(0xFF1E1E1E),
+                ),
+                label: const Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Color(0xFF1E1E1E),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13.5,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  backgroundColor: const Color(0xFFEBE7DD),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                ),
+              ),
+            ),
+
           // Centered Shutter Button
           GestureDetector(
             onTap: isBusy
                 ? null
                 : () {
-                    context.read<CaptureBloc>().add(
-                          const CaptureMethodChosen(CaptureMethod.camera),
-                        );
+                    if (isRetakeMode) {
+                      context.read<CaptureBloc>().add(
+                            const CaptureRetakeShutterPressed(),
+                          );
+                    } else {
+                      context.read<CaptureBloc>().add(
+                            const CaptureMethodChosen(CaptureMethod.camera),
+                          );
+                    }
                   },
             child: AnimatedScale(
               duration: const Duration(milliseconds: 120),
@@ -995,6 +973,7 @@ class _DashedBorderPainter extends CustomPainter {
 class _ReviewOverlay extends StatelessWidget {
   final CaptureReview state;
   final ShotMode shotMode;
+  final CameraFilter selectedFilter;
   final ValueChanged<int> onSelectPhoto;
   final VoidCallback onRetake;
   final VoidCallback onConfirm;
@@ -1002,6 +981,7 @@ class _ReviewOverlay extends StatelessWidget {
   const _ReviewOverlay({
     required this.state,
     required this.shotMode,
+    required this.selectedFilter,
     required this.onSelectPhoto,
     required this.onRetake,
     required this.onConfirm,
@@ -1096,9 +1076,12 @@ class _ReviewOverlay extends StatelessWidget {
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(16),
-                            child: Image.file(
-                              File(state.capturedPaths.first),
-                              fit: BoxFit.contain,
+                            child: ColorFiltered(
+                              colorFilter: selectedFilter.colorFilter,
+                              child: Image.file(
+                                File(state.capturedPaths.first),
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
                         ),
@@ -1152,9 +1135,12 @@ class _ReviewOverlay extends StatelessWidget {
                                     child: Stack(
                                       fit: StackFit.expand,
                                       children: [
-                                        Image.file(
-                                          File(path),
-                                          fit: BoxFit.cover,
+                                        ColorFiltered(
+                                          colorFilter: selectedFilter.colorFilter,
+                                          child: Image.file(
+                                            File(path),
+                                            fit: BoxFit.cover,
+                                          ),
                                         ),
                                         Positioned(
                                           top: 8,

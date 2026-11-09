@@ -15,8 +15,10 @@ class CaptureMethodSelection extends CaptureState {
 class CaptureCountingDown extends CaptureState {
   /// Seconds remaining on the countdown.
   final int secondsLeft;
+
   /// Which photo number we're about to take (1-based).
   final int shotNumber;
+
   /// Total photos needed.
   final int totalShots;
 
@@ -90,6 +92,25 @@ class CaptureReview extends CaptureState {
         maxRetakes,
         selectedIndex,
       ];
+}
+
+/// Live camera is visible and waiting for the user to press the shutter to retake a specific photo.
+class CaptureReadyForRetake extends CaptureState {
+  final int retakeIndex;
+  final int shotNumber; // 1-based (retakeIndex + 1)
+  final int totalShots;
+  final int retakesRemaining;
+
+  const CaptureReadyForRetake({
+    required this.retakeIndex,
+    required this.shotNumber,
+    required this.totalShots,
+    required this.retakesRemaining,
+  });
+
+  @override
+  List<Object?> get props =>
+      [retakeIndex, shotNumber, totalShots, retakesRemaining];
 }
 
 /// All photos collected — ready to go to editor.

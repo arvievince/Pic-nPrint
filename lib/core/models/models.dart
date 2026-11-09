@@ -39,6 +39,7 @@ class SessionModel extends Equatable {
   final ShotMode shotMode;
   final LayoutType? layout; // chosen layout (null until LayoutScreen)
   final List<String> imagePaths; // local paths of captured/uploaded images
+  final String? filter; // active color filter e.g. 'natural', 'noir', 'retro', 'pop', 'fade'
   final String? composedImagePath; // final composed image path
   final String? gifPath; // optional GIF path
   final String? driveFileId; // Drive file ID after upload
@@ -51,6 +52,7 @@ class SessionModel extends Equatable {
     required this.shotMode,
     this.layout,
     this.imagePaths = const [],
+    this.filter,
     this.composedImagePath,
     this.gifPath,
     this.driveFileId,
@@ -61,6 +63,7 @@ class SessionModel extends Equatable {
   SessionModel copyWith({
     LayoutType? layout,
     List<String>? imagePaths,
+    String? filter,
     String? composedImagePath,
     String? gifPath,
     String? driveFileId,
@@ -72,6 +75,7 @@ class SessionModel extends Equatable {
       shotMode: shotMode,
       layout: layout ?? this.layout,
       imagePaths: imagePaths ?? this.imagePaths,
+      filter: filter ?? this.filter,
       composedImagePath: composedImagePath ?? this.composedImagePath,
       gifPath: gifPath ?? this.gifPath,
       driveFileId: driveFileId ?? this.driveFileId,
@@ -87,6 +91,7 @@ class SessionModel extends Equatable {
         shotMode,
         layout,
         imagePaths,
+        filter,
         composedImagePath,
         createdAt,
       ];

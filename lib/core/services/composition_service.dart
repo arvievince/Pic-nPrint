@@ -69,6 +69,7 @@ class CompositionService {
         brandText: brandText,
         outputPath: outputPath,
         sessionId: session.sessionId,
+        filterName: session.filter,
       ),
     );
 
@@ -96,6 +97,7 @@ class CompositionService {
         imagePaths: session.imagePaths,
         gifPath: gifPath,
         frameDelayMs: frameDelayMs,
+        filterName: session.filter,
       ),
     );
 
@@ -123,6 +125,7 @@ class _ComposeParams {
   final String? brandText;
   final String outputPath;
   final String sessionId;
+  final String? filterName;
 
   _ComposeParams({
     required this.imagePaths,
@@ -135,6 +138,7 @@ class _ComposeParams {
     this.brandText,
     required this.outputPath,
     required this.sessionId,
+    this.filterName,
   });
 }
 
@@ -142,24 +146,50 @@ class _GifParams {
   final List<String> imagePaths;
   final String gifPath;
   final int frameDelayMs;
+  final String? filterName;
 
   _GifParams({
     required this.imagePaths,
     required this.gifPath,
     required this.frameDelayMs,
+    this.filterName,
   });
 }
 
 // ─── Isolate functions ───────────────────────────────────────────────────────
 
+/// Helper to apply color filter transforms in CPU isolate
+img.Image _applyFilterToImage(img.Image image, String filterName) {
+  final name = filterName.toLowerCase().trim();
+  switch (name) {
+    case 'noir':
+      return img.grayscale(image);
+    case 'retro':
+      return img.sepia(image);
+    case 'pop':
+      return img.adjustColor(image, saturation: 1.35, contrast: 1.15);
+    case 'fade':
+      return img.adjustColor(image, gamma: 1.1, brightness: 1.05);
+    default:
+      return image;
+  }
+}
+
 /// Runs in a background isolate. No Flutter/UI objects.
 Future<void> _composeIsolate(_ComposeParams params) async {
-  final images = params.imagePaths
+  final rawImages = params.imagePaths
       .map((path) => img.decodeImage(File(path).readAsBytesSync()))
       .whereType<img.Image>()
       .toList();
 
-  if (images.isEmpty) return;
+  if (rawImages.isEmpty) return;
+
+  final images = rawImages.map((image) {
+    if (params.filterName != null && params.filterName!.isNotEmpty) {
+      return _applyFilterToImage(image, params.filterName!);
+    }
+    return image;
+  }).toList();
 
   img.Image canvas;
 
@@ -577,12 +607,19 @@ img.Image _addFooter(img.Image source, String sessionId,
 }
 
 Future<void> _createGifIsolate(_GifParams params) async {
-  final frames = params.imagePaths
+  final rawFrames = params.imagePaths
       .map((path) => img.decodeImage(File(path).readAsBytesSync()))
       .whereType<img.Image>()
       .toList();
 
-  if (frames.isEmpty) return;
+  if (rawFrames.isEmpty) return;
+
+  final frames = rawFrames.map((frame) {
+    if (params.filterName != null && params.filterName!.isNotEmpty) {
+      return _applyFilterToImage(frame, params.filterName!);
+    }
+    return frame;
+  }).toList();
 
   // Resize all frames to the same size
   final w = frames.first.width;
