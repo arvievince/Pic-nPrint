@@ -1,24 +1,109 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:picnprint/features/output/bloc/output_event.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../bloc/output_bloc.dart';
+import '../bloc/output_event.dart';
 import '../bloc/output_state.dart';
+import '../../../core/database/app_database.dart';
 import '../../../core/models/models.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// Output screen — shown while the app saves, uploads, and prints.
-///
-/// This screen auto-starts the pipeline (OutputBloc triggers on creation).
-/// The user sees a progress indicator for each step.
-/// On [OutputComplete] → if driveUrl is available, navigate to /qr.
-///                      → otherwise navigate back to /attract.
-///
-class OutputScreen extends StatelessWidget {
+/// Animated kiosk printing screen — shows the photo sliding down from a printer slot,
+/// displays live printing status, and transitions to softcopy QR download upon completion.
+class OutputScreen extends StatefulWidget {
   final SessionModel session;
   const OutputScreen({super.key, required this.session});
+
+  @override
+  State<OutputScreen> createState() => _OutputScreenState();
+}
+
+class _OutputScreenState extends State<OutputScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ejectController;
+  late final Animation<double> _ejectAnimation;
+
+  String? _logoPath;
+  String _brandTitle = 'PicnPrint';
+  int _qrTimeoutSeconds = 60;
+  int _countdownRemaining = 60;
+  Timer? _countdownTimer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 3.5s smooth easing curve for the photo ejection animation
+    _ejectController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3500),
+    );
+
+    _ejectAnimation = CurvedAnimation(
+      parent: _ejectController,
+      curve: Curves.easeOutCubic,
+    );
+
+    _ejectController.forward();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final db = context.read<AppDatabase>();
+    final logo = await db.getSetting('kiosk_logo_path');
+    final title = await db.getSetting('kiosk_title');
+    final timeoutStr = await db.getSetting('drive_qr_timeout_seconds');
+
+    if (mounted) {
+      setState(() {
+        if (logo != null &&
+            logo.trim().isNotEmpty &&
+            File(logo.trim()).existsSync()) {
+          _logoPath = logo.trim();
+        }
+        if (title != null && title.trim().isNotEmpty) {
+          _brandTitle = title.trim();
+        }
+        if (timeoutStr != null) {
+          _qrTimeoutSeconds = int.tryParse(timeoutStr.trim()) ?? 60;
+          _countdownRemaining = _qrTimeoutSeconds;
+        }
+      });
+    }
+  }
+
+  void _startReadyCountdown() {
+    _countdownTimer?.cancel();
+    _countdownRemaining = _qrTimeoutSeconds;
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_countdownRemaining <= 1) {
+        timer.cancel();
+        _finishSession();
+      } else {
+        setState(() => _countdownRemaining--);
+      }
+    });
+  }
+
+  void _finishSession() {
+    _countdownTimer?.cancel();
+    if (mounted) {
+      context.goNamed(AppRoute.attract);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ejectController.dispose();
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,83 +112,81 @@ class OutputScreen extends StatelessWidget {
         storageService: context.read(),
         printerService: context.read(),
         db: context.read(),
-        session: session,
+        session: widget.session,
       ),
       child: BlocConsumer<OutputBloc, OutputState>(
         listener: (context, state) {
           if (state is OutputComplete) {
-            if (state.driveUrl != null) {
-              context.goNamed(
-                AppRoute.qr,
-                extra: QrScreenData(
-                  driveUrl: state.driveUrl!,
-                  sessionId: session.sessionId,
-                  displaySeconds: 60,
-                ),
-              );
-            } else {
-              // No Drive URL — show thank you screen before returning to attract
-              context.goNamed(AppRoute.thankYou, extra: session.sessionId);
-            }
+            _startReadyCountdown();
           }
         },
         builder: (context, state) {
+          final isReady = state is OutputComplete;
+
           return Scaffold(
-            backgroundColor: AppColors.background,
-            body: Center(
+            backgroundColor:
+                const Color(0xFFF8F6F0), // Warm Lightmode Background
+            body: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(40),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Status icon
-                    _StatusIcon(state: state),
-                    const SizedBox(height: 32),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 8),
 
-                    // Status text
-                    Text(
-                      _titleFor(state),
-                      style: Theme.of(context).textTheme.headlineLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _subtitleFor(state),
-                      style: Theme.of(context).textTheme.bodyLarge,
-                      textAlign: TextAlign.center,
-                    ),
-
-                    // Error actions
-                    if (state is OutputUploadFailed) ...[
-                      const SizedBox(height: 32),
-                      ElevatedButton(
-                        onPressed: () => context.read<OutputBloc>().add(
-                          const UploadRetried(),
+                        // ── 1. Top Status Pill ───────────────────────────────
+                        _StatusPill(
+                          isReady: isReady,
+                          logoPath: _logoPath,
+                          brandTitle: _brandTitle,
                         ),
-                        child: const Text('Retry Upload'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextButton(
-                        onPressed: () => context.goNamed(AppRoute.attract),
-                        child: const Text('Skip & Go Home'),
-                      ),
-                    ],
 
-                    if (state is OutputPrintFailed) ...[
-                      const SizedBox(height: 32),
-                      ElevatedButton(
-                        onPressed: () => context.read<OutputBloc>().add(
-                          const PrintRequested(),
+                        // const SizedBox(height: 14),
+
+                        // ── 2. Printer Dispenser & Animated Photo Ejection ───
+                        Expanded(
+                          flex: 10,
+                          child: _PrinterDispenserArea(
+                            session: widget.session,
+                            ejectAnimation: _ejectAnimation,
+                          ),
                         ),
-                        child: const Text('Retry Print'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextButton(
-                        onPressed: () => context.goNamed(AppRoute.attract),
-                        child: const Text('Skip Printing'),
-                      ),
-                    ],
-                  ],
+
+                        const SizedBox(height: 16),
+
+                        // ── 3. Bottom Animated Section (Printing vs QR Code) ─
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 600),
+                          switchInCurve: Curves.easeOut,
+                          switchOutCurve: Curves.easeIn,
+                          child: state is OutputComplete
+                              ? _ReadyBottomSection(
+                                  key: const ValueKey('ready_section'),
+                                  driveUrl: state.driveUrl,
+                                  countdown: _countdownRemaining,
+                                  onFinish: _finishSession,
+                                )
+                              : _PrintingBottomSection(
+                                  key: const ValueKey('printing_section'),
+                                  state: state,
+                                  onRetryUpload: () => context
+                                      .read<OutputBloc>()
+                                      .add(const UploadRetried()),
+                                  onRetryPrint: () => context
+                                      .read<OutputBloc>()
+                                      .add(const PrintRequested()),
+                                  onSkipHome: _finishSession,
+                                ),
+                        ),
+
+                        const SizedBox(height: 12),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -112,80 +195,538 @@ class OutputScreen extends StatelessWidget {
       ),
     );
   }
-
-  String _titleFor(OutputState s) {
-    if (s is OutputSaving) return 'Saving your photo…';
-    if (s is OutputUploading) return 'Uploading to Drive…';
-    if (s is OutputPrinting) return 'Printing your receipt…';
-    if (s is OutputComplete) return 'All done!';
-    if (s is OutputUploadFailed) return 'Upload Failed';
-    if (s is OutputPrintFailed) return 'Print Failed';
-    return '';
-  }
-
-  String _subtitleFor(OutputState s) {
-    if (s is OutputSaving) return 'Keeping your photo safe on this device.';
-    if (s is OutputUploading) {
-      return 'So you can scan the QR code to get your photo.';
-    }
-    if (s is OutputPrinting) return 'Your receipt is printing. Please wait…';
-    if (s is OutputComplete) {
-      return s.driveUrl != null
-          ? 'Get ready to scan your QR code!'
-          : 'Your photo has been printed!';
-    }
-    if (s is OutputUploadFailed) return (s).error;
-    if (s is OutputPrintFailed) return (s).error;
-    return '';
-  }
 }
 
-class _StatusIcon extends StatelessWidget {
-  final OutputState state;
-  const _StatusIcon({required this.state});
+// ─── Top Status Pill ─────────────────────────────────────────────────────────
+
+class _StatusPill extends StatelessWidget {
+  final bool isReady;
+  final String? logoPath;
+  final String brandTitle;
+
+  const _StatusPill({
+    required this.isReady,
+    this.logoPath,
+    required this.brandTitle,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (state is OutputComplete) {
-      return Container(
-        width: 100,
-        height: 100,
-        decoration: BoxDecoration(
-          color: AppColors.success.withOpacity(0.15),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.check_circle_rounded,
-          color: AppColors.success,
-          size: 60,
-        ),
-      );
-    }
-
-    if (state is OutputUploadFailed || state is OutputPrintFailed) {
-      return Container(
-        width: 100,
-        height: 100,
-        decoration: BoxDecoration(
-          color: AppColors.error.withOpacity(0.15),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.error_outline_rounded,
-          color: AppColors.error,
-          size: 60,
-        ),
-      );
-    }
-
-    return SizedBox(
-      width: 80,
-      height: 80,
-      child: CircularProgressIndicator(
-        strokeWidth: 5,
-        color: AppColors.primary,
-        backgroundColor: AppColors.primary.withOpacity(0.2),
+    return Container(
+      width: double.infinity,
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF212120), // Charcoal pill container
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.50),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Left: Glowing status dot + Label
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: isReady
+                      ? const Color(0xFF52C41A) // Ready green
+                      : const Color(0xFFF5A623), // Printing amber
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isReady
+                              ? const Color(0xFF52C41A)
+                              : const Color(0xFFF5A623))
+                          .withValues(alpha: 0.6),
+                      blurRadius: 6,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isReady ? 'READY' : 'PRINTING',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  letterSpacing: 1.3,
+                ),
+              ),
+            ],
+          ),
+
+          // Right: Brand Logo or Text
+          if (logoPath != null && File(logoPath!).existsSync())
+            Image.file(
+              File(logoPath!),
+              height: 24,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+            )
+          else
+            Text(
+              brandTitle,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+                letterSpacing: 0.6,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Printer Dispenser & Ejection Area ───────────────────────────────────────
+
+class _PrinterDispenserArea extends StatelessWidget {
+  final SessionModel session;
+  final Animation<double> ejectAnimation;
+
+  const _PrinterDispenserArea({
+    required this.session,
+    required this.ejectAnimation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final imagePath = session.composedImagePath ??
+        (session.imagePaths.isNotEmpty ? session.imagePaths.first : null);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableHeight = constraints.maxHeight;
+        final availableWidth = constraints.maxWidth;
+
+        // Compact, bounded card dimensions matching reference Polaroid styling
+        final cardHeight = (availableHeight * 0.58).clamp(280.0, 370.0);
+        final cardWidth =
+            (cardHeight / 1.32).clamp(210.0, availableWidth * 0.75);
+        final slotWidth = cardWidth + 28.0;
+        const restingOffset = 20.0;
+        final areaHeight = cardHeight + restingOffset + 36.0;
+        final areaWidth = cardWidth + 52.0;
+
+        return Stack(
+          alignment: Alignment.topCenter,
+          clipBehavior: Clip.none,
+          children: [
+            // ── Photo Card Emerging from Slot ──
+            Positioned(
+              top: 6,
+              width: areaWidth,
+              height: areaHeight,
+              child: ClipRect(
+                child: AnimatedBuilder(
+                  animation: ejectAnimation,
+                  builder: (context, child) {
+                    final startOffset = -cardHeight;
+                    final currentOffset = startOffset +
+                        (restingOffset - startOffset) * ejectAnimation.value;
+
+                    return Transform.translate(
+                      offset: Offset(0, currentOffset),
+                      child: child,
+                    );
+                  },
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Container(
+                      width: cardWidth,
+                      height: cardHeight,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.16),
+                            blurRadius: 22,
+                            spreadRadius: 2,
+                            offset: const Offset(0, 10),
+                          ),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: _buildPhotoImage(imagePath),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Physical Printer Slot / Slit (Renders in front of emerging photo) ──
+            Positioned(
+              top: 1,
+              child: Container(
+                width: slotWidth,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF141312),
+                  borderRadius: BorderRadius.circular(5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.22),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Container(
+                    width: cardWidth + 8,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(1.5),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPhotoImage(String? path) {
+    if (path == null) {
+      return Container(
+        color: const Color(0xFFF3F1EC),
+        child: const Center(
+          child: Icon(Icons.photo_rounded, size: 48, color: Colors.black26),
+        ),
+      );
+    }
+
+    final file = File(path);
+    if (file.existsSync()) {
+      return Image.file(
+        file,
+        fit: BoxFit.fitWidth,
+        errorBuilder: (_, __, ___) => Container(
+          color: const Color(0xFFF3F1EC),
+          child: const Center(
+            child: Icon(Icons.broken_image_rounded,
+                size: 40, color: Colors.black26),
+          ),
+        ),
+      );
+    }
+
+    return Image.asset(
+      path,
+      fit: BoxFit.fitWidth,
+      errorBuilder: (_, __, ___) => Container(
+        color: const Color(0xFFF3F1EC),
+        child: const Center(
+          child: Icon(Icons.photo_rounded, size: 40, color: Colors.black26),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── State 1: Printing Bottom Section ────────────────────────────────────────
+
+class _PrintingBottomSection extends StatelessWidget {
+  final OutputState state;
+  final VoidCallback onRetryUpload;
+  final VoidCallback onRetryPrint;
+  final VoidCallback onSkipHome;
+
+  const _PrintingBottomSection({
+    super.key,
+    required this.state,
+    required this.onRetryUpload,
+    required this.onRetryPrint,
+    required this.onSkipHome,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isUploadFailed = state is OutputUploadFailed;
+    final isPrintFailed = state is OutputPrintFailed;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (isUploadFailed || isPrintFailed) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded,
+                    color: AppColors.error, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    isUploadFailed
+                        ? 'Cloud upload failed: ${(state as OutputUploadFailed).error}'
+                        : 'Printing error: ${(state as OutputPrintFailed).error}',
+                    style: const TextStyle(
+                      color: AppColors.error,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: isUploadFailed ? onRetryUpload : onRetryPrint,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                  ),
+                  child: const Text('Retry'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onSkipHome,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                  ),
+                  child: const Text('Continue'),
+                ),
+              ),
+            ],
+          ),
+        ] else ...[
+          // Animated Orange Progress Indicator Bar
+          Container(
+            width: double.infinity,
+            height: 5,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE6E2D8),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: const LinearProgressIndicator(
+                backgroundColor: Color(0xFFE6E2D8),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                    Color(0xFFFF5722)), // Vibrant coral
+                minHeight: 5,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Title
+          const Text(
+            'Printing your photos...',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1E1E1E),
+              letterSpacing: -0.3,
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          // Subtitle
+          const Text(
+            'Grab your print from the slot',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF757575),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+// ─── State 2: Ready & Softcopy QR Bottom Section ─────────────────────────────
+
+class _ReadyBottomSection extends StatelessWidget {
+  final String? driveUrl;
+  final int countdown;
+  final VoidCallback onFinish;
+
+  const _ReadyBottomSection({
+    super.key,
+    this.driveUrl,
+    required this.countdown,
+    required this.onFinish,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (driveUrl != null && driveUrl!.trim().isNotEmpty) {
+      // ── Drive Configured: QR Softcopy Card + Instructions + Finish Button ──
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0xFFE8E5DD), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Left: Clean QR Code in rounded sub-card
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAF9F6),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE4E0D6)),
+              ),
+              child: QrImageView(
+                data: driveUrl!,
+                size: 96,
+                backgroundColor: Colors.transparent,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: Color(0xFF1A1A1A),
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 16),
+
+            // Right: Softcopy instructions + Finish button
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Scan for your softcopy',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1A1A1A),
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Open your phone camera and point it at the code.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF6B7280),
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 40,
+                    child: ElevatedButton(
+                      onPressed: onFinish,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            const Color(0xFFFF5722), // Vibrant coral
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      child: Text(
+                        'Finish', //$countdown
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ── Drive NOT Configured: Clean Ready Confirmation + Finish Button ──
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 180,
+          height: 44,
+          child: ElevatedButton(
+            onPressed: onFinish,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF5722),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22),
+              ),
+            ),
+            child: Text(
+              'Finish ($countdown s)',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

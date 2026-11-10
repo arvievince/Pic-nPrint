@@ -143,7 +143,16 @@ class _EditorScreenState extends State<EditorScreen> {
           return Scaffold(
             backgroundColor: AppColors.surface,
             appBar: AppBar(
-              title: const Text('Your Prints'),
+              title: Text(
+                'Your Prints',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.8,
+                      fontSize: 24,
+                      color: const Color(0xFF111827),
+                      height: 1.1,
+                    ),
+              ),
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded),
                 onPressed: isProcessing ? null : () => context.pop(),
@@ -253,167 +262,177 @@ class _EditorCanvas extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasLogo = logoPath != null && File(logoPath!).existsSync();
     final double headerHeight = 48.0;
-    final double footerHeight = 60.0;
+    final double footerHeight = 80.0;
 
     final double radius = isCapturing ? 0.0 : 16.0;
 
-    return Center(
-      child: Container(
-        margin: isCapturing
-            ? EdgeInsets.zero
-            : const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        constraints: const BoxConstraints(maxWidth: 560),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(radius),
-          boxShadow: isCapturing
-              ? null
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.14),
-                    blurRadius: 28,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 10),
-                  ),
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    blurRadius: 40,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 14),
-                  ),
-                ],
-        ),
-        child: AspectRatio(
-          aspectRatio: _getAspectRatio(),
-          child: RepaintBoundary(
-            key: canvasKey,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(radius),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(radius),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // ────── 1. Base Layout: Top Logo Bar + Middle Photos (with Border) + Bottom Footer ──────
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Top Header with Logo (Always visible and displayed)
-                        SizedBox(
-                          height: headerHeight,
-                          child: Center(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
-                              child: hasLogo
-                                  ? Image.file(
-                                      File(logoPath!),
-                                      fit: BoxFit.contain,
-                                      filterQuality: FilterQuality.high,
-                                    )
-                                  : Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(
-                                          Icons.camera_alt_rounded,
-                                          color: AppColors.primary,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          (brandText != null &&
-                                                  brandText!.trim().isNotEmpty)
-                                              ? brandText!.trim()
-                                              : 'Pic & Print',
-                                          style: const TextStyle(
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 16,
-                                            letterSpacing: 1.2,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(
-                          height: 8,
-                        ),
-
-                        // Middle: Photo Layout edge-to-edge (no left/right space)
-                        Expanded(
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              _buildPhotoLayout(),
-                              if (editorState.borderAssetPath != null)
-                                _BorderOverlay(
-                                  borderId: editorState.borderAssetPath!,
-                                ),
-                            ],
-                          ),
-                        ),
-
-                        // const SizedBox(
-                        //   height: 16,
-                        // ),
-
-                        // Bottom Footer: Universal Session Barcode
-                        SizedBox(
-                          height: footerHeight,
-                          child: Center(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 0,
-                                horizontal: 8,
-                              ),
-                              // child: ConstrainedBox(
-                              //   constraints: const BoxConstraints(
-                              //     maxWidth: 450,
-                              //     maxHeight: 60,
-                              //   ),
-                              //   child: BarcodeWidget(
-                              //     barcode: Barcode.code128(),
-                              //     data: session.sessionId,
-                              //     drawText: true,
-                              //     style: const TextStyle(
-                              //       color: Colors.white,
-                              //       fontSize: 9,
-                              //       fontWeight: FontWeight.w600,
-                              //       letterSpacing: 0.5,
-                              //     ),
-                              //     color: Colors.black,
-                              //   ),
-                              // ),
-                            ),
-                          ),
-                        ),
-
-                        // const SizedBox(
-                        //   height: 4,
-                        // )
-                      ],
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAE6DC), // Darker warm stage background
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Center(
+        child: Container(
+          margin: isCapturing
+              ? EdgeInsets.zero
+              : const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          constraints: const BoxConstraints(maxWidth: 500),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            boxShadow: isCapturing
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.14),
+                      blurRadius: 28,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 10),
                     ),
-
-                    // ────── 4. Sticker Overlays Layer ───────────────────────────────────────────────────────────────────────────────────────────────────
-                    ...editorState.stickers.map(
-                      (s) =>
-                          _StickerWidget(sticker: s, isCapturing: isCapturing),
-                    ),
-
-                    // ────── 5. Text Overlays Layer ────────────────────────────────────────────────────────────────────────────────────────────────────────────
-                    ...editorState.texts.map(
-                      (t) => _TextWidget(textItem: t, isCapturing: isCapturing),
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      blurRadius: 40,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 14),
                     ),
                   ],
+          ),
+          child: AspectRatio(
+            aspectRatio: _getAspectRatio(),
+            child: RepaintBoundary(
+              key: canvasKey,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(radius),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(radius),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // ────── 1. Base Layout: Top Logo Bar + Middle Photos (with Border) + Bottom Footer ──────
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Top Header with Logo (Always visible and displayed)
+                          SizedBox(
+                            height: headerHeight,
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 6,
+                                ),
+                                child: hasLogo
+                                    ? Image.file(
+                                        File(logoPath!),
+                                        fit: BoxFit.contain,
+                                        filterQuality: FilterQuality.high,
+                                      )
+                                    : Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(
+                                            Icons.camera_alt_rounded,
+                                            color: AppColors.primary,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            (brandText != null &&
+                                                    brandText!
+                                                        .trim()
+                                                        .isNotEmpty)
+                                                ? brandText!.trim()
+                                                : 'Pic & Print',
+                                            style: const TextStyle(
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 16,
+                                              letterSpacing: 1.2,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(
+                            height: 8,
+                          ),
+
+                          // Middle: Photo Layout edge-to-edge (no left/right space)
+                          Expanded(
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                _buildPhotoLayout(),
+                                if (editorState.borderAssetPath != null)
+                                  _BorderOverlay(
+                                    borderId: editorState.borderAssetPath!,
+                                  ),
+                              ],
+                            ),
+                          ),
+
+                          // const SizedBox(
+                          //   height: 16,
+                          // ),
+
+                          // Bottom Footer: Universal Session Barcode
+                          SizedBox(
+                            height: footerHeight,
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 0,
+                                  horizontal: 8,
+                                ),
+                                // child: ConstrainedBox(
+                                //   constraints: const BoxConstraints(
+                                //     maxWidth: 450,
+                                //     maxHeight: 60,
+                                //   ),
+                                //   child: BarcodeWidget(
+                                //     barcode: Barcode.code128(),
+                                //     data: session.sessionId,
+                                //     drawText: true,
+                                //     style: const TextStyle(
+                                //       color: Colors.white,
+                                //       fontSize: 9,
+                                //       fontWeight: FontWeight.w600,
+                                //       letterSpacing: 0.5,
+                                //     ),
+                                //     color: Colors.black,
+                                //   ),
+                                // ),
+                              ),
+                            ),
+                          ),
+
+                          // const SizedBox(
+                          //   height: 4,
+                          // )
+                        ],
+                      ),
+
+                      // ────── 4. Sticker Overlays Layer ───────────────────────────────────────────────────────────────────────────────────────────────────
+                      ...editorState.stickers.map(
+                        (s) => _StickerWidget(
+                            sticker: s, isCapturing: isCapturing),
+                      ),
+
+                      // ────── 5. Text Overlays Layer ────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                      ...editorState.texts.map(
+                        (t) =>
+                            _TextWidget(textItem: t, isCapturing: isCapturing),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -2469,14 +2488,14 @@ class _TextPanelState extends State<_TextPanel> {
               ElevatedButton.icon(
                 onPressed: _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: Colors.black,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
+                    horizontal: 24,
                     vertical: 12,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(24),
                   ),
                 ),
                 icon: const Icon(Icons.add_rounded, size: 18),

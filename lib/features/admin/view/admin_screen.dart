@@ -1674,6 +1674,7 @@ class _DriveSectionState extends State<_DriveSection> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _folderIdCtrl;
   late final TextEditingController _serviceAccountCtrl;
+  late final TextEditingController _qrTimeoutCtrl;
   bool _isSaving = false;
 
   @override
@@ -1685,12 +1686,16 @@ class _DriveSectionState extends State<_DriveSection> {
     _serviceAccountCtrl = TextEditingController(
       text: widget.settings['drive_service_account_json'] ?? '',
     );
+    _qrTimeoutCtrl = TextEditingController(
+      text: widget.settings['drive_qr_timeout_seconds'] ?? '60',
+    );
   }
 
   @override
   void dispose() {
     _folderIdCtrl.dispose();
     _serviceAccountCtrl.dispose();
+    _qrTimeoutCtrl.dispose();
     super.dispose();
   }
 
@@ -1702,11 +1707,15 @@ class _DriveSectionState extends State<_DriveSection> {
     setState(() => _isSaving = true);
     final folderId = _folderIdCtrl.text.trim();
     final serviceAccountJson = _serviceAccountCtrl.text.trim();
+    final qrTimeout = _qrTimeoutCtrl.text.trim().isEmpty
+        ? '60'
+        : _qrTimeoutCtrl.text.trim();
 
     context.read<AdminBloc>().add(
           AdminMultipleSettingsUpdated({
             'drive_folder_id': folderId,
             'drive_service_account_json': serviceAccountJson,
+            'drive_qr_timeout_seconds': qrTimeout,
           }),
         );
 
@@ -1755,6 +1764,21 @@ class _DriveSectionState extends State<_DriveSection> {
             style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
             decoration: const InputDecoration(
               hintText: '{ "type": "service_account", ... }',
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'QR Display Timeout (seconds)',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _qrTimeoutCtrl,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              hintText: 'e.g. 60',
+              helperText:
+                  'How long the softcopy QR code stays on screen before returning home.',
             ),
           ),
           const SizedBox(height: 24),
