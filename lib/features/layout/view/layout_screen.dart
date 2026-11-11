@@ -46,7 +46,19 @@ class _LayoutView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Choose Layout — ${session.shotMode.label}'),
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        title: Text(
+          'Choose Layout — ${session.shotMode.label}',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.8,
+                fontSize: 24,
+                color: const Color(0xFF111827),
+                height: 1.1,
+              ),
+        ),
         leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded),
             onPressed: () {
@@ -58,7 +70,7 @@ class _LayoutView extends StatelessWidget {
           if (state is! LayoutInitial) return const SizedBox.shrink();
 
           return Padding(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -89,9 +101,28 @@ class _LayoutView extends StatelessWidget {
                 SizedBox(
                   height: 56,
                   child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
                     onPressed: () =>
                         context.read<LayoutBloc>().add(const LayoutConfirmed()),
-                    child: const Text('Continue'),
+                    child: Text(
+                      'Continue',
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                                fontSize: 20,
+                                color: Colors.white,
+                                height: 1.1,
+                              ),
+                    ),
                   ),
                 ),
               ],

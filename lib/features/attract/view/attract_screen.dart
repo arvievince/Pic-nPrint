@@ -383,10 +383,10 @@ class _TapToBeginPulseState extends State<_TapToBeginPulse>
           padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(40),
-            color: AppColors.onBackground,
+            color: Colors.black,
             boxShadow: [
               BoxShadow(
-                color: AppColors.onBackground.withValues(alpha: 0.35),
+                color: Colors.black.withValues(alpha: 0.35),
                 blurRadius: 18,
                 spreadRadius: 2,
                 offset: const Offset(0, 4),

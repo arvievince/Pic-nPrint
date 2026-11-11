@@ -545,7 +545,7 @@ class _PrintingBottomSection extends StatelessWidget {
               child: const LinearProgressIndicator(
                 backgroundColor: Color(0xFFE6E2D8),
                 valueColor: AlwaysStoppedAnimation<Color>(
-                    Color(0xFFFF5722)), // Vibrant coral
+                    Colors.black), // Vibrant coral
                 minHeight: 5,
               ),
             ),
@@ -674,8 +674,7 @@ class _ReadyBottomSection extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: onFinish,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            const Color(0xFFFF5722), // Vibrant coral
+                        backgroundColor: Colors.black, // Vibrant coral
                         foregroundColor: Colors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -685,10 +684,14 @@ class _ReadyBottomSection extends StatelessWidget {
                       ),
                       child: Text(
                         'Finish', //$countdown
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1,
+                                  fontSize: 20,
+                                  color: Colors.white,
+                                  height: 1.1,
+                                ),
                       ),
                     ),
                   ),
@@ -705,22 +708,22 @@ class _ReadyBottomSection extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 180,
-          height: 44,
+          width: 200,
+          height: 50,
           child: ElevatedButton(
             onPressed: onFinish,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF5722),
+              backgroundColor: Colors.black,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(24),
               ),
             ),
             child: Text(
-              'Finish ($countdown s)',
+              'Finish', //($countdown s)
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
             ),
