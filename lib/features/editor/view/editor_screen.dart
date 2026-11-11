@@ -436,7 +436,11 @@ class _EditorCanvas extends StatelessWidget {
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
-                                _buildPhotoLayout(),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8.0),
+                                  child: _buildPhotoLayout(),
+                                ),
                                 if (editorState.borderAssetPath != null)
                                   _BorderOverlay(
                                     borderId: editorState.borderAssetPath!,
@@ -779,163 +783,77 @@ class _EditorCanvas extends StatelessWidget {
   // }
 
   Widget _buildbentoLayout(List<String> paths) {
+    if (paths.isEmpty) return const SizedBox.shrink();
+
+    if (paths.length == 1) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: _buildbentoCard(paths[0], 0),
+      );
+    }
+
+    // Dynamic distribution across 2 columns
+    final total = paths.length;
+    // For 3-shot, 1 on left and 2 on right is the classic bento layout.
+    // Otherwise, split evenly with ceil on the left.
+    final leftCount = (total == 3) ? 1 : (total / 2).ceil();
+    final rightCount = total - leftCount;
+
+    final leftPaths = paths.sublist(0, leftCount);
+    final rightPaths = paths.sublist(leftCount);
+
+    // Generate dynamic alternating flex weights (e.g. 3 vs 2) for Bento masonry aesthetic
+    List<int> getFlexes(int count, bool startWithTall) {
+      return List.generate(count, (i) {
+        if (count == 1) return 1;
+        final isTall = startWithTall ? (i % 2 == 0) : (i % 2 == 1);
+        return isTall ? 3 : 2;
+      });
+    }
+
+    final leftFlexes = getFlexes(leftCount, true);
+    final rightFlexes = getFlexes(rightCount, false);
+
+    const double gap = 8.0;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: () {
-        if (paths.length <= 3) {
-          // ────── 3-Shot bento: Left hero photo + Right 2 stacked photos with brand tag ──────
-          final p0 = paths[0];
-          final p1 = paths.length > 1 ? paths[1] : p0;
-          final p2 = paths.length > 2 ? paths[2] : p0;
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _buildbentoCard(p0, 0),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: _buildbentoCard(p1, 1)),
-                    const SizedBox(height: 8),
-                    // _buildbentoBrandTag(),
-                    Expanded(child: _buildbentoCard(p2, 2)),
-                  ],
-                ),
-              ),
-            ],
-          );
-        } else if (paths.length <= 4) {
-          // ────── 4-Shot bento: Staggered 2x2 masonry with brand tag ──────
-          final p0 = paths[0];
-          final p1 = paths.length > 1 ? paths[1] : p0;
-          final p2 = paths.length > 2 ? paths[2] : p0;
-          final p3 = paths.length > 3 ? paths[3] : p0;
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(flex: 2, child: _buildbentoCard(p0, 0)),
-                    const SizedBox(height: 16),
-                    Expanded(flex: 3, child: _buildbentoCard(p1, 1)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(flex: 3, child: _buildbentoCard(p2, 2)),
-                    const SizedBox(height: 8),
-                    // _buildbentoBrandTag(),
-                    Expanded(flex: 2, child: _buildbentoCard(p3, 3)),
-                  ],
-                ),
-              ),
-            ],
-          );
-        } else if (paths.length <= 6) {
-          // ────── 6-Shot bento: 3 Left + 3 Right with brand tag ──────
-          final p0 = paths[0];
-          final p1 = paths.length > 1 ? paths[1] : p0;
-          final p2 = paths.length > 2 ? paths[2] : p0;
-          final p3 = paths.length > 3 ? paths[3] : p0;
-          final p4 = paths.length > 4 ? paths[4] : p0;
-          final p5 =
-              paths.length > 5 ? paths[5] : (paths.length > 4 ? paths[4] : p0);
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Left Column: 3 photos (short, tall, short)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(flex: 2, child: _buildbentoCard(p0, 0)),
-                    const SizedBox(height: 6),
-                    Expanded(flex: 3, child: _buildbentoCard(p1, 1)),
-                    const SizedBox(height: 6),
-                    Expanded(flex: 2, child: _buildbentoCard(p2, 2)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Right Column: 3 photos (tall, medium, medium) + brand tag
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(flex: 3, child: _buildbentoCard(p3, 3)),
-                    const SizedBox(height: 8),
-                    // _buildbentoBrandTag(),
-                    Expanded(flex: 2, child: _buildbentoCard(p4, 4)),
-                    if (paths.length >= 6) ...[
-                      const SizedBox(height: 6),
-                      Expanded(flex: 2, child: _buildbentoCard(p5, 5)),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          );
-        } else {
-          // ────── 8-Shot bento: 4 Left + 4 Right with brand tag ──────
-          final p0 = paths[0];
-          final p1 = paths.length > 1 ? paths[1] : p0;
-          final p2 = paths.length > 2 ? paths[2] : p0;
-          final p3 = paths.length > 3 ? paths[3] : p0;
-          final p4 = paths.length > 4 ? paths[4] : p0;
-          final p5 = paths.length > 5 ? paths[5] : p0;
-          final p6 = paths.length > 6 ? paths[6] : p0;
-          final p7 = paths.length > 7 ? paths[7] : p0;
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Left Column: 4 photos
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(flex: 3, child: _buildbentoCard(p0, 0)),
-                    const SizedBox(height: 6),
-                    Expanded(flex: 2, child: _buildbentoCard(p1, 1)),
-                    const SizedBox(height: 6),
-                    Expanded(flex: 3, child: _buildbentoCard(p2, 2)),
-                    const SizedBox(height: 6),
-                    Expanded(flex: 2, child: _buildbentoCard(p3, 3)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Right Column: 4 photos + brand tag
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(flex: 2, child: _buildbentoCard(p4, 4)),
-                    const SizedBox(height: 6),
-                    Expanded(flex: 3, child: _buildbentoCard(p5, 5)),
-                    // _buildbentoBrandTag(),
-                    Expanded(flex: 2, child: _buildbentoCard(p6, 6)),
-                    const SizedBox(height: 6),
-                    Expanded(flex: 3, child: _buildbentoCard(p7, 7)),
-                  ],
-                ),
-              ),
-            ],
-          );
-        }
-      }(),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Left Column
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (int i = 0; i < leftPaths.length; i++) ...[
+                  if (i > 0) const SizedBox(height: gap),
+                  Expanded(
+                    flex: leftFlexes[i],
+                    child: _buildbentoCard(leftPaths[i], i),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: gap),
+          // Right Column
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (int i = 0; i < rightPaths.length; i++) ...[
+                  if (i > 0) const SizedBox(height: gap),
+                  Expanded(
+                    flex: rightFlexes[i],
+                    child: _buildbentoCard(rightPaths[i], leftCount + i),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

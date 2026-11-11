@@ -427,148 +427,64 @@ img.Image _cropAndResizeImage(img.Image src, int targetW, int targetH) {
 
 img.Image _buildBento(List<img.Image> images, {String? brandText}) {
   const canvasW = 1200;
-  const canvasH = 1800; // 2:3 ratio
+  final total = images.length;
+  // 1:2 ratio (1200 x 2400) for 4 rows (7 or 8 photos), 2:3 ratio (1200 x 1800) for 3 rows
+  final canvasH = (total >= 7) ? 2400 : 1800;
   final canvas = img.Image(width: canvasW, height: canvasH);
   img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
 
+  if (images.isEmpty) return canvas;
+
   const gap = 20;
   const margin = 24;
+
+  if (images.length == 1) {
+    final im = _cropAndResizeImage(images[0], canvasW - (margin * 2), canvasH - (margin * 2));
+    img.compositeImage(canvas, im, dstX: margin, dstY: margin);
+    return canvas;
+  }
+
   final colW = (canvasW - (margin * 2) - gap) ~/ 2;
   final leftX = margin;
   final rightX = margin + colW + gap;
   final colH = canvasH - (margin * 2);
 
-  void drawBrandBadge(int x, int y, int width, int height) {
-    final text = (brandText != null && brandText.trim().isNotEmpty)
-        ? brandText.trim()
-        : 'Pic-nPrint';
-    final textX = x + (width - (text.length * 14)) ~/ 2;
-    final textY = y + (height - 24) ~/ 2;
-    img.drawString(
-      canvas,
-      text,
-      font: img.arial24,
-      x: textX.clamp(x, x + width - 10),
-      y: textY.clamp(y, y + height - 10),
-      color: img.ColorRgb8(40, 40, 40),
-    );
+  final leftCount = (total == 3) ? 1 : (total / 2).ceil();
+  final rightCount = total - leftCount;
+
+  final leftImages = images.sublist(0, leftCount);
+  final rightImages = images.sublist(leftCount);
+
+  List<int> getFlexes(int count, bool startWithTall) {
+    return List.generate(count, (i) {
+      if (count == 1) return 1;
+      final isTall = startWithTall ? (i % 2 == 0) : (i % 2 == 1);
+      return isTall ? 3 : 2;
+    });
   }
 
-  if (images.length <= 3) {
-    // 3 Shots: Left hero photo + Right 2 photos with brand badge
-    final im0 = _cropAndResizeImage(images[0], colW, colH);
-    img.compositeImage(canvas, im0, dstX: leftX, dstY: margin);
+  final leftFlexes = getFlexes(leftCount, true);
+  final rightFlexes = getFlexes(rightCount, false);
 
-    const brandH = 60;
-    final rightPhotoH = (colH - brandH - (gap * 2)) ~/ 2;
-    final im1 = _cropAndResizeImage(
-        images.length > 1 ? images[1] : images[0], colW, rightPhotoH);
-    final im2 = _cropAndResizeImage(
-        images.length > 2 ? images[2] : images[0], colW, rightPhotoH);
+  void renderColumn(List<img.Image> colImages, List<int> flexes, int dstX) {
+    final count = colImages.length;
+    final totalGaps = gap * (count - 1);
+    final availH = colH - totalGaps;
+    final totalFlex = flexes.fold<int>(0, (sum, f) => sum + f);
 
-    img.compositeImage(canvas, im1, dstX: rightX, dstY: margin);
-    drawBrandBadge(rightX, margin + rightPhotoH + gap, colW, brandH);
-    img.compositeImage(canvas, im2,
-        dstX: rightX, dstY: margin + rightPhotoH + gap + brandH + gap);
-  } else if (images.length <= 4) {
-    // 4 Shots: Left 2 photos (flex 2, flex 3) + Right 2 photos (flex 3, flex 2) + brand badge
-    final leftAvailH = colH - gap;
-    final lh0 = (leftAvailH * 2) ~/ 5;
-    final lh1 = leftAvailH - lh0;
-
-    final im0 = _cropAndResizeImage(images[0], colW, lh0);
-    final im1 = _cropAndResizeImage(images[1], colW, lh1);
-    img.compositeImage(canvas, im0, dstX: leftX, dstY: margin);
-    img.compositeImage(canvas, im1, dstX: leftX, dstY: margin + lh0 + gap);
-
-    const brandH = 50;
-    final rightAvailH = colH - brandH - (gap * 2);
-    final rh0 = (rightAvailH * 3) ~/ 5;
-    final rh1 = rightAvailH - rh0;
-
-    final im2 = _cropAndResizeImage(images[2], colW, rh0);
-    final im3 = _cropAndResizeImage(images[3], colW, rh1);
-
-    img.compositeImage(canvas, im2, dstX: rightX, dstY: margin);
-    drawBrandBadge(rightX, margin + rh0 + gap, colW, brandH);
-    img.compositeImage(canvas, im3,
-        dstX: rightX, dstY: margin + rh0 + gap + brandH + gap);
-  } else if (images.length <= 6) {
-    // 6 Shots: Left 3 photos + Right 3 photos + brand badge
-    final leftAvailH = colH - (gap * 2);
-    final lh0 = (leftAvailH * 2) ~/ 7;
-    final lh1 = (leftAvailH * 3) ~/ 7;
-    final lh2 = leftAvailH - lh0 - lh1;
-
-    final im0 = _cropAndResizeImage(images[0], colW, lh0);
-    final im1 = _cropAndResizeImage(images[1], colW, lh1);
-    final im2 = _cropAndResizeImage(images[2], colW, lh2);
-
-    img.compositeImage(canvas, im0, dstX: leftX, dstY: margin);
-    img.compositeImage(canvas, im1, dstX: leftX, dstY: margin + lh0 + gap);
-    img.compositeImage(canvas, im2,
-        dstX: leftX, dstY: margin + lh0 + gap + lh1 + gap);
-
-    const brandH = 50;
-    final rightAvailH = colH - brandH - (gap * 3);
-    final rh0 = (rightAvailH * 3) ~/ 7;
-    final rh1 = (rightAvailH * 2) ~/ 7;
-    final rh2 = rightAvailH - rh0 - rh1;
-
-    final im3 = _cropAndResizeImage(images[3], colW, rh0);
-    final im4 = _cropAndResizeImage(
-        images.length > 4 ? images[4] : images[0], colW, rh1);
-    final im5 = _cropAndResizeImage(
-        images.length > 5 ? images[5] : images[0], colW, rh2);
-
-    img.compositeImage(canvas, im3, dstX: rightX, dstY: margin);
-    drawBrandBadge(rightX, margin + rh0 + gap, colW, brandH);
-    img.compositeImage(canvas, im4,
-        dstX: rightX, dstY: margin + rh0 + gap + brandH + gap);
-    img.compositeImage(canvas, im5,
-        dstX: rightX, dstY: margin + rh0 + gap + brandH + gap + rh1 + gap);
-  } else {
-    // 8 Shots: Left 4 photos + Right 4 photos + brand badge
-    final leftAvailH = colH - (gap * 3);
-    final lh0 = (leftAvailH * 3) ~/ 10;
-    final lh1 = (leftAvailH * 2) ~/ 10;
-    final lh2 = (leftAvailH * 3) ~/ 10;
-    final lh3 = leftAvailH - lh0 - lh1 - lh2;
-
-    final im0 = _cropAndResizeImage(images[0], colW, lh0);
-    final im1 = _cropAndResizeImage(images[1], colW, lh1);
-    final im2 = _cropAndResizeImage(images[2], colW, lh2);
-    final im3 = _cropAndResizeImage(images[3], colW, lh3);
-
-    img.compositeImage(canvas, im0, dstX: leftX, dstY: margin);
-    img.compositeImage(canvas, im1, dstX: leftX, dstY: margin + lh0 + gap);
-    img.compositeImage(canvas, im2,
-        dstX: leftX, dstY: margin + lh0 + gap + lh1 + gap);
-    img.compositeImage(canvas, im3,
-        dstX: leftX, dstY: margin + lh0 + gap + lh1 + gap + lh2 + gap);
-
-    const brandH = 50;
-    final rightAvailH = colH - brandH - (gap * 4);
-    final rh0 = (rightAvailH * 2) ~/ 10;
-    final rh1 = (rightAvailH * 3) ~/ 10;
-    final rh2 = (rightAvailH * 2) ~/ 10;
-    final rh3 = rightAvailH - rh0 - rh1 - rh2;
-
-    final im4 = _cropAndResizeImage(images[4], colW, rh0);
-    final im5 = _cropAndResizeImage(images[5], colW, rh1);
-    final im6 = _cropAndResizeImage(images[6], colW, rh2);
-    final im7 = _cropAndResizeImage(
-        images.length > 7 ? images[7] : images[0], colW, rh3);
-
-    img.compositeImage(canvas, im4, dstX: rightX, dstY: margin);
-    img.compositeImage(canvas, im5, dstX: rightX, dstY: margin + rh0 + gap);
-    drawBrandBadge(rightX, margin + rh0 + gap + rh1 + gap, colW, brandH);
-    img.compositeImage(canvas, im6,
-        dstX: rightX, dstY: margin + rh0 + gap + rh1 + gap + brandH + gap);
-    img.compositeImage(canvas, im7,
-        dstX: rightX,
-        dstY: margin + rh0 + gap + rh1 + gap + brandH + gap + rh2 + gap);
+    int curY = margin;
+    for (int i = 0; i < count; i++) {
+      final h = (i == count - 1)
+          ? (margin + colH - curY)
+          : ((availH * flexes[i]) ~/ totalFlex);
+      final cropped = _cropAndResizeImage(colImages[i], colW, h);
+      img.compositeImage(canvas, cropped, dstX: dstX, dstY: curY);
+      curY += h + gap;
+    }
   }
+
+  renderColumn(leftImages, leftFlexes, leftX);
+  renderColumn(rightImages, rightFlexes, rightX);
 
   return canvas;
 }
