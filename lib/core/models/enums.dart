@@ -93,7 +93,7 @@ enum LayoutType {
   grid2x2, // 4 photos in 2×2 grid
   grid2x3, // 6 photos in 2×3 grid
   grid2x4, // 8 photos in 2×4 grid
-  bendo, // Staggered bento-box collage (3, 4, 6, or 8 photos)
+  bento, // Staggered bento-box collage (3, 4, 6, or 8 photos)
 }
 
 extension LayoutTypeExtension on LayoutType {
@@ -111,8 +111,8 @@ extension LayoutTypeExtension on LayoutType {
         return '2x3 Grid';
       case LayoutType.grid2x4:
         return '2×4 Grid';
-      case LayoutType.bendo:
-        return 'Bendo';
+      case LayoutType.bento:
+        return 'Bento';
     }
   }
 }

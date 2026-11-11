@@ -32,8 +32,19 @@ class _EditorScreenState extends State<EditorScreen> {
   String? _brandText;
   late CameraFilter _activeFilter;
   int? _selectedPhotoIndex;
+  int _maxRetakes = 1;
 
   void _handleRetake() {
+    // Guard: enforce retake limit loaded from admin settings.
+    if (widget.session.retakesUsed >= _maxRetakes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No retakes remaining for this session.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
     final photoCount = widget.session.imagePaths.length;
     if (_selectedPhotoIndex == null && photoCount > 1) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -47,10 +58,15 @@ class _EditorScreenState extends State<EditorScreen> {
       return;
     }
     final targetIndex = _selectedPhotoIndex ?? 0;
+    // Increment retakesUsed on the session so CaptureBloc and the next
+    // EditorScreen both see the updated count.
+    final updatedSession = widget.session.copyWith(
+      retakesUsed: widget.session.retakesUsed + 1,
+    );
     context.goNamed(
       AppRoute.capture,
       extra: {
-        'session': widget.session,
+        'session': updatedSession,
         'retakeIndex': targetIndex,
       },
     );
@@ -67,8 +83,10 @@ class _EditorScreenState extends State<EditorScreen> {
     final db = context.read<AppDatabase>();
     final path = await db.getSetting('kiosk_logo_path');
     final title = await db.getSetting('kiosk_title');
+    final maxRetakesStr = await db.getSetting('max_retakes');
     if (mounted) {
       setState(() {
+        _maxRetakes = int.tryParse(maxRetakesStr ?? '1') ?? 1;
         if (path != null &&
             path.trim().isNotEmpty &&
             File(path.trim()).existsSync()) {
@@ -157,6 +175,53 @@ class _EditorScreenState extends State<EditorScreen> {
                 icon: const Icon(Icons.arrow_back_ios_new_rounded),
                 onPressed: isProcessing ? null : () => context.pop(),
               ),
+              actions: [
+                if (_maxRetakes > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: widget.session.retakesUsed >= _maxRetakes
+                              ? const Color(0xFFE5E7EB)
+                              : const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: widget.session.retakesUsed >= _maxRetakes
+                                ? const Color(0xFF9CA3AF)
+                                : const Color(0xFF86EFAC),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.replay_rounded,
+                              size: 14,
+                              color: widget.session.retakesUsed >= _maxRetakes
+                                  ? const Color(0xFF6B7280)
+                                  : const Color(0xFF16A34A),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${(_maxRetakes - widget.session.retakesUsed).clamp(0, _maxRetakes)}/$_maxRetakes',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: widget.session.retakesUsed >= _maxRetakes
+                                    ? const Color(0xFF6B7280)
+                                    : const Color(0xFF16A34A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             body: Column(
               children: [
@@ -190,6 +255,7 @@ class _EditorScreenState extends State<EditorScreen> {
                   selectedPhotoIndex: _selectedPhotoIndex,
                   onRetake: _handleRetake,
                   onDone: () => _handleDone(context),
+                  canRetake: widget.session.retakesUsed < _maxRetakes,
                 ),
               ],
             ),
@@ -253,7 +319,7 @@ class _EditorCanvas extends StatelessWidget {
         return 2 / 3;
       case LayoutType.grid2x4:
         return 2 / 3;
-      case LayoutType.bendo:
+      case LayoutType.bento:
         return 2 / 3;
     }
   }
@@ -661,63 +727,63 @@ class _EditorCanvas extends StatelessWidget {
           ),
         );
 
-      case LayoutType.bendo:
-        return _buildBendoLayout(paths);
+      case LayoutType.bento:
+        return _buildbentoLayout(paths);
     }
   }
 
-  Widget _buildBendoCard(String path, int index) {
+  Widget _buildbentoCard(String path, int index) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       child: _buildSelectableImage(path, index),
     );
   }
 
-  Widget _buildBendoBrandTag() {
-    final text = (brandText != null && brandText!.trim().isNotEmpty)
-        ? brandText!.trim()
-        : 'Snapbox.';
+  // Widget _buildbentoBrandTag() {
+  //   final text = (brandText != null && brandText!.trim().isNotEmpty)
+  //       ? brandText!.trim()
+  //       : 'Snapbox.';
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                const Icon(
-                  Icons.camera_enhance_rounded,
-                  size: 20,
-                  color: Colors.black87,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 8),
+  //     child: Center(
+  //       child: Column(
+  //         mainAxisSize: MainAxisSize.min,
+  //         crossAxisAlignment: CrossAxisAlignment.center,
+  //         children: [
+  //           Row(
+  //             mainAxisAlignment: MainAxisAlignment.spaceAround,
+  //             children: [
+  //               const Icon(
+  //                 Icons.camera_enhance_rounded,
+  //                 size: 20,
+  //                 color: Colors.black87,
+  //               ),
+  //               const SizedBox(height: 4),
+  //               Text(
+  //                 text,
+  //                 maxLines: 1,
+  //                 overflow: TextOverflow.ellipsis,
+  //                 style: const TextStyle(
+  //                   fontWeight: FontWeight.w600,
+  //                   fontSize: 16,
+  //                   color: Colors.black87,
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 
-  Widget _buildBendoLayout(List<String> paths) {
+  Widget _buildbentoLayout(List<String> paths) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: () {
         if (paths.length <= 3) {
-          // ────── 3-Shot Bendo: Left hero photo + Right 2 stacked photos with brand tag ──────
+          // ────── 3-Shot bento: Left hero photo + Right 2 stacked photos with brand tag ──────
           final p0 = paths[0];
           final p1 = paths.length > 1 ? paths[1] : p0;
           final p2 = paths.length > 2 ? paths[2] : p0;
@@ -726,23 +792,24 @@ class _EditorCanvas extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: _buildBendoCard(p0, 0),
+                child: _buildbentoCard(p0, 0),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(child: _buildBendoCard(p1, 1)),
-                    _buildBendoBrandTag(),
-                    Expanded(child: _buildBendoCard(p2, 2)),
+                    Expanded(child: _buildbentoCard(p1, 1)),
+                    const SizedBox(height: 8),
+                    // _buildbentoBrandTag(),
+                    Expanded(child: _buildbentoCard(p2, 2)),
                   ],
                 ),
               ),
             ],
           );
         } else if (paths.length <= 4) {
-          // ────── 4-Shot Bendo: Staggered 2x2 masonry with brand tag ──────
+          // ────── 4-Shot bento: Staggered 2x2 masonry with brand tag ──────
           final p0 = paths[0];
           final p1 = paths.length > 1 ? paths[1] : p0;
           final p2 = paths.length > 2 ? paths[2] : p0;
@@ -755,9 +822,9 @@ class _EditorCanvas extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 2, child: _buildBendoCard(p0, 0)),
+                    Expanded(flex: 2, child: _buildbentoCard(p0, 0)),
                     const SizedBox(height: 16),
-                    Expanded(flex: 3, child: _buildBendoCard(p1, 1)),
+                    Expanded(flex: 3, child: _buildbentoCard(p1, 1)),
                   ],
                 ),
               ),
@@ -766,16 +833,17 @@ class _EditorCanvas extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 3, child: _buildBendoCard(p2, 2)),
-                    _buildBendoBrandTag(),
-                    Expanded(flex: 2, child: _buildBendoCard(p3, 3)),
+                    Expanded(flex: 3, child: _buildbentoCard(p2, 2)),
+                    const SizedBox(height: 8),
+                    // _buildbentoBrandTag(),
+                    Expanded(flex: 2, child: _buildbentoCard(p3, 3)),
                   ],
                 ),
               ),
             ],
           );
         } else if (paths.length <= 6) {
-          // ────── 6-Shot Bendo: 3 Left + 3 Right with brand tag ──────
+          // ────── 6-Shot bento: 3 Left + 3 Right with brand tag ──────
           final p0 = paths[0];
           final p1 = paths.length > 1 ? paths[1] : p0;
           final p2 = paths.length > 2 ? paths[2] : p0;
@@ -792,11 +860,11 @@ class _EditorCanvas extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 2, child: _buildBendoCard(p0, 0)),
+                    Expanded(flex: 2, child: _buildbentoCard(p0, 0)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 3, child: _buildBendoCard(p1, 1)),
+                    Expanded(flex: 3, child: _buildbentoCard(p1, 1)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 2, child: _buildBendoCard(p2, 2)),
+                    Expanded(flex: 2, child: _buildbentoCard(p2, 2)),
                   ],
                 ),
               ),
@@ -806,12 +874,13 @@ class _EditorCanvas extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 3, child: _buildBendoCard(p3, 3)),
-                    _buildBendoBrandTag(),
-                    Expanded(flex: 2, child: _buildBendoCard(p4, 4)),
+                    Expanded(flex: 3, child: _buildbentoCard(p3, 3)),
+                    const SizedBox(height: 8),
+                    // _buildbentoBrandTag(),
+                    Expanded(flex: 2, child: _buildbentoCard(p4, 4)),
                     if (paths.length >= 6) ...[
                       const SizedBox(height: 6),
-                      Expanded(flex: 2, child: _buildBendoCard(p5, 5)),
+                      Expanded(flex: 2, child: _buildbentoCard(p5, 5)),
                     ],
                   ],
                 ),
@@ -819,7 +888,7 @@ class _EditorCanvas extends StatelessWidget {
             ],
           );
         } else {
-          // ────── 8-Shot Bendo: 4 Left + 4 Right with brand tag ──────
+          // ────── 8-Shot bento: 4 Left + 4 Right with brand tag ──────
           final p0 = paths[0];
           final p1 = paths.length > 1 ? paths[1] : p0;
           final p2 = paths.length > 2 ? paths[2] : p0;
@@ -837,13 +906,13 @@ class _EditorCanvas extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 3, child: _buildBendoCard(p0, 0)),
+                    Expanded(flex: 3, child: _buildbentoCard(p0, 0)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 2, child: _buildBendoCard(p1, 1)),
+                    Expanded(flex: 2, child: _buildbentoCard(p1, 1)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 3, child: _buildBendoCard(p2, 2)),
+                    Expanded(flex: 3, child: _buildbentoCard(p2, 2)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 2, child: _buildBendoCard(p3, 3)),
+                    Expanded(flex: 2, child: _buildbentoCard(p3, 3)),
                   ],
                 ),
               ),
@@ -853,13 +922,13 @@ class _EditorCanvas extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(flex: 2, child: _buildBendoCard(p4, 4)),
+                    Expanded(flex: 2, child: _buildbentoCard(p4, 4)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 3, child: _buildBendoCard(p5, 5)),
-                    _buildBendoBrandTag(),
-                    Expanded(flex: 2, child: _buildBendoCard(p6, 6)),
+                    Expanded(flex: 3, child: _buildbentoCard(p5, 5)),
+                    // _buildbentoBrandTag(),
+                    Expanded(flex: 2, child: _buildbentoCard(p6, 6)),
                     const SizedBox(height: 6),
-                    Expanded(flex: 3, child: _buildBendoCard(p7, 7)),
+                    Expanded(flex: 3, child: _buildbentoCard(p7, 7)),
                   ],
                 ),
               ),
@@ -1936,6 +2005,9 @@ class _ToolBar extends StatefulWidget {
   final VoidCallback onRetake;
   final VoidCallback onDone;
 
+  /// Whether the user has retakes remaining. When false, the Retake button is disabled.
+  final bool canRetake;
+
   const _ToolBar({
     required this.session,
     required this.activeFilter,
@@ -1943,6 +2015,7 @@ class _ToolBar extends StatefulWidget {
     this.selectedPhotoIndex,
     required this.onRetake,
     required this.onDone,
+    this.canRetake = true,
   });
 
   @override
@@ -2077,14 +2150,18 @@ class _ToolBarState extends State<_ToolBar> {
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
             child: Row(
               children: [
-                // Retake Button — narrow pill
+                // Retake Button — narrow pill; disabled when no retakes remain.
                 SizedBox(
                   width: 130,
                   child: OutlinedButton.icon(
-                    onPressed: widget.onRetake,
+                    onPressed: widget.canRetake ? widget.onRetake : null,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.black,
-                      side: const BorderSide(color: Colors.black, width: 1.5),
+                      foregroundColor:
+                          widget.canRetake ? Colors.black : Colors.grey,
+                      side: BorderSide(
+                        color: widget.canRetake ? Colors.black : Colors.grey,
+                        width: 1.5,
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),

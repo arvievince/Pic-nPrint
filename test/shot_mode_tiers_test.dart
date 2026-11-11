@@ -44,7 +44,7 @@ void main() {
       final octaInitial = octaBloc.state as LayoutInitial;
       expect(octaInitial.availableLayouts, [
         LayoutType.grid2x4,
-        LayoutType.bendo,
+        LayoutType.bento,
       ]);
     });
   });

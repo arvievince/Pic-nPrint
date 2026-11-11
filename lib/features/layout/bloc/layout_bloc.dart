@@ -45,13 +45,13 @@ class LayoutBloc extends Bloc<LayoutEvent, LayoutState> {
       case ShotMode.double:
         return [LayoutType.verticalStrip];
       case ShotMode.triple:
-        return [LayoutType.verticalStrip, LayoutType.bendo];
+        return [LayoutType.verticalStrip, LayoutType.bento];
       case ShotMode.quad:
-        return [LayoutType.verticalStrip, LayoutType.grid2x2, LayoutType.bendo];
+        return [LayoutType.verticalStrip, LayoutType.grid2x2, LayoutType.bento];
       case ShotMode.hex:
-        return [LayoutType.verticalStrip, LayoutType.grid2x3, LayoutType.bendo];
+        return [LayoutType.verticalStrip, LayoutType.grid2x3, LayoutType.bento];
       case ShotMode.octa:
-        return [LayoutType.grid2x4, LayoutType.bendo];
+        return [LayoutType.grid2x4, LayoutType.bento];
     }
   }
 }

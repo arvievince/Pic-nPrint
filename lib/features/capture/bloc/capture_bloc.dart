@@ -42,6 +42,8 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
   int _retakesRemaining = 1;
   int _selectedRetakeIndex = 0;
   int? _retakeTargetIndex;
+  /// Retakes already used before this CaptureBloc was created (from SessionModel).
+  int _retakesUsedFromSession = 0;
   final List<String> _capturedPaths = [];
 
   CaptureBloc({
@@ -49,6 +51,7 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
     required this.shotMode,
     List<String>? initialPaths,
     int? retakeIndex,
+    int retakesUsed = 0,
   })  : _db = db,
         _retakeTargetIndex = retakeIndex,
         super(retakeIndex != null
@@ -62,6 +65,8 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
     if (initialPaths != null) {
       _capturedPaths.addAll(initialPaths);
     }
+    // Seed retakesUsed so the bloc respects the session-level count.
+    _retakesUsedFromSession = retakesUsed;
     on<CaptureMethodChosen>(_onMethodChosen);
     on<CaptureCountdownTick>(_onCountdownTick);
     on<PhotoCaptured>(_onPhotoCaptured);
@@ -103,7 +108,7 @@ class CaptureBloc extends Bloc<CaptureEvent, CaptureState> {
 
     // Normal fresh capture
     _maxRetakes = int.tryParse(await _db.getSetting('max_retakes') ?? '1') ?? 1;
-    _retakesRemaining = _maxRetakes;
+    _retakesRemaining = (_maxRetakes - _retakesUsedFromSession).clamp(0, _maxRetakes);
     _selectedRetakeIndex = 0;
     _currentShotNumber = 1;
     _capturedPaths.clear();

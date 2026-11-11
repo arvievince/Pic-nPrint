@@ -283,7 +283,7 @@ class _AttractScreenState extends State<AttractScreen> {
                                 _title != '' ? _title : 'Pic & Print',
                                 textAlign: TextAlign.center,
                                 style: GoogleFonts.bricolageGrotesque(
-                                  fontSize: 44,
+                                  fontSize: 60,
                                   fontWeight: FontWeight.w800,
                                   color: AppColors.onBackground,
                                   letterSpacing: -0.5,
@@ -299,6 +299,7 @@ class _AttractScreenState extends State<AttractScreen> {
                                     .textTheme
                                     .bodyLarge
                                     ?.copyWith(
+                                      fontSize: 16,
                                       color: AppColors.onSurface,
                                       fontWeight: FontWeight.w500,
                                     ),

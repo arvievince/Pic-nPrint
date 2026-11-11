@@ -45,6 +45,8 @@ class SessionModel extends Equatable {
   final String? driveFileId; // Drive file ID after upload
   final String? driveShareUrl; // public share URL for QR code
   final DateTime createdAt;
+  /// Number of retakes used so far in this session (ephemeral, not persisted to DB).
+  final int retakesUsed;
 
   const SessionModel({
     required this.sessionId,
@@ -58,6 +60,7 @@ class SessionModel extends Equatable {
     this.driveFileId,
     this.driveShareUrl,
     required this.createdAt,
+    this.retakesUsed = 0,
   });
 
   SessionModel copyWith({
@@ -68,6 +71,7 @@ class SessionModel extends Equatable {
     String? gifPath,
     String? driveFileId,
     String? driveShareUrl,
+    int? retakesUsed,
   }) {
     return SessionModel(
       sessionId: sessionId,
@@ -81,6 +85,7 @@ class SessionModel extends Equatable {
       driveFileId: driveFileId ?? this.driveFileId,
       driveShareUrl: driveShareUrl ?? this.driveShareUrl,
       createdAt: createdAt,
+      retakesUsed: retakesUsed ?? this.retakesUsed,
     );
   }
 

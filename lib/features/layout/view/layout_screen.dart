@@ -224,7 +224,7 @@ class _LayoutCard extends StatelessWidget {
         return Icons.apps_rounded;
       case LayoutType.grid2x4:
         return Icons.view_compact_rounded;
-      case LayoutType.bendo:
+      case LayoutType.bento:
         return Icons.dashboard_customize_rounded;
     }
   }
@@ -243,7 +243,7 @@ class _LayoutCard extends StatelessWidget {
         return '6 photos arranged in a 2×3 grid';
       case LayoutType.grid2x4:
         return '8 photos arranged in a 2×4 grid';
-      case LayoutType.bendo:
+      case LayoutType.bento:
         return 'Creative staggered bento-box collage';
     }
   }

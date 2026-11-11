@@ -153,6 +153,7 @@ class _OutputScreenState extends State<OutputScreen>
                           child: _PrinterDispenserArea(
                             session: widget.session,
                             ejectAnimation: _ejectAnimation,
+                            logoPath: _logoPath,
                           ),
                         ),
 
@@ -183,7 +184,7 @@ class _OutputScreenState extends State<OutputScreen>
                                 ),
                         ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 80),
                       ],
                     ),
                   ),
@@ -296,10 +297,12 @@ class _StatusPill extends StatelessWidget {
 class _PrinterDispenserArea extends StatelessWidget {
   final SessionModel session;
   final Animation<double> ejectAnimation;
+  final String? logoPath;
 
   const _PrinterDispenserArea({
     required this.session,
     required this.ejectAnimation,
+    this.logoPath,
   });
 
   @override
@@ -348,7 +351,7 @@ class _PrinterDispenserArea extends StatelessWidget {
                     child: Container(
                       width: cardWidth,
                       height: cardHeight,
-                      padding: const EdgeInsets.all(10),
+                      // padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
@@ -366,9 +369,28 @@ class _PrinterDispenserArea extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: _buildPhotoImage(imagePath),
+                      child: Column(
+                        children: [
+                          // // Logo strip at top of card (mirrors printed output)
+                          // if (logoPath != null &&
+                          //     File(logoPath!).existsSync())
+                          //   Padding(
+                          //     padding: const EdgeInsets.only(bottom: 6),
+                          //     child: Image.file(
+                          //       File(logoPath!),
+                          //       height: 24,
+                          //       fit: BoxFit.contain,
+                          //       filterQuality: FilterQuality.high,
+                          //     ),
+                          //   ),
+                          // Photo fills the remaining space
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: _buildPhotoImage(imagePath),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -708,8 +730,8 @@ class _ReadyBottomSection extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 200,
-          height: 50,
+          width: 250,
+          height: 60,
           child: ElevatedButton(
             onPressed: onFinish,
             style: ElevatedButton.styleFrom(
@@ -717,15 +739,17 @@ class _ReadyBottomSection extends StatelessWidget {
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(32),
               ),
             ),
             child: Text(
               'Finish', //($countdown s)
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.50,
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
             ),
           ),
         ),

@@ -239,9 +239,9 @@ Future<void> _composeIsolate(_ComposeParams params) async {
       canvas = _buildGrid(images, columns: 2);
       break;
 
-    case LayoutType.bendo:
+    case LayoutType.bento:
       // 2 columns staggered bento collage (3, 4, 6, or 8 photos)
-      canvas = _buildBendo(images, brandText: params.brandText);
+      canvas = _buildBento(images, brandText: params.brandText);
       break;
   }
 
@@ -425,7 +425,7 @@ img.Image _cropAndResizeImage(img.Image src, int targetW, int targetH) {
   return resized;
 }
 
-img.Image _buildBendo(List<img.Image> images, {String? brandText}) {
+img.Image _buildBento(List<img.Image> images, {String? brandText}) {
   const canvasW = 1200;
   const canvasH = 1800; // 2:3 ratio
   final canvas = img.Image(width: canvasW, height: canvasH);
@@ -566,7 +566,8 @@ img.Image _buildBendo(List<img.Image> images, {String? brandText}) {
     img.compositeImage(canvas, im6,
         dstX: rightX, dstY: margin + rh0 + gap + rh1 + gap + brandH + gap);
     img.compositeImage(canvas, im7,
-        dstX: rightX, dstY: margin + rh0 + gap + rh1 + gap + brandH + gap + rh2 + gap);
+        dstX: rightX,
+        dstY: margin + rh0 + gap + rh1 + gap + brandH + gap + rh2 + gap);
   }
 
   return canvas;

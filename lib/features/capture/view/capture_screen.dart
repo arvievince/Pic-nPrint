@@ -196,6 +196,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
           shotMode: widget.session.shotMode,
           initialPaths: widget.session.imagePaths,
           retakeIndex: widget.retakeIndex,
+          retakesUsed: widget.session.retakesUsed,
         );
       },
       child: BlocConsumer<CaptureBloc, CaptureState>(
@@ -652,9 +653,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFFFF5C38)
-                          : const Color(0xFFEBE7DD),
+                      color:
+                          isSelected ? Colors.black : const Color(0xFFEBE7DD),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -687,81 +687,75 @@ class _CaptureScreenState extends State<CaptureScreen> {
         alignment: Alignment.center,
         children: [
           // Cancel retake pill button
-          if (isRetakeMode || widget.retakeIndex != null)
-            Positioned(
-              left: 20,
-              child: TextButton.icon(
-                onPressed: () {
-                  if (widget.retakeIndex != null) {
-                    context.goNamed(AppRoute.editor, extra: widget.session);
-                  } else {
-                    context
-                        .read<CaptureBloc>()
-                        .add(const CaptureRetakeCancelled());
-                  }
-                },
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  size: 18,
-                  color: Color(0xFF1E1E1E),
-                ),
-                label: const Text(
-                  'Cancel',
-                  style: TextStyle(
-                    color: Color(0xFF1E1E1E),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13.5,
-                  ),
-                ),
-                style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFFEBE7DD),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                ),
-              ),
-            ),
+          // if (isRetakeMode || widget.retakeIndex != null)
+          //   Positioned(
+          //     left: 20,
+          //     child: TextButton.icon(
+          //       onPressed: () {
+          //         if (widget.retakeIndex != null) {
+          //           context.goNamed(AppRoute.editor, extra: widget.session);
+          //         } else {
+          //           context
+          //               .read<CaptureBloc>()
+          //               .add(const CaptureRetakeCancelled());
+          //         }
+          //       },
+          //       icon: const Icon(
+          //         Icons.arrow_back_rounded,
+          //         size: 18,
+          //         color: Color(0xFF1E1E1E),
+          //       ),
+          //       label: const Text(
+          //         'Cancel',
+          //         style: TextStyle(
+          //           color: Color(0xFF1E1E1E),
+          //           fontWeight: FontWeight.w700,
+          //           fontSize: 13.5,
+          //         ),
+          //       ),
+          //       style: TextButton.styleFrom(
+          //         backgroundColor: const Color(0xFFEBE7DD),
+          //         shape: RoundedRectangleBorder(
+          //           borderRadius: BorderRadius.circular(20),
+          //         ),
+          //         padding:
+          //             const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          //       ),
+          //     ),
+          //   ),
 
-          // Gallery Upload Button
-          Positioned(
-              right: 20,
-              child: IconButton(
-                onPressed: isBusy ? null : () => _pickImages(context),
-                tooltip: 'Upload from gallery',
-                icon: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEBE7DD),
-                    shape: BoxShape.circle,
-                    border:
-                        Border.all(color: const Color(0xFF1E1E1E), width: 1.5),
-                  ),
-                  child: const Icon(
-                    Icons.photo_library_outlined,
-                    size: 22,
-                    color: Color(0xFF1E1E1E),
-                  ),
-                ),
-              ),
-            ),
+          // // Gallery Upload Button
+          // Positioned(
+          //   right: 20,
+          //   child: IconButton(
+          //     onPressed: isBusy ? null : () => _pickImages(context),
+          //     tooltip: 'Upload from gallery',
+          //     icon: Container(
+          //       width: 44,
+          //       height: 44,
+          //       decoration: BoxDecoration(
+          //         color: const Color(0xFFEBE7DD),
+          //         shape: BoxShape.circle,
+          //         border:
+          //             Border.all(color: const Color(0xFF1E1E1E), width: 1.5),
+          //       ),
+          //       child: const Icon(
+          //         Icons.photo_library_outlined,
+          //         size: 22,
+          //         color: Color(0xFF1E1E1E),
+          //       ),
+          //     ),
+          //   ),
+          // ),
 
           // Centered Shutter Button
           GestureDetector(
             onTap: isBusy
                 ? null
                 : () {
-                    if (widget.retakeIndex != null || isRetakeMode) {
-                      context.read<CaptureBloc>().add(
-                            const CaptureMethodChosen(CaptureMethod.camera),
-                          );
-                    } else {
-                      context.read<CaptureBloc>().add(
-                            const CaptureMethodChosen(CaptureMethod.camera),
-                          );
-                    }
+                    context.read<CaptureBloc>().add(
+                          const CaptureMethodChosen(CaptureMethod.camera),
+                        );
                   },
             child: AnimatedScale(
               duration: const Duration(milliseconds: 120),
@@ -777,13 +771,18 @@ class _CaptureScreenState extends State<CaptureScreen> {
                     width: 3.5,
                   ),
                 ),
-                padding: const EdgeInsets.all(4.5),
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isBusy
-                        ? const Color(0xFFFF5238).withValues(alpha: 0.6)
-                        : const Color(0xFFFF5238),
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    width: isBusy ? 28 : 56,
+                    height: isBusy ? 28 : 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(isBusy ? 6 : 28),
+                      color: isBusy
+                          ? const Color(0xFFFF5238).withValues(alpha: 0.85)
+                          : const Color(0xFFFF5238),
+                    ),
                   ),
                 ),
               ),
