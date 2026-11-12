@@ -44,6 +44,11 @@ class SessionModel extends Equatable {
   final String? gifPath; // optional GIF path
   final String? driveFileId; // Drive file ID after upload
   final String? driveShareUrl; // public share URL for QR code
+  // ── Supabase softcopy fields ──
+  final String? sessionToken;
+  final String? photoUrl;
+  final String? gifUrl;
+  final String uploadStatus; // 'pending' | 'uploading' | 'done' | 'failed' | 'local_only'
   final DateTime createdAt;
   /// Number of retakes used so far in this session (ephemeral, not persisted to DB).
   final int retakesUsed;
@@ -59,9 +64,17 @@ class SessionModel extends Equatable {
     this.gifPath,
     this.driveFileId,
     this.driveShareUrl,
+    this.sessionToken,
+    this.photoUrl,
+    this.gifUrl,
+    this.uploadStatus = 'pending',
     required this.createdAt,
     this.retakesUsed = 0,
   });
+
+  String? get shareUrl => photoUrl ?? driveShareUrl;
+  bool get hasSoftcopy => photoUrl != null || driveShareUrl != null;
+  bool get hasGifSoftcopy => gifUrl != null;
 
   SessionModel copyWith({
     LayoutType? layout,
@@ -71,6 +84,10 @@ class SessionModel extends Equatable {
     String? gifPath,
     String? driveFileId,
     String? driveShareUrl,
+    String? sessionToken,
+    String? photoUrl,
+    String? gifUrl,
+    String? uploadStatus,
     int? retakesUsed,
   }) {
     return SessionModel(
@@ -84,6 +101,10 @@ class SessionModel extends Equatable {
       gifPath: gifPath ?? this.gifPath,
       driveFileId: driveFileId ?? this.driveFileId,
       driveShareUrl: driveShareUrl ?? this.driveShareUrl,
+      sessionToken: sessionToken ?? this.sessionToken,
+      photoUrl: photoUrl ?? this.photoUrl,
+      gifUrl: gifUrl ?? this.gifUrl,
+      uploadStatus: uploadStatus ?? this.uploadStatus,
       createdAt: createdAt,
       retakesUsed: retakesUsed ?? this.retakesUsed,
     );

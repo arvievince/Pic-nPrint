@@ -20,6 +20,7 @@ import '../../../core/services/pricing_service.dart';
 import '../../../core/services/printer_service.dart';
 import '../../../core/services/security_service.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../core/services/supabase_storage_service.dart';
 import '../../../core/services/excel_export_service.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
@@ -374,8 +375,8 @@ IconData _iconFor(AdminSection s) {
       return Icons.camera_alt_rounded;
     case AdminSection.printers:
       return Icons.print_rounded;
-    case AdminSection.drive:
-      return Icons.cloud_upload_rounded;
+    case AdminSection.supabase:
+      return Icons.cloud_done_rounded;
     case AdminSection.branding:
       return Icons.palette_rounded;
     case AdminSection.vouchers:
@@ -395,8 +396,8 @@ String _labelFor(AdminSection s) {
       return 'Camera';
     case AdminSection.printers:
       return 'Printers';
-    case AdminSection.drive:
-      return 'Drive';
+    case AdminSection.supabase:
+      return 'Cloud';
     case AdminSection.branding:
       return 'Branding';
     case AdminSection.vouchers:
@@ -425,8 +426,8 @@ class _SectionContent extends StatelessWidget {
         return _CameraSection(settings: settings);
       case AdminSection.printers:
         return const _PrintersSection();
-      case AdminSection.drive:
-        return _DriveSection(settings: settings);
+      case AdminSection.supabase:
+        return _SupabaseSection(settings: settings);
       case AdminSection.branding:
         return _BrandingSection(settings: settings);
       case AdminSection.vouchers:
@@ -719,12 +720,12 @@ class _CameraSectionState extends State<_CameraSection> {
   bool _eventModeShowPrice = true;
   // Which tiers are visible on the tier selection screen
   final Map<String, bool> _eventTiers = {
-    'S': true,  // Single
-    'D': true,  // Double (2 Shots)
-    'T': true,  // 3 Shots
-    'F': true,  // 4 Shots
-    'X': true,  // 6 Shots
-    'O': true,  // 8 Shots
+    'S': true, // Single
+    'D': true, // Double (2 Shots)
+    'T': true, // 3 Shots
+    'F': true, // 4 Shots
+    'X': true, // 6 Shots
+    'O': true, // 8 Shots
   };
 
   @override
@@ -742,11 +743,14 @@ class _CameraSectionState extends State<_CameraSection> {
 
     // ── Event Mode defaults from saved settings ───────────────────────────
     _eventModeEnabled =
-        (widget.settings['event_mode_enabled'] ?? 'false').toLowerCase() == 'true';
+        (widget.settings['event_mode_enabled'] ?? 'false').toLowerCase() ==
+            'true';
     _eventModeShowPrice =
-        (widget.settings['event_mode_price_display'] ?? 'true').toLowerCase() == 'true';
+        (widget.settings['event_mode_price_display'] ?? 'true').toLowerCase() ==
+            'true';
     final tiersRaw = widget.settings['event_mode_tiers'] ?? 'S,D,T,F,X,O';
-    final enabledChars = tiersRaw.split(',').map((c) => c.trim().toUpperCase()).toSet();
+    final enabledChars =
+        tiersRaw.split(',').map((c) => c.trim().toUpperCase()).toSet();
     for (final key in _eventTiers.keys) {
       _eventTiers[key] = enabledChars.contains(key);
     }
@@ -771,10 +775,8 @@ class _CameraSectionState extends State<_CameraSection> {
     final maxRetakes = _maxRetakesCtrl.text.trim();
 
     // Build event mode tiers CSV from checkbox state
-    final tiersCSV = _eventTiers.entries
-        .where((e) => e.value)
-        .map((e) => e.key)
-        .join(',');
+    final tiersCSV =
+        _eventTiers.entries.where((e) => e.value).map((e) => e.key).join(',');
 
     context.read<AdminBloc>().add(
           AdminMultipleSettingsUpdated({
@@ -865,7 +867,8 @@ class _CameraSectionState extends State<_CameraSection> {
             decoration: const InputDecoration(
               hintText: '1',
               suffixText: 'retakes',
-              helperText: 'Number of times a user can retake photos in a session (0 to disable).',
+              helperText:
+                  'Number of times a user can retake photos in a session (0 to disable).',
             ),
             validator: (v) {
               final val = int.tryParse(v?.trim() ?? '');
@@ -1660,73 +1663,111 @@ class _PrintersSectionState extends State<_PrintersSection> {
   }
 }
 
-// ─── 4. Drive Section ─────────────────────────────────────────────────────────
+// ─── 4. Supabase Cloud Section ────────────────────────────────────────────────
 
-class _DriveSection extends StatefulWidget {
+class _SupabaseSection extends StatefulWidget {
   final Map<String, String> settings;
-  const _DriveSection({required this.settings});
+  const _SupabaseSection({required this.settings});
 
   @override
-  State<_DriveSection> createState() => _DriveSectionState();
+  State<_SupabaseSection> createState() => _SupabaseSectionState();
 }
 
-class _DriveSectionState extends State<_DriveSection> {
+class _SupabaseSectionState extends State<_SupabaseSection> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _folderIdCtrl;
-  late final TextEditingController _serviceAccountCtrl;
+  late final TextEditingController _urlCtrl;
+  late final TextEditingController _anonKeyCtrl;
+  late final TextEditingController _locationIdCtrl;
+  late final TextEditingController _kioskKeyCtrl;
   late final TextEditingController _qrTimeoutCtrl;
   bool _isSaving = false;
+  bool _isTesting = false;
+  String? _testResult;
+  bool _testOk = false;
+  bool _localOnly = false;
+  bool _obscureAnonKey = true;
+  bool _obscureKioskKey = true;
 
   @override
   void initState() {
     super.initState();
-    _folderIdCtrl = TextEditingController(
-      text: widget.settings['drive_folder_id'] ?? '',
+    _urlCtrl = TextEditingController(
+      text: widget.settings['supabase_url'] ?? '',
     );
-    _serviceAccountCtrl = TextEditingController(
-      text: widget.settings['drive_service_account_json'] ?? '',
+    _anonKeyCtrl = TextEditingController(
+      text: widget.settings['supabase_anon_key'] ?? '',
+    );
+    _locationIdCtrl = TextEditingController(
+      text: widget.settings['supabase_location_id'] ?? '',
+    );
+    _kioskKeyCtrl = TextEditingController(
+      text: widget.settings['supabase_kiosk_key'] ?? '',
     );
     _qrTimeoutCtrl = TextEditingController(
-      text: widget.settings['drive_qr_timeout_seconds'] ?? '60',
+      text: widget.settings['qr_timeout_seconds'] ?? '60',
     );
+    _localOnly = widget.settings['supabase_local_only'] == 'true';
   }
 
   @override
   void dispose() {
-    _folderIdCtrl.dispose();
-    _serviceAccountCtrl.dispose();
+    _urlCtrl.dispose();
+    _anonKeyCtrl.dispose();
+    _locationIdCtrl.dispose();
+    _kioskKeyCtrl.dispose();
     _qrTimeoutCtrl.dispose();
     super.dispose();
   }
 
-  void _saveDriveSettings() {
-    if (!(_formKey.currentState?.validate() ?? false)) {
-      return;
-    }
-
+  void _saveSettings() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _isSaving = true);
-    final folderId = _folderIdCtrl.text.trim();
-    final serviceAccountJson = _serviceAccountCtrl.text.trim();
-    final qrTimeout = _qrTimeoutCtrl.text.trim().isEmpty
-        ? '60'
-        : _qrTimeoutCtrl.text.trim();
-
-    context.read<AdminBloc>().add(
-          AdminMultipleSettingsUpdated({
-            'drive_folder_id': folderId,
-            'drive_service_account_json': serviceAccountJson,
-            'drive_qr_timeout_seconds': qrTimeout,
-          }),
-        );
-
+    context.read<AdminBloc>().add(AdminMultipleSettingsUpdated({
+          'supabase_url': _urlCtrl.text.trim(),
+          'supabase_anon_key': _anonKeyCtrl.text.trim(),
+          'supabase_location_id': _locationIdCtrl.text.trim().toUpperCase(),
+          'supabase_kiosk_key': _kioskKeyCtrl.text.trim(),
+          'qr_timeout_seconds': _qrTimeoutCtrl.text.trim().isEmpty
+              ? '60'
+              : _qrTimeoutCtrl.text.trim(),
+          'supabase_local_only': _localOnly ? 'true' : 'false',
+        }));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Google Drive settings saved successfully!'),
+        content: Text('Supabase settings saved!'),
         backgroundColor: AppColors.success,
       ),
     );
-
     setState(() => _isSaving = false);
+  }
+
+  Future<void> _testConnection() async {
+    setState(() {
+      _isTesting = true;
+      _testResult = null;
+    });
+    try {
+      final svc = context.read<SupabaseStorageService>();
+      final err = await svc.testConnectionWith(
+        projectUrl: _urlCtrl.text.trim(),
+        anonKey: _anonKeyCtrl.text.trim(),
+        locationId: _locationIdCtrl.text.trim(),
+        kioskKey: _kioskKeyCtrl.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _isTesting = false;
+        _testOk = err == null;
+        _testResult = err ?? 'Connection OK ✓';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isTesting = false;
+        _testOk = false;
+        _testResult = 'Test error: $e';
+      });
+    }
   }
 
   @override
@@ -1735,53 +1776,158 @@ class _DriveSectionState extends State<_DriveSection> {
       key: _formKey,
       child: ListView(
         children: [
-          Text('Google Drive',
-              style: Theme.of(context).textTheme.headlineMedium),
+          Text(
+            'Supabase Cloud',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
           const SizedBox(height: 8),
           const Text(
-            'Configure Google Drive cloud upload for high-res photo sharing via QR.',
+            'Configure Supabase Storage for softcopy QR sharing (7-day auto-delete).',
             style: TextStyle(color: AppColors.onSurface),
           ),
           const SizedBox(height: 24),
-          Text('Drive Folder ID',
+
+          // Project URL
+          Text('Project URL', style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _urlCtrl,
+            decoration: const InputDecoration(
+              hintText: 'https://xxxx.supabase.co',
+            ),
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? 'Required' : null,
+          ),
+          const SizedBox(height: 20),
+
+          // Anon Key
+          Text('Anon / Publishable Key',
               style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 6),
           TextFormField(
-            controller: _folderIdCtrl,
-            decoration: const InputDecoration(
-              hintText: 'e.g. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs',
+            controller: _anonKeyCtrl,
+            obscureText: _obscureAnonKey,
+            decoration: InputDecoration(
+              hintText: 'eyJ...',
+              suffixIcon: IconButton(
+                icon: Icon(_obscureAnonKey
+                    ? Icons.visibility_rounded
+                    : Icons.visibility_off_rounded),
+                onPressed: () =>
+                    setState(() => _obscureAnonKey = !_obscureAnonKey),
+              ),
             ),
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? 'Required' : null,
           ),
           const SizedBox(height: 20),
-          Text(
-            'Service Account JSON',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+
+          // Location ID
+          Text('Kiosk Location ID',
+              style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 6),
           TextFormField(
-            controller: _serviceAccountCtrl,
-            maxLines: 8,
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+            controller: _locationIdCtrl,
             decoration: const InputDecoration(
-              hintText: '{ "type": "service_account", ... }',
+              hintText: 'e.g. MNL1 (uppercase, 2–8 chars)',
+              helperText: 'Must match the row in the photobooth.kiosks table.',
             ),
+            textCapitalization: TextCapitalization.characters,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Required';
+              if (!RegExp(r'^[A-Z0-9]{2,8}$')
+                  .hasMatch(v.trim().toUpperCase())) {
+                return 'Use 2–8 uppercase letters/numbers only (e.g. MNL1)';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 20),
-          Text(
-            'QR Display Timeout (seconds)',
-            style: Theme.of(context).textTheme.bodyMedium,
+
+          // Kiosk Key
+          Text('Kiosk Secret Key',
+              style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _kioskKeyCtrl,
+            obscureText: _obscureKioskKey,
+            decoration: InputDecoration(
+              hintText: '64-character hex key for this location',
+              suffixIcon: IconButton(
+                icon: Icon(_obscureKioskKey
+                    ? Icons.visibility_rounded
+                    : Icons.visibility_off_rounded),
+                onPressed: () =>
+                    setState(() => _obscureKioskKey = !_obscureKioskKey),
+              ),
+            ),
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? 'Required' : null,
           ),
+          const SizedBox(height: 20),
+
+          // QR Timeout
+          Text('QR Display Time (seconds)',
+              style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 6),
           TextFormField(
             controller: _qrTimeoutCtrl,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
-              hintText: 'e.g. 60',
-              helperText:
-                  'How long the softcopy QR code stays on screen before returning home.',
+              hintText: '60',
+              helperText: 'How long the softcopy QR code stays on screen.',
             ),
           ),
+          const SizedBox(height: 20),
+
+          // Local-only toggle
+          SwitchListTile(
+            title: const Text('Local-Only Mode'),
+            subtitle: const Text(
+                'Skip cloud upload and QR screen entirely (offline events)'),
+            value: _localOnly,
+            onChanged: (v) => setState(() => _localOnly = v),
+            contentPadding: EdgeInsets.zero,
+          ),
           const SizedBox(height: 24),
+
+          // Test Connection
+          Row(
+            children: [
+              OutlinedButton.icon(
+                icon: _isTesting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.wifi_tethering_rounded),
+                label: Text(_isTesting ? 'Testing...' : 'Test Connection'),
+                onPressed: _isTesting ? null : _testConnection,
+              ),
+              if (_testResult != null) ...[
+                const SizedBox(width: 12),
+                Icon(
+                  _testOk ? Icons.check_circle : Icons.error,
+                  color: _testOk ? AppColors.success : AppColors.error,
+                  size: 20,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _testResult!,
+                    style: TextStyle(
+                      color: _testOk ? AppColors.success : AppColors.error,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Save button
           SizedBox(
             height: 52,
             child: ElevatedButton.icon(
@@ -1793,8 +1939,8 @@ class _DriveSectionState extends State<_DriveSection> {
                           strokeWidth: 2.5, color: Colors.white),
                     )
                   : const Icon(Icons.save_rounded),
-              label: Text(_isSaving ? 'Saving...' : 'Save Drive Settings'),
-              onPressed: _isSaving ? null : _saveDriveSettings,
+              label: Text(_isSaving ? 'Saving...' : 'Save Settings'),
+              onPressed: _isSaving ? null : _saveSettings,
             ),
           ),
           const SizedBox(height: 32),
@@ -1850,14 +1996,20 @@ class _BrandingSectionState extends State<_BrandingSection> {
     _footerCtrl = TextEditingController(
       text: widget.settings['receipt_footer'] ?? 'Visit us again soon!',
     );
-    _polaroid1Path = _validPathOrNull(widget.settings['attract_polaroid_1_path']);
-    _polaroid2Path = _validPathOrNull(widget.settings['attract_polaroid_2_path']);
-    _polaroid3Path = _validPathOrNull(widget.settings['attract_polaroid_3_path']);
-    _polaroid4Path = _validPathOrNull(widget.settings['attract_polaroid_4_path']);
+    _polaroid1Path =
+        _validPathOrNull(widget.settings['attract_polaroid_1_path']);
+    _polaroid2Path =
+        _validPathOrNull(widget.settings['attract_polaroid_2_path']);
+    _polaroid3Path =
+        _validPathOrNull(widget.settings['attract_polaroid_3_path']);
+    _polaroid4Path =
+        _validPathOrNull(widget.settings['attract_polaroid_4_path']);
   }
 
   String? _validPathOrNull(String? path) {
-    if (path != null && path.trim().isNotEmpty && File(path.trim()).existsSync()) {
+    if (path != null &&
+        path.trim().isNotEmpty &&
+        File(path.trim()).existsSync()) {
       return path.trim();
     }
     return null;
@@ -3473,7 +3625,8 @@ class _VoucherGenerationDialogState extends State<_VoucherGenerationDialog> {
                   final isSelected = _selectedMode == mode;
                   final priceKey = 'price_${mode.tierChar}';
                   final price = widget.settings[priceKey] ??
-                      (PricingService.defaultPrices[mode]?.toStringAsFixed(0) ?? '50');
+                      (PricingService.defaultPrices[mode]?.toStringAsFixed(0) ??
+                          '50');
 
                   return ChoiceChip(
                     showCheckmark: false,
@@ -3762,7 +3915,8 @@ class _SalesSectionState extends State<_SalesSection> {
             }
 
             final totalCount = usedSales.length;
-            final totalRev = singleRev + doubleRev + tripleRev + quadRev + hexRev + octaRev;
+            final totalRev =
+                singleRev + doubleRev + tripleRev + quadRev + hexRev + octaRev;
 
             // Tier filtering for table
             final tableSales = usedSales

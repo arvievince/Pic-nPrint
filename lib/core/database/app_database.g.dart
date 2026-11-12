@@ -2110,6 +2110,37 @@ class $SessionsTableTable extends SessionsTable
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
       'created_at', aliasedName, false,
       type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _sessionTokenMeta =
+      const VerificationMeta('sessionToken');
+  @override
+  late final GeneratedColumn<String> sessionToken = GeneratedColumn<String>(
+      'session_token', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _photoUrlMeta =
+      const VerificationMeta('photoUrl');
+  @override
+  late final GeneratedColumn<String> photoUrl = GeneratedColumn<String>(
+      'photo_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _gifUrlMeta = const VerificationMeta('gifUrl');
+  @override
+  late final GeneratedColumn<String> gifUrl = GeneratedColumn<String>(
+      'gif_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _uploadStatusMeta =
+      const VerificationMeta('uploadStatus');
+  @override
+  late final GeneratedColumn<String> uploadStatus = GeneratedColumn<String>(
+      'upload_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('pending'));
+  static const VerificationMeta _expiresAtMeta =
+      const VerificationMeta('expiresAt');
+  @override
+  late final GeneratedColumn<DateTime> expiresAt = GeneratedColumn<DateTime>(
+      'expires_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         sessionId,
@@ -2123,7 +2154,12 @@ class $SessionsTableTable extends SessionsTable
         driveShareUrl,
         isUploaded,
         isPrinted,
-        createdAt
+        createdAt,
+        sessionToken,
+        photoUrl,
+        gifUrl,
+        uploadStatus,
+        expiresAt
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2207,6 +2243,30 @@ class $SessionsTableTable extends SessionsTable
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('session_token')) {
+      context.handle(
+          _sessionTokenMeta,
+          sessionToken.isAcceptableOrUnknown(
+              data['session_token']!, _sessionTokenMeta));
+    }
+    if (data.containsKey('photo_url')) {
+      context.handle(_photoUrlMeta,
+          photoUrl.isAcceptableOrUnknown(data['photo_url']!, _photoUrlMeta));
+    }
+    if (data.containsKey('gif_url')) {
+      context.handle(_gifUrlMeta,
+          gifUrl.isAcceptableOrUnknown(data['gif_url']!, _gifUrlMeta));
+    }
+    if (data.containsKey('upload_status')) {
+      context.handle(
+          _uploadStatusMeta,
+          uploadStatus.isAcceptableOrUnknown(
+              data['upload_status']!, _uploadStatusMeta));
+    }
+    if (data.containsKey('expires_at')) {
+      context.handle(_expiresAtMeta,
+          expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta));
+    }
     return context;
   }
 
@@ -2240,6 +2300,16 @@ class $SessionsTableTable extends SessionsTable
           .read(DriftSqlType.bool, data['${effectivePrefix}is_printed'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      sessionToken: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}session_token']),
+      photoUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}photo_url']),
+      gifUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}gif_url']),
+      uploadStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}upload_status'])!,
+      expiresAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}expires_at']),
     );
   }
 
@@ -2262,6 +2332,11 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
   final bool isUploaded;
   final bool isPrinted;
   final DateTime createdAt;
+  final String? sessionToken;
+  final String? photoUrl;
+  final String? gifUrl;
+  final String uploadStatus;
+  final DateTime? expiresAt;
   const SessionEntry(
       {required this.sessionId,
       required this.voucherCode,
@@ -2274,7 +2349,12 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
       this.driveShareUrl,
       required this.isUploaded,
       required this.isPrinted,
-      required this.createdAt});
+      required this.createdAt,
+      this.sessionToken,
+      this.photoUrl,
+      this.gifUrl,
+      required this.uploadStatus,
+      this.expiresAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2300,6 +2380,19 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
     map['is_uploaded'] = Variable<bool>(isUploaded);
     map['is_printed'] = Variable<bool>(isPrinted);
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || sessionToken != null) {
+      map['session_token'] = Variable<String>(sessionToken);
+    }
+    if (!nullToAbsent || photoUrl != null) {
+      map['photo_url'] = Variable<String>(photoUrl);
+    }
+    if (!nullToAbsent || gifUrl != null) {
+      map['gif_url'] = Variable<String>(gifUrl);
+    }
+    map['upload_status'] = Variable<String>(uploadStatus);
+    if (!nullToAbsent || expiresAt != null) {
+      map['expires_at'] = Variable<DateTime>(expiresAt);
+    }
     return map;
   }
 
@@ -2327,6 +2420,18 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
       isUploaded: Value(isUploaded),
       isPrinted: Value(isPrinted),
       createdAt: Value(createdAt),
+      sessionToken: sessionToken == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionToken),
+      photoUrl: photoUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(photoUrl),
+      gifUrl:
+          gifUrl == null && nullToAbsent ? const Value.absent() : Value(gifUrl),
+      uploadStatus: Value(uploadStatus),
+      expiresAt: expiresAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expiresAt),
     );
   }
 
@@ -2347,6 +2452,11 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
       isUploaded: serializer.fromJson<bool>(json['isUploaded']),
       isPrinted: serializer.fromJson<bool>(json['isPrinted']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      sessionToken: serializer.fromJson<String?>(json['sessionToken']),
+      photoUrl: serializer.fromJson<String?>(json['photoUrl']),
+      gifUrl: serializer.fromJson<String?>(json['gifUrl']),
+      uploadStatus: serializer.fromJson<String>(json['uploadStatus']),
+      expiresAt: serializer.fromJson<DateTime?>(json['expiresAt']),
     );
   }
   @override
@@ -2365,6 +2475,11 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
       'isUploaded': serializer.toJson<bool>(isUploaded),
       'isPrinted': serializer.toJson<bool>(isPrinted),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'sessionToken': serializer.toJson<String?>(sessionToken),
+      'photoUrl': serializer.toJson<String?>(photoUrl),
+      'gifUrl': serializer.toJson<String?>(gifUrl),
+      'uploadStatus': serializer.toJson<String>(uploadStatus),
+      'expiresAt': serializer.toJson<DateTime?>(expiresAt),
     };
   }
 
@@ -2380,7 +2495,12 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
           Value<String?> driveShareUrl = const Value.absent(),
           bool? isUploaded,
           bool? isPrinted,
-          DateTime? createdAt}) =>
+          DateTime? createdAt,
+          Value<String?> sessionToken = const Value.absent(),
+          Value<String?> photoUrl = const Value.absent(),
+          Value<String?> gifUrl = const Value.absent(),
+          String? uploadStatus,
+          Value<DateTime?> expiresAt = const Value.absent()}) =>
       SessionEntry(
         sessionId: sessionId ?? this.sessionId,
         voucherCode: voucherCode ?? this.voucherCode,
@@ -2397,6 +2517,12 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
         isUploaded: isUploaded ?? this.isUploaded,
         isPrinted: isPrinted ?? this.isPrinted,
         createdAt: createdAt ?? this.createdAt,
+        sessionToken:
+            sessionToken.present ? sessionToken.value : this.sessionToken,
+        photoUrl: photoUrl.present ? photoUrl.value : this.photoUrl,
+        gifUrl: gifUrl.present ? gifUrl.value : this.gifUrl,
+        uploadStatus: uploadStatus ?? this.uploadStatus,
+        expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
       );
   SessionEntry copyWithCompanion(SessionsTableCompanion data) {
     return SessionEntry(
@@ -2422,6 +2548,15 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
           data.isUploaded.present ? data.isUploaded.value : this.isUploaded,
       isPrinted: data.isPrinted.present ? data.isPrinted.value : this.isPrinted,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      sessionToken: data.sessionToken.present
+          ? data.sessionToken.value
+          : this.sessionToken,
+      photoUrl: data.photoUrl.present ? data.photoUrl.value : this.photoUrl,
+      gifUrl: data.gifUrl.present ? data.gifUrl.value : this.gifUrl,
+      uploadStatus: data.uploadStatus.present
+          ? data.uploadStatus.value
+          : this.uploadStatus,
+      expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
     );
   }
 
@@ -2439,7 +2574,12 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
           ..write('driveShareUrl: $driveShareUrl, ')
           ..write('isUploaded: $isUploaded, ')
           ..write('isPrinted: $isPrinted, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('sessionToken: $sessionToken, ')
+          ..write('photoUrl: $photoUrl, ')
+          ..write('gifUrl: $gifUrl, ')
+          ..write('uploadStatus: $uploadStatus, ')
+          ..write('expiresAt: $expiresAt')
           ..write(')'))
         .toString();
   }
@@ -2457,7 +2597,12 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
       driveShareUrl,
       isUploaded,
       isPrinted,
-      createdAt);
+      createdAt,
+      sessionToken,
+      photoUrl,
+      gifUrl,
+      uploadStatus,
+      expiresAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2473,7 +2618,12 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
           other.driveShareUrl == this.driveShareUrl &&
           other.isUploaded == this.isUploaded &&
           other.isPrinted == this.isPrinted &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.sessionToken == this.sessionToken &&
+          other.photoUrl == this.photoUrl &&
+          other.gifUrl == this.gifUrl &&
+          other.uploadStatus == this.uploadStatus &&
+          other.expiresAt == this.expiresAt);
 }
 
 class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
@@ -2489,6 +2639,11 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
   final Value<bool> isUploaded;
   final Value<bool> isPrinted;
   final Value<DateTime> createdAt;
+  final Value<String?> sessionToken;
+  final Value<String?> photoUrl;
+  final Value<String?> gifUrl;
+  final Value<String> uploadStatus;
+  final Value<DateTime?> expiresAt;
   final Value<int> rowid;
   const SessionsTableCompanion({
     this.sessionId = const Value.absent(),
@@ -2503,6 +2658,11 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
     this.isUploaded = const Value.absent(),
     this.isPrinted = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.sessionToken = const Value.absent(),
+    this.photoUrl = const Value.absent(),
+    this.gifUrl = const Value.absent(),
+    this.uploadStatus = const Value.absent(),
+    this.expiresAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SessionsTableCompanion.insert({
@@ -2518,6 +2678,11 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
     this.isUploaded = const Value.absent(),
     this.isPrinted = const Value.absent(),
     required DateTime createdAt,
+    this.sessionToken = const Value.absent(),
+    this.photoUrl = const Value.absent(),
+    this.gifUrl = const Value.absent(),
+    this.uploadStatus = const Value.absent(),
+    this.expiresAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : sessionId = Value(sessionId),
         voucherCode = Value(voucherCode),
@@ -2537,6 +2702,11 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
     Expression<bool>? isUploaded,
     Expression<bool>? isPrinted,
     Expression<DateTime>? createdAt,
+    Expression<String>? sessionToken,
+    Expression<String>? photoUrl,
+    Expression<String>? gifUrl,
+    Expression<String>? uploadStatus,
+    Expression<DateTime>? expiresAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2552,6 +2722,11 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
       if (isUploaded != null) 'is_uploaded': isUploaded,
       if (isPrinted != null) 'is_printed': isPrinted,
       if (createdAt != null) 'created_at': createdAt,
+      if (sessionToken != null) 'session_token': sessionToken,
+      if (photoUrl != null) 'photo_url': photoUrl,
+      if (gifUrl != null) 'gif_url': gifUrl,
+      if (uploadStatus != null) 'upload_status': uploadStatus,
+      if (expiresAt != null) 'expires_at': expiresAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2569,6 +2744,11 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
       Value<bool>? isUploaded,
       Value<bool>? isPrinted,
       Value<DateTime>? createdAt,
+      Value<String?>? sessionToken,
+      Value<String?>? photoUrl,
+      Value<String?>? gifUrl,
+      Value<String>? uploadStatus,
+      Value<DateTime?>? expiresAt,
       Value<int>? rowid}) {
     return SessionsTableCompanion(
       sessionId: sessionId ?? this.sessionId,
@@ -2583,6 +2763,11 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
       isUploaded: isUploaded ?? this.isUploaded,
       isPrinted: isPrinted ?? this.isPrinted,
       createdAt: createdAt ?? this.createdAt,
+      sessionToken: sessionToken ?? this.sessionToken,
+      photoUrl: photoUrl ?? this.photoUrl,
+      gifUrl: gifUrl ?? this.gifUrl,
+      uploadStatus: uploadStatus ?? this.uploadStatus,
+      expiresAt: expiresAt ?? this.expiresAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2626,6 +2811,21 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (sessionToken.present) {
+      map['session_token'] = Variable<String>(sessionToken.value);
+    }
+    if (photoUrl.present) {
+      map['photo_url'] = Variable<String>(photoUrl.value);
+    }
+    if (gifUrl.present) {
+      map['gif_url'] = Variable<String>(gifUrl.value);
+    }
+    if (uploadStatus.present) {
+      map['upload_status'] = Variable<String>(uploadStatus.value);
+    }
+    if (expiresAt.present) {
+      map['expires_at'] = Variable<DateTime>(expiresAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2647,6 +2847,11 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
           ..write('isUploaded: $isUploaded, ')
           ..write('isPrinted: $isPrinted, ')
           ..write('createdAt: $createdAt, ')
+          ..write('sessionToken: $sessionToken, ')
+          ..write('photoUrl: $photoUrl, ')
+          ..write('gifUrl: $gifUrl, ')
+          ..write('uploadStatus: $uploadStatus, ')
+          ..write('expiresAt: $expiresAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3993,6 +4198,11 @@ typedef $$SessionsTableTableCreateCompanionBuilder = SessionsTableCompanion
   Value<bool> isUploaded,
   Value<bool> isPrinted,
   required DateTime createdAt,
+  Value<String?> sessionToken,
+  Value<String?> photoUrl,
+  Value<String?> gifUrl,
+  Value<String> uploadStatus,
+  Value<DateTime?> expiresAt,
   Value<int> rowid,
 });
 typedef $$SessionsTableTableUpdateCompanionBuilder = SessionsTableCompanion
@@ -4009,6 +4219,11 @@ typedef $$SessionsTableTableUpdateCompanionBuilder = SessionsTableCompanion
   Value<bool> isUploaded,
   Value<bool> isPrinted,
   Value<DateTime> createdAt,
+  Value<String?> sessionToken,
+  Value<String?> photoUrl,
+  Value<String?> gifUrl,
+  Value<String> uploadStatus,
+  Value<DateTime?> expiresAt,
   Value<int> rowid,
 });
 
@@ -4058,6 +4273,21 @@ class $$SessionsTableTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sessionToken => $composableBuilder(
+      column: $table.sessionToken, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get photoUrl => $composableBuilder(
+      column: $table.photoUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get gifUrl => $composableBuilder(
+      column: $table.gifUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get uploadStatus => $composableBuilder(
+      column: $table.uploadStatus, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get expiresAt => $composableBuilder(
+      column: $table.expiresAt, builder: (column) => ColumnFilters(column));
 }
 
 class $$SessionsTableTableOrderingComposer
@@ -4107,6 +4337,23 @@ class $$SessionsTableTableOrderingComposer
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sessionToken => $composableBuilder(
+      column: $table.sessionToken,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get photoUrl => $composableBuilder(
+      column: $table.photoUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get gifUrl => $composableBuilder(
+      column: $table.gifUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get uploadStatus => $composableBuilder(
+      column: $table.uploadStatus,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get expiresAt => $composableBuilder(
+      column: $table.expiresAt, builder: (column) => ColumnOrderings(column));
 }
 
 class $$SessionsTableTableAnnotationComposer
@@ -4153,6 +4400,21 @@ class $$SessionsTableTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionToken => $composableBuilder(
+      column: $table.sessionToken, builder: (column) => column);
+
+  GeneratedColumn<String> get photoUrl =>
+      $composableBuilder(column: $table.photoUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get gifUrl =>
+      $composableBuilder(column: $table.gifUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get uploadStatus => $composableBuilder(
+      column: $table.uploadStatus, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get expiresAt =>
+      $composableBuilder(column: $table.expiresAt, builder: (column) => column);
 }
 
 class $$SessionsTableTableTableManager extends RootTableManager<
@@ -4193,6 +4455,11 @@ class $$SessionsTableTableTableManager extends RootTableManager<
             Value<bool> isUploaded = const Value.absent(),
             Value<bool> isPrinted = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
+            Value<String?> sessionToken = const Value.absent(),
+            Value<String?> photoUrl = const Value.absent(),
+            Value<String?> gifUrl = const Value.absent(),
+            Value<String> uploadStatus = const Value.absent(),
+            Value<DateTime?> expiresAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SessionsTableCompanion(
@@ -4208,6 +4475,11 @@ class $$SessionsTableTableTableManager extends RootTableManager<
             isUploaded: isUploaded,
             isPrinted: isPrinted,
             createdAt: createdAt,
+            sessionToken: sessionToken,
+            photoUrl: photoUrl,
+            gifUrl: gifUrl,
+            uploadStatus: uploadStatus,
+            expiresAt: expiresAt,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -4223,6 +4495,11 @@ class $$SessionsTableTableTableManager extends RootTableManager<
             Value<bool> isUploaded = const Value.absent(),
             Value<bool> isPrinted = const Value.absent(),
             required DateTime createdAt,
+            Value<String?> sessionToken = const Value.absent(),
+            Value<String?> photoUrl = const Value.absent(),
+            Value<String?> gifUrl = const Value.absent(),
+            Value<String> uploadStatus = const Value.absent(),
+            Value<DateTime?> expiresAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SessionsTableCompanion.insert(
@@ -4238,6 +4515,11 @@ class $$SessionsTableTableTableManager extends RootTableManager<
             isUploaded: isUploaded,
             isPrinted: isPrinted,
             createdAt: createdAt,
+            sessionToken: sessionToken,
+            photoUrl: photoUrl,
+            gifUrl: gifUrl,
+            uploadStatus: uploadStatus,
+            expiresAt: expiresAt,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

@@ -95,6 +95,12 @@ class SessionsTable extends Table {
   BoolColumn get isUploaded => boolean().withDefault(const Constant(false))();
   BoolColumn get isPrinted => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
+  // Supabase softcopy fields
+  TextColumn get sessionToken => text().nullable()();
+  TextColumn get photoUrl => text().nullable()();
+  TextColumn get gifUrl => text().nullable()();
+  TextColumn get uploadStatus => text().withDefault(const Constant('pending'))();
+  DateTimeColumn get expiresAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {sessionId};

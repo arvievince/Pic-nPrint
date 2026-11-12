@@ -33,7 +33,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -55,6 +55,20 @@ class AppDatabase extends _$AppDatabase {
                 SELECT code, location_id, tier_char, serial, price_snapshot, 1, expires_at, created_at, COALESCE(redeemed_at, created_at)
                 FROM vouchers_table WHERE status = 1;
               ''');
+            } catch (_) {}
+          }
+          if (from < 3) {
+            try {
+              await customStatement(
+                  'ALTER TABLE sessions_table ADD COLUMN session_token TEXT;');
+              await customStatement(
+                  'ALTER TABLE sessions_table ADD COLUMN photo_url TEXT;');
+              await customStatement(
+                  'ALTER TABLE sessions_table ADD COLUMN gif_url TEXT;');
+              await customStatement(
+                  "ALTER TABLE sessions_table ADD COLUMN upload_status TEXT NOT NULL DEFAULT 'pending';");
+              await customStatement(
+                  'ALTER TABLE sessions_table ADD COLUMN expires_at INTEGER;');
             } catch (_) {}
           }
         },

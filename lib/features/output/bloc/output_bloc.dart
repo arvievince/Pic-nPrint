@@ -3,38 +3,36 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/models/models.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../core/services/supabase_storage_service.dart';
 import '../../../core/services/printer_service.dart';
 import 'output_event.dart';
 import 'output_state.dart';
 
 /// Orchestrates the save → upload → print pipeline.
 ///
-/// Pipeline (in order):
-///   1. StorageService.saveLocalFiles()  → save composed image locally
-///   2. StorageService.uploadToDrive()   → upload to Google Drive (optional)
-///   3. PrinterService.printImage()      → send to thermal printer
-///
-/// The admin setting 'print_without_upload' controls whether step 3
-/// waits for step 2 to succeed. If upload fails, OutputUploadFailed is
-/// emitted but printing continues if that setting is true.
-///
-/// After OutputComplete → screen navigates to /qr (if driveUrl exists)
-/// or back to /attract (if no Drive configured).
-///
+/// Design constraints:
+///   1. Local save happens first to ensure files exist on disk.
+///   2. Printing and Supabase Cloud Upload run IN PARALLEL — printing
+///      never blocks or waits for upload to finish.
+///   3. If upload fails or local-only mode is active, printing still completes.
+///   4. When both complete, OutputComplete is emitted with photoUrl and gifUrl.
 class OutputBloc extends Bloc<OutputEvent, OutputState> {
-  final StorageService  _storageService;
-  final PrinterService  _printerService;
-  final AppDatabase     _db;
-  final SessionModel    session;
+  final StorageService _storageService;
+  final SupabaseStorageService _supabaseService;
+  final PrinterService _printerService;
+  final AppDatabase _db;
+  final SessionModel session;
 
   OutputBloc({
     required StorageService storageService,
+    required SupabaseStorageService supabaseService,
     required PrinterService printerService,
     required AppDatabase db,
     required this.session,
   })  : _storageService = storageService,
+        _supabaseService = supabaseService,
         _printerService = printerService,
-        _db             = db,
+        _db = db,
         super(const OutputSaving()) {
     on<OutputStarted>(_onStarted);
     on<UploadRetried>(_onUploadRetried);
@@ -45,7 +43,7 @@ class OutputBloc extends Bloc<OutputEvent, OutputState> {
     add(const OutputStarted());
   }
 
-  // ─── Pipeline ─────────────────────────────────────────────────────────────────
+  // ─── Pipeline ─────────────────────────────────────────────────────────────
 
   Future<void> _onStarted(
       OutputStarted event, Emitter<OutputState> emit) async {
@@ -54,44 +52,43 @@ class OutputBloc extends Bloc<OutputEvent, OutputState> {
     String? localPath;
     try {
       localPath = await _storageService.saveLocalFiles(session);
-    } catch (e) {
-      // Even if local save fails, continue
+    } catch (_) {
+      // Even if local save fails, continue with whatever path we have
+      localPath = session.composedImagePath;
     }
 
-    // Step 2: Upload to Drive (optional)
-    emit(const OutputUploading());
-    String? driveUrl;
-    final printWithoutUpload =
-        (await _db.getSetting('print_without_upload')) == 'true';
+    final sessionWithImage = session.copyWith(
+      composedImagePath: localPath ?? session.composedImagePath,
+    );
 
-    try {
-      driveUrl = await _storageService.uploadToDrive(
-        session.copyWith(composedImagePath: localPath),
-      );
-    } on StorageException catch (e) {
-      // Drive not configured — skip QR, continue to print
-      if (!e.toString().contains('not configured')) {
-        emit(OutputUploadFailed(e.toString()));
-        if (!printWithoutUpload) return;
-      }
-    } catch (e) {
-      emit(OutputUploadFailed(e.toString()));
-      if (!printWithoutUpload) return;
-    }
+    // Step 2: Parallel Print + Cloud Upload
+    emit(const OutputPrinting());
 
-    // Step 3: Print
-    await _doPrint(emit, localPath);
+    final uploadFuture = _doUpload(sessionWithImage);
+    final printFuture = _doPrint(emit, sessionWithImage.composedImagePath);
 
-    emit(OutputComplete(driveUrl: driveUrl));
+    final results = await Future.wait([
+      uploadFuture,
+      printFuture,
+    ], eagerError: false);
+
+    final uploadResult = results[0] as SupabaseUploadResult?;
+
+    emit(OutputComplete(
+      photoUrl: uploadResult?.photoUrl,
+      gifUrl: uploadResult?.gifUrl,
+    ));
   }
 
   Future<void> _onUploadRetried(
       UploadRetried event, Emitter<OutputState> emit) async {
     emit(const OutputUploading());
     try {
-      final driveUrl = await _storageService.uploadToDrive(session);
-      await _doPrint(emit, session.composedImagePath);
-      emit(OutputComplete(driveUrl: driveUrl));
+      final uploadResult = await _doUpload(session);
+      emit(OutputComplete(
+        photoUrl: uploadResult?.photoUrl,
+        gifUrl: uploadResult?.gifUrl,
+      ));
     } catch (e) {
       emit(OutputUploadFailed(e.toString()));
     }
@@ -106,17 +103,31 @@ class OutputBloc extends Bloc<OutputEvent, OutputState> {
     // Screen handles navigation back to attract — nothing to do in bloc.
   }
 
-  // ─── Helpers ─────────────────────────────────────────────────────────────────
+  // ─── Upload Helper ────────────────────────────────────────────────────────
+
+  Future<SupabaseUploadResult?> _doUpload(SessionModel currentSession) async {
+    try {
+      final isLocalOnly =
+          (await _db.getSetting('supabase_local_only')) == 'true';
+      if (isLocalOnly) return null;
+
+      return await _supabaseService.uploadSession(currentSession);
+    } catch (e) {
+      // Non-fatal: softcopy upload failure must not crash or prevent completion
+      return null;
+    }
+  }
+
+  // ─── Print Helper ─────────────────────────────────────────────────────────
 
   Future<void> _doPrint(
       Emitter<OutputState> emit, String? imagePath) async {
     if (imagePath == null) return;
 
-    emit(const OutputPrinting());
     try {
       final printers = await _db.getAllPrinters();
-      final defaultPrinter = printers.where((p) => p.isDefault).firstOrNull
-          ?? printers.firstOrNull;
+      final defaultPrinter =
+          printers.where((p) => p.isDefault).firstOrNull ?? printers.firstOrNull;
 
       if (defaultPrinter == null) {
         emit(const OutputPrintFailed('No printer configured.'));
@@ -124,13 +135,15 @@ class OutputBloc extends Bloc<OutputEvent, OutputState> {
       }
 
       final model = PrinterModel(
-        id:           defaultPrinter.id,
-        name:         defaultPrinter.name,
-        transport:    PrinterTransport.values.firstWhere(
-            (t) => t.name == defaultPrinter.transport),
-        address:      defaultPrinter.address,
+        id: defaultPrinter.id,
+        name: defaultPrinter.name,
+        transport: PrinterTransport.values.firstWhere(
+          (t) => t.name == defaultPrinter.transport,
+          orElse: () => PrinterTransport.network,
+        ),
+        address: defaultPrinter.address,
         paperWidthMm: defaultPrinter.paperWidthMm,
-        isDefault:    defaultPrinter.isDefault,
+        isDefault: defaultPrinter.isDefault,
       );
 
       await _printerService.printImage(printer: model, imagePath: imagePath);

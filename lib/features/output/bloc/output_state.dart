@@ -21,12 +21,24 @@ class OutputPrinting extends OutputState {
   const OutputPrinting();
 }
 
-/// All steps complete. [driveUrl] is null if Drive is not configured.
+/// All steps complete. [photoUrl] and [gifUrl] are softcopy cloud URLs from Supabase.
 class OutputComplete extends OutputState {
-  final String? driveUrl;
-  const OutputComplete({this.driveUrl});
+  final String? photoUrl;
+  final String? gifUrl;
+
+  const OutputComplete({
+    String? photoUrl,
+    this.gifUrl,
+    String? driveUrl,
+  }) : photoUrl = photoUrl ?? driveUrl;
+
+  /// Alias for backward compatibility
+  String? get driveUrl => photoUrl;
+  bool get hasSoftcopy => photoUrl != null && photoUrl!.trim().isNotEmpty;
+  bool get hasGifSoftcopy => gifUrl != null && gifUrl!.trim().isNotEmpty;
+
   @override
-  List<Object?> get props => [driveUrl];
+  List<Object?> get props => [photoUrl, gifUrl];
 }
 
 /// An upload failed but the admin chose to print without waiting.

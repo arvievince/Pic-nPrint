@@ -58,7 +58,7 @@ enum AdminSection {
   pricing,
   camera,
   printers,
-  drive,
+  supabase,
   branding,
   vouchers,
   sales,

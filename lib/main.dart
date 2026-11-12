@@ -10,6 +10,7 @@ import 'core/services/pricing_service.dart';
 import 'core/services/voucher_service.dart';
 import 'core/services/composition_service.dart';
 import 'core/services/storage_service.dart';
+import 'core/services/supabase_storage_service.dart';
 import 'core/services/printer_service.dart';
 import 'core/services/security_service.dart';
 import 'core/theme/app_theme.dart';
@@ -28,13 +29,20 @@ void main() async {
   final storageService = StorageService(db);
   storageService.runCleanup().catchError((_) {});
 
+  final supabaseStorageService = SupabaseStorageService(db);
+  supabaseStorageService.runCleanup().catchError((_) {});
+
   // ── Check first-run ───────────────────────────────────────────────────────
   // (FirstRunScreen check happens in AttractScreen — if no password is set,
   //  the admin route redirects to /first-run)
   runApp(
     DevicePreview(
       enabled: kDebugMode,
-      builder: (context) => MyApp(db: db, storageService: storageService),
+      builder: (context) => MyApp(
+        db: db,
+        storageService: storageService,
+        supabaseStorageService: supabaseStorageService,
+      ),
     ),
   );
 }
@@ -42,8 +50,15 @@ void main() async {
 class MyApp extends StatelessWidget {
   final AppDatabase db;
   final StorageService storageService;
+  final SupabaseStorageService supabaseStorageService;
 
-  const MyApp({super.key, required this.db, required this.storageService});
+  MyApp({
+    super.key,
+    required this.db,
+    required this.storageService,
+    SupabaseStorageService? supabaseStorageService,
+  }) : supabaseStorageService =
+            supabaseStorageService ?? SupabaseStorageService(db);
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +70,8 @@ class MyApp extends StatelessWidget {
         RepositoryProvider(create: (_) => VoucherService(db)),
         RepositoryProvider(create: (_) => CompositionService()),
         RepositoryProvider<StorageService>.value(value: storageService),
+        RepositoryProvider<SupabaseStorageService>.value(
+            value: supabaseStorageService),
         RepositoryProvider(create: (_) => PrinterService()),
         RepositoryProvider(create: (_) => SecurityService(db)),
       ],

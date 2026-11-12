@@ -57,7 +57,8 @@ class _OutputScreenState extends State<OutputScreen>
     final db = context.read<AppDatabase>();
     final logo = await db.getSetting('kiosk_logo_path');
     final title = await db.getSetting('kiosk_title');
-    final timeoutStr = await db.getSetting('drive_qr_timeout_seconds');
+    final timeoutStr = (await db.getSetting('qr_timeout_seconds')) ??
+        (await db.getSetting('drive_qr_timeout_seconds'));
 
     if (mounted) {
       setState(() {
@@ -110,6 +111,7 @@ class _OutputScreenState extends State<OutputScreen>
     return BlocProvider(
       create: (context) => OutputBloc(
         storageService: context.read(),
+        supabaseService: context.read(),
         printerService: context.read(),
         db: context.read(),
         session: widget.session,
@@ -167,7 +169,8 @@ class _OutputScreenState extends State<OutputScreen>
                           child: state is OutputComplete
                               ? _ReadyBottomSection(
                                   key: const ValueKey('ready_section'),
-                                  driveUrl: state.driveUrl,
+                                  photoUrl: state.photoUrl,
+                                  gifUrl: state.gifUrl,
                                   countdown: _countdownRemaining,
                                   onFinish: _finishSession,
                                 )
@@ -622,22 +625,44 @@ class _PrintingBottomSection extends StatelessWidget {
 
 // ─── State 2: Ready & Softcopy QR Bottom Section ─────────────────────────────
 
-class _ReadyBottomSection extends StatelessWidget {
-  final String? driveUrl;
+class _ReadyBottomSection extends StatefulWidget {
+  final String? photoUrl;
+  final String? gifUrl;
   final int countdown;
   final VoidCallback onFinish;
 
   const _ReadyBottomSection({
     super.key,
-    this.driveUrl,
+    this.photoUrl,
+    this.gifUrl,
     required this.countdown,
     required this.onFinish,
   });
 
   @override
+  State<_ReadyBottomSection> createState() => _ReadyBottomSectionState();
+}
+
+class _ReadyBottomSectionState extends State<_ReadyBottomSection> {
+  // 0 = Photo, 1 = GIF
+  int _selectedTab = 0;
+
+  @override
   Widget build(BuildContext context) {
-    if (driveUrl != null && driveUrl!.trim().isNotEmpty) {
-      // ── Drive Configured: QR Softcopy Card + Instructions + Finish Button ──
+    final photoUrl = widget.photoUrl?.trim();
+    final gifUrl = widget.gifUrl?.trim();
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+    final hasGif = gifUrl != null && gifUrl.isNotEmpty;
+
+    // Active QR data based on selected tab
+    final currentQrData = (_selectedTab == 1 && hasGif) ? gifUrl : photoUrl;
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth >= 600;
+    // Increased size: 154 on tablet / 128 on phone
+    final qrSize = isTablet ? 154.0 : 128.0;
+
+    if (currentQrData != null && currentQrData.isNotEmpty) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
@@ -656,76 +681,141 @@ class _ReadyBottomSection extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Left: Clean QR Code in rounded sub-card
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFAF9F6),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE4E0D6)),
+            // Left: Clean QR Code in rounded card (Tap to enlarge)
+            GestureDetector(
+              onTap: () => _showLargeQrDialog(
+                context,
+                currentQrData,
+                _selectedTab == 1,
               ),
-              child: QrImageView(
-                data: driveUrl!,
-                size: 96,
-                backgroundColor: Colors.transparent,
-                eyeStyle: const QrEyeStyle(
-                  eyeShape: QrEyeShape.square,
-                  color: Color(0xFF1A1A1A),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFAF9F6),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE4E0D6)),
                 ),
-                dataModuleStyle: const QrDataModuleStyle(
-                  dataModuleShape: QrDataModuleShape.square,
-                  color: Color(0xFF1A1A1A),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    QrImageView(
+                      data: currentQrData,
+                      size: qrSize,
+                      padding: EdgeInsets.zero,
+                      backgroundColor: Colors.transparent,
+                      eyeStyle: const QrEyeStyle(
+                        eyeShape: QrEyeShape.square,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                      dataModuleStyle: const QrDataModuleStyle(
+                        dataModuleShape: QrDataModuleShape.square,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.fullscreen_rounded,
+                          size: 13,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                        SizedBox(width: 2),
+                        Text(
+                          'Tap to expand',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF9CA3AF),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
 
             const SizedBox(width: 16),
 
-            // Right: Softcopy instructions + Finish button
+            // Right: Softcopy instructions + Tab toggle + Finish button
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Scan for your softcopy',
-                    style: TextStyle(
+                  // Photo / GIF Tab selector (only if both are present)
+                  if (hasPhoto && hasGif) ...[
+                    Container(
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F0E6),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      padding: const EdgeInsets.all(2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildTabButton(
+                            title: 'Photo',
+                            icon: Icons.photo_rounded,
+                            isSelected: _selectedTab == 0,
+                            onTap: () => setState(() => _selectedTab = 0),
+                          ),
+                          _buildTabButton(
+                            title: 'GIF',
+                            icon: Icons.gif_box_rounded,
+                            isSelected: _selectedTab == 1,
+                            onTap: () => setState(() => _selectedTab = 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  Text(
+                    _selectedTab == 1
+                        ? 'Scan for your GIF'
+                        : 'Scan for your softcopy',
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF1A1A1A),
                       letterSpacing: -0.2,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   const Text(
-                    'Open your phone camera and point it at the code.',
+                    'Point your phone camera • Available for 7 days',
                     style: TextStyle(
                       fontSize: 12,
                       color: Color(0xFF6B7280),
-                      height: 1.3,
+                      height: 1.25,
                     ),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
-                    height: 40,
+                    height: 42,
                     child: ElevatedButton(
-                      onPressed: onFinish,
+                      onPressed: widget.onFinish,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black, // Vibrant coral
+                        backgroundColor: Colors.black,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(21),
                         ),
                       ),
                       child: Text(
-                        'Finish', //$countdown
+                        'Finish',
                         style:
                             Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.w900,
-                                  letterSpacing: 1,
-                                  fontSize: 20,
+                                  letterSpacing: 0.8,
+                                  fontSize: 17,
                                   color: Colors.white,
                                   height: 1.1,
                                 ),
@@ -740,7 +830,7 @@ class _ReadyBottomSection extends StatelessWidget {
       );
     }
 
-    // ── Drive NOT Configured: Clean Ready Confirmation + Finish Button ──
+    // ── Cloud NOT Configured or Local Only: Clean Ready Confirmation + Finish Button ──
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -748,7 +838,7 @@ class _ReadyBottomSection extends StatelessWidget {
           width: 250,
           height: 60,
           child: ElevatedButton(
-            onPressed: onFinish,
+            onPressed: widget.onFinish,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.black,
               foregroundColor: Colors.white,
@@ -758,7 +848,7 @@ class _ReadyBottomSection extends StatelessWidget {
               ),
             ),
             child: Text(
-              'Finish', //($countdown s)
+              'Finish',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.50,
@@ -769,6 +859,121 @@ class _ReadyBottomSection extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildTabButton({
+    required String title,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.black : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 13,
+              color: isSelected ? Colors.white : const Color(0xFF6B7280),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? Colors.white : const Color(0xFF6B7280),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLargeQrDialog(BuildContext context, String qrData, bool isGif) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                isGif ? 'Scan for GIF' : 'Scan for Softcopy',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Point your phone camera to download • 7 days',
+                style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFAF9F6),
+                  borderRadius: BorderRadius.circular(20),
+                  border:
+                      Border.all(color: const Color(0xFFE4E0D6), width: 1.5),
+                ),
+                child: QrImageView(
+                  data: qrData,
+                  size: 260,
+                  padding: EdgeInsets.zero,
+                  backgroundColor: Colors.transparent,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                width: 150,
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                  ),
+                  child: const Text(
+                    'Close',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
