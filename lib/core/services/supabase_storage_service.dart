@@ -43,6 +43,65 @@ class SupabaseStorageService {
 
   // ─── Public API ───────────────────────────────────────────────────────────
 
+  /// Generates a random, secure 32-character hex key suitable for kiosk credentials.
+  static String generateRandomKioskKey() {
+    final rand = Random.secure();
+    final bytes = List<int>.generate(16, (_) => rand.nextInt(256));
+    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  }
+
+  /// Register or update a kiosk in Supabase automatically from the admin screen.
+  /// Eliminates the need to manually write SQL queries in the Supabase Dashboard.
+  /// Returns null on success, or an error message string on failure.
+  Future<String?> registerKiosk({
+    required String projectUrl,
+    required String anonKey,
+    required String locationId,
+    required String kioskKey,
+    String? setupToken,
+  }) async {
+    final cleanUrl = _normalizeProjectUrl(projectUrl);
+    if (cleanUrl.isEmpty) return 'Project URL is required';
+    if (anonKey.trim().isEmpty) return 'Anon / publishable key is required';
+    final cleanLoc = locationId.trim().toUpperCase();
+    if (!RegExp(r'^[A-Z0-9]{2,8}$').hasMatch(cleanLoc)) {
+      return 'Location ID must be 2–8 uppercase letters/numbers (e.g. QC, MNL1)';
+    }
+    final cleanKey = kioskKey.trim();
+    if (cleanKey.length < 8) {
+      return 'Kiosk key must be at least 8 characters long';
+    }
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$cleanUrl/functions/v1/pb-register-kiosk'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${anonKey.trim()}',
+            },
+            body: jsonEncode({
+              'location_id': cleanLoc,
+              'kiosk_key': cleanKey,
+              if (setupToken != null && setupToken.trim().isNotEmpty)
+                'setup_token': setupToken.trim(),
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200 && body['ok'] == true) {
+        return null; // Success
+      }
+      return body['error']?.toString() ??
+          'Registration failed (HTTP ${response.statusCode})';
+    } on SocketException {
+      return 'No internet connection';
+    } catch (e) {
+      return 'Registration error: $e';
+    }
+  }
+
   /// Test whether the Supabase backend is reachable and the kiosk key is valid.
   /// Returns the error message, or null if the connection is healthy.
   Future<String?> testConnection() async {

@@ -1679,6 +1679,7 @@ class _SupabaseSectionState extends State<_SupabaseSection> {
   late final TextEditingController _anonKeyCtrl;
   late final TextEditingController _locationIdCtrl;
   late final TextEditingController _kioskKeyCtrl;
+  late final TextEditingController _setupPasswordCtrl;
   late final TextEditingController _qrTimeoutCtrl;
   bool _isSaving = false;
   bool _isTesting = false;
@@ -1687,6 +1688,7 @@ class _SupabaseSectionState extends State<_SupabaseSection> {
   bool _localOnly = false;
   bool _obscureAnonKey = true;
   bool _obscureKioskKey = true;
+  bool _obscureSetupPassword = true;
 
   @override
   void initState() {
@@ -1703,6 +1705,7 @@ class _SupabaseSectionState extends State<_SupabaseSection> {
     _kioskKeyCtrl = TextEditingController(
       text: widget.settings['supabase_kiosk_key'] ?? '',
     );
+    _setupPasswordCtrl = TextEditingController();
     _qrTimeoutCtrl = TextEditingController(
       text: widget.settings['qr_timeout_seconds'] ?? '60',
     );
@@ -1715,30 +1718,74 @@ class _SupabaseSectionState extends State<_SupabaseSection> {
     _anonKeyCtrl.dispose();
     _locationIdCtrl.dispose();
     _kioskKeyCtrl.dispose();
+    _setupPasswordCtrl.dispose();
     _qrTimeoutCtrl.dispose();
     super.dispose();
   }
 
-  void _saveSettings() {
+  Future<void> _saveAndRegisterKiosk() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _isSaving = true);
+
+    final url = _urlCtrl.text.trim();
+    final anonKey = _anonKeyCtrl.text.trim();
+    final locationId = _locationIdCtrl.text.trim().toUpperCase();
+    final kioskKey = _kioskKeyCtrl.text.trim();
+    final setupToken = _setupPasswordCtrl.text.trim();
+
+    final svc = context.read<SupabaseStorageService>();
+
+    // 1. Register automatically with Supabase Edge Function
+    final regError = await svc.registerKiosk(
+      projectUrl: url,
+      anonKey: anonKey,
+      locationId: locationId,
+      kioskKey: kioskKey,
+      setupToken: setupToken.isNotEmpty ? setupToken : null,
+    );
+
+    if (regError != null) {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+        _testOk = false;
+        _testResult = 'Registration error: $regError';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Registration Error: $regError'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    // 2. Persist to local database
+    if (!mounted) return;
     context.read<AdminBloc>().add(AdminMultipleSettingsUpdated({
-          'supabase_url': _urlCtrl.text.trim(),
-          'supabase_anon_key': _anonKeyCtrl.text.trim(),
-          'supabase_location_id': _locationIdCtrl.text.trim().toUpperCase(),
-          'supabase_kiosk_key': _kioskKeyCtrl.text.trim(),
+          'supabase_url': url,
+          'supabase_anon_key': anonKey,
+          'supabase_location_id': locationId,
+          'supabase_kiosk_key': kioskKey,
           'qr_timeout_seconds': _qrTimeoutCtrl.text.trim().isEmpty
               ? '60'
               : _qrTimeoutCtrl.text.trim(),
           'supabase_local_only': _localOnly ? 'true' : 'false',
         }));
+
+    if (!mounted) return;
+    setState(() {
+      _isSaving = false;
+      _testOk = true;
+      _testResult = 'Kiosk registered & connected ✓';
+    });
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Supabase settings saved!'),
+      SnackBar(
+        content: Text('Kiosk $locationId successfully registered & saved!'),
         backgroundColor: AppColors.success,
       ),
     );
-    setState(() => _isSaving = false);
   }
 
   Future<void> _testConnection() async {
@@ -1844,15 +1891,33 @@ class _SupabaseSectionState extends State<_SupabaseSection> {
           ),
           const SizedBox(height: 20),
 
-          // Kiosk Key
-          Text('Kiosk Secret Key',
-              style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 6),
+          // Kiosk Key with Generate Button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Kiosk Secret Key',
+                  style: Theme.of(context).textTheme.bodyMedium),
+              TextButton.icon(
+                icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                label: const Text(
+                  'Generate Key',
+                  style: TextStyle(fontSize: 12),
+                ),
+                onPressed: () {
+                  final key = SupabaseStorageService.generateRandomKioskKey();
+                  setState(() {
+                    _kioskKeyCtrl.text = key;
+                  });
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
           TextFormField(
             controller: _kioskKeyCtrl,
             obscureText: _obscureKioskKey,
             decoration: InputDecoration(
-              hintText: '64-character hex key for this location',
+              hintText: 'Any secret key (or tap Generate Key above)',
               suffixIcon: IconButton(
                 icon: Icon(_obscureKioskKey
                     ? Icons.visibility_rounded
@@ -1861,8 +1926,33 @@ class _SupabaseSectionState extends State<_SupabaseSection> {
                     setState(() => _obscureKioskKey = !_obscureKioskKey),
               ),
             ),
-            validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Required' : null,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Required';
+              if (v.trim().length < 8) return 'Must be at least 8 characters';
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+
+          // Master Setup Password (Optional)
+          Text('Master Setup Password (Optional)',
+              style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _setupPasswordCtrl,
+            obscureText: _obscureSetupPassword,
+            decoration: InputDecoration(
+              hintText: 'Only needed if PB_SETUP_PASSWORD is set in Supabase',
+              helperText:
+                  'Automates registration in Supabase without running any SQL.',
+              suffixIcon: IconButton(
+                icon: Icon(_obscureSetupPassword
+                    ? Icons.visibility_rounded
+                    : Icons.visibility_off_rounded),
+                onPressed: () => setState(
+                    () => _obscureSetupPassword = !_obscureSetupPassword),
+              ),
+            ),
           ),
           const SizedBox(height: 20),
 
@@ -1927,7 +2017,7 @@ class _SupabaseSectionState extends State<_SupabaseSection> {
           ),
           const SizedBox(height: 24),
 
-          // Save button
+          // Save & Register button
           SizedBox(
             height: 52,
             child: ElevatedButton.icon(
@@ -1938,9 +2028,11 @@ class _SupabaseSectionState extends State<_SupabaseSection> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2.5, color: Colors.white),
                     )
-                  : const Icon(Icons.save_rounded),
-              label: Text(_isSaving ? 'Saving...' : 'Save Settings'),
-              onPressed: _isSaving ? null : _saveSettings,
+                  : const Icon(Icons.cloud_upload_rounded),
+              label: Text(_isSaving
+                  ? 'Registering Kiosk...'
+                  : 'Save & Register Kiosk'),
+              onPressed: _isSaving ? null : _saveAndRegisterKiosk,
             ),
           ),
           const SizedBox(height: 32),
