@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -427,18 +428,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
             ColorFiltered(
               colorFilter: _selectedFilter.colorFilter,
               child: hasLiveCamera
-                  ? SizedBox.expand(
-                      child: FittedBox(
-                        fit: BoxFit.cover,
-                        child: SizedBox(
-                          width: _cameraController!.value.previewSize?.height ??
-                              720,
-                          height: _cameraController!.value.previewSize?.width ??
-                              1280,
-                          child: CameraPreview(_cameraController!),
-                        ),
-                      ),
-                    )
+                  ? _buildLiveCameraPreview()
                   : _buildCameraFallback(),
             ),
 
@@ -570,6 +560,55 @@ class _CaptureScreenState extends State<CaptureScreen> {
         ),
       ),
     );
+  }
+
+  /// Builds the live camera preview without any anamorphic stretching or compression.
+  /// Handles platform differences (Windows unrotated landscape vs Android RotatedBox).
+  Widget _buildLiveCameraPreview() {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return _buildCameraFallback();
+    }
+
+    final previewSize = _cameraController!.value.previewSize;
+    if (previewSize == null) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white70),
+      );
+    }
+
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      // ── Desktop / Windows: Webcams output unrotated native landscape ──────
+      // Using controller.buildPreview() directly with native dimensions
+      // avoids the inverted AspectRatio bug in Flutter's CameraPreview widget.
+      return SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          clipBehavior: Clip.hardEdge,
+          child: SizedBox(
+            width: previewSize.width,
+            height: previewSize.height,
+            child: _cameraController!.buildPreview(),
+          ),
+        ),
+      );
+    } else {
+      // ── Android / iOS: Camera sensor is rotated via RotatedBox in CameraPreview ─
+      // Use portrait-normalized dimensions (minDim x maxDim) to preserve true ratio
+      final double portraitWidth = min(previewSize.width, previewSize.height);
+      final double portraitHeight = max(previewSize.width, previewSize.height);
+
+      return SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          clipBehavior: Clip.hardEdge,
+          child: SizedBox(
+            width: portraitWidth,
+            height: portraitHeight,
+            child: CameraPreview(_cameraController!),
+          ),
+        ),
+      );
+    }
   }
 
   /// Displayed inside the viewport when the camera is initializing or missing.

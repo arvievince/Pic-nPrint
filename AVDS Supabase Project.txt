@@ -1,0 +1,4 @@
+AVDS Supabase Project
+
+base url: https://twlycoimexufeilnpgaa.supabase.co
+anon_key: sb_publishable_IEppeewHz96Rpf9uTp-3Nw_PTnprhyK
