@@ -28,6 +28,7 @@ class EditorScreen extends StatefulWidget {
 class _EditorScreenState extends State<EditorScreen> {
   final GlobalKey _canvasKey = GlobalKey();
   bool _isCapturing = false;
+  bool _renderForPrint = false;
   String? _logoPath;
   String? _brandText;
   late CameraFilter _activeFilter;
@@ -100,12 +101,17 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   Future<void> _handleDone(BuildContext context) async {
+    final editorBloc = context.read<EditorBloc>();
+    final needsWhiteFrameForPrint =
+        editorBloc.state.frameColor.toARGB32() != Colors.white.toARGB32();
+
     setState(() => _isCapturing = true);
 
     // Wait for the UI to rebuild without editing chrome / delete buttons
     await Future.delayed(const Duration(milliseconds: 60));
 
     Uint8List? pngBytes;
+    Uint8List? printBytes;
     try {
       final boundary = _canvasKey.currentContext?.findRenderObject()
           as RenderRepaintBoundary?;
@@ -116,17 +122,35 @@ class _EditorScreenState extends State<EditorScreen> {
             await uiImage.toByteData(format: ui.ImageByteFormat.png);
         pngBytes = byteData?.buffer.asUint8List();
       }
+
+      // Check if frame color is not white: capture a clean white-frame version for thermal printer
+      if (needsWhiteFrameForPrint && mounted) {
+        setState(() => _renderForPrint = true);
+        await Future.delayed(const Duration(milliseconds: 60));
+        final printBoundary = _canvasKey.currentContext?.findRenderObject()
+            as RenderRepaintBoundary?;
+        if (printBoundary != null) {
+          final printUiImage = await printBoundary.toImage(pixelRatio: 3.5);
+          final printByteData =
+              await printUiImage.toByteData(format: ui.ImageByteFormat.png);
+          printBytes = printByteData?.buffer.asUint8List();
+        }
+      }
     } catch (e) {
       debugPrint('[EditorScreen] Error capturing canvas snapshot: $e');
     } finally {
       if (mounted) {
-        setState(() => _isCapturing = false);
+        setState(() {
+          _isCapturing = false;
+          _renderForPrint = false;
+        });
       }
     }
 
-    if (context.mounted) {
-      context.read<EditorBloc>().add(EditorConfirmed(renderedBytes: pngBytes));
-    }
+    editorBloc.add(EditorConfirmed(
+      renderedBytes: pngBytes,
+      printBytes: printBytes,
+    ));
   }
 
   @override
@@ -143,6 +167,7 @@ class _EditorScreenState extends State<EditorScreen> {
           if (state.composedPath != null && !state.isComposing) {
             final updated = widget.session.copyWith(
               composedImagePath: state.composedPath,
+              printImagePath: state.printPath,
               filter: _activeFilter.name,
             );
             context.goNamed(AppRoute.output, extra: updated);
@@ -232,6 +257,7 @@ class _EditorScreenState extends State<EditorScreen> {
                     editorState: state,
                     canvasKey: _canvasKey,
                     isCapturing: _isCapturing,
+                    renderForPrint: _renderForPrint,
                     logoPath: _logoPath,
                     brandText: _brandText,
                     activeFilter: _activeFilter,
@@ -273,6 +299,7 @@ class _EditorCanvas extends StatelessWidget {
   final EditorState editorState;
   final GlobalKey canvasKey;
   final bool isCapturing;
+  final bool renderForPrint;
   final String? logoPath;
   final String? brandText;
   final CameraFilter activeFilter;
@@ -284,6 +311,7 @@ class _EditorCanvas extends StatelessWidget {
     required this.editorState,
     required this.canvasKey,
     required this.isCapturing,
+    this.renderForPrint = false,
     this.logoPath,
     this.brandText,
     required this.activeFilter,
@@ -327,10 +355,16 @@ class _EditorCanvas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasLogo = logoPath != null && File(logoPath!).existsSync();
-    final double headerHeight = 48.0;
-    final double footerHeight = 80.0;
+    final double footerHeight = 70.0;
 
-    final double radius = isCapturing ? 0.0 : 16.0;
+    final double radius = isCapturing ? 0.0 : 0.0;
+    final Color frameColor =
+        renderForPrint ? Colors.white : editorState.frameColor;
+    final bool isDarkFrame = frameColor.computeLuminance() < 0.5;
+    final Color brandColor = isDarkFrame ? Colors.white : Colors.black;
+    // Detect if a non-white frame color is active
+    final bool hasCustomFrameColor =
+        frameColor.toARGB32() != Colors.white.toARGB32();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -369,7 +403,7 @@ class _EditorCanvas extends StatelessWidget {
               key: canvasKey,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: frameColor,
                   borderRadius: BorderRadius.circular(radius),
                 ),
                 child: ClipRRect(
@@ -381,9 +415,53 @@ class _EditorCanvas extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          const SizedBox(
+                            height: 8,
+                          ),
+
+                          // Middle: Photo Layout edge-to-edge (no left/right space)
+                          Expanded(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: _buildPhotoLayout(frameColor),
+                            ),
+                          ),
+
+                          // Bottom Footer: Universal Session Barcode
+                          // SizedBox(
+                          //   height: footerHeight,
+                          //   child: Center(
+                          //     child: Padding(
+                          //       padding: const EdgeInsets.symmetric(
+                          //         vertical: 0,
+                          //         horizontal: 8,
+                          //       ),
+                          //       // child: ConstrainedBox(
+                          //       //   constraints: const BoxConstraints(
+                          //       //     maxWidth: 450,
+                          //       //     maxHeight: 60,
+                          //       //   ),
+                          //       //   child: BarcodeWidget(
+                          //       //     barcode: Barcode.code128(),
+                          //       //     data: session.sessionId,
+                          //       //     drawText: true,
+                          //       //     style: const TextStyle(
+                          //       //       color: Colors.white,
+                          //       //       fontSize: 9,
+                          //       //       fontWeight: FontWeight.w600,
+                          //       //       letterSpacing: 0.5,
+                          //       //     ),
+                          //       //     color: Colors.black,
+                          //       //   ),
+                          //       // ),
+                          //     ),
+                          //   ),
+                          // ),
+
                           // Top Header with Logo (Always visible and displayed)
                           SizedBox(
-                            height: headerHeight,
+                            height: footerHeight,
                             child: Center(
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
@@ -395,15 +473,22 @@ class _EditorCanvas extends StatelessWidget {
                                         File(logoPath!),
                                         fit: BoxFit.contain,
                                         filterQuality: FilterQuality.high,
+                                        // Apply brandColor filter when a non-white frame color is selected
+                                        color: hasCustomFrameColor
+                                            ? brandColor
+                                            : null,
+                                        colorBlendMode: hasCustomFrameColor
+                                            ? BlendMode.srcIn
+                                            : null,
                                       )
                                     : Row(
                                         mainAxisSize: MainAxisSize.min,
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
-                                          const Icon(
+                                          Icon(
                                             Icons.camera_alt_rounded,
-                                            color: AppColors.primary,
+                                            color: brandColor,
                                             size: 20,
                                           ),
                                           const SizedBox(width: 8),
@@ -414,8 +499,8 @@ class _EditorCanvas extends StatelessWidget {
                                                         .isNotEmpty)
                                                 ? brandText!.trim()
                                                 : 'Pic & Print',
-                                            style: const TextStyle(
-                                              color: AppColors.primary,
+                                            style: TextStyle(
+                                              color: brandColor,
                                               fontWeight: FontWeight.w800,
                                               fontSize: 16,
                                               letterSpacing: 1.2,
@@ -427,65 +512,8 @@ class _EditorCanvas extends StatelessWidget {
                             ),
                           ),
 
-                          const SizedBox(
-                            height: 8,
-                          ),
-
-                          // Middle: Photo Layout edge-to-edge (no left/right space)
-                          Expanded(
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8.0),
-                                  child: _buildPhotoLayout(),
-                                ),
-                                if (editorState.borderAssetPath != null)
-                                  _BorderOverlay(
-                                    borderId: editorState.borderAssetPath!,
-                                  ),
-                              ],
-                            ),
-                          ),
-
                           // const SizedBox(
-                          //   height: 16,
-                          // ),
-
-                          // Bottom Footer: Universal Session Barcode
-                          SizedBox(
-                            height: footerHeight,
-                            child: Center(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 0,
-                                  horizontal: 8,
-                                ),
-                                // child: ConstrainedBox(
-                                //   constraints: const BoxConstraints(
-                                //     maxWidth: 450,
-                                //     maxHeight: 60,
-                                //   ),
-                                //   child: BarcodeWidget(
-                                //     barcode: Barcode.code128(),
-                                //     data: session.sessionId,
-                                //     drawText: true,
-                                //     style: const TextStyle(
-                                //       color: Colors.white,
-                                //       fontSize: 9,
-                                //       fontWeight: FontWeight.w600,
-                                //       letterSpacing: 0.5,
-                                //     ),
-                                //     color: Colors.black,
-                                //   ),
-                                // ),
-                              ),
-                            ),
-                          ),
-
-                          // const SizedBox(
-                          //   height: 4,
+                          //   height: 8,
                           // )
                         ],
                       ),
@@ -529,7 +557,7 @@ class _EditorCanvas extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: AppColors.primary,
+                      color: AppColors.error,
                       width: 3.5,
                     ),
                   ),
@@ -543,7 +571,7 @@ class _EditorCanvas extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: AppColors.error,
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: const [
                     BoxShadow(
@@ -580,7 +608,7 @@ class _EditorCanvas extends StatelessWidget {
     );
   }
 
-  Widget _buildPhotoLayout() {
+  Widget _buildPhotoLayout(Color frameColor) {
     final paths = session.imagePaths;
 
     if (paths.isEmpty) return _errorPlaceholder();
@@ -600,12 +628,12 @@ class _EditorCanvas extends StatelessWidget {
 
       case LayoutType.verticalStrip:
         return Container(
-          color: Colors.white,
+          color: frameColor,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (int i = 0; i < paths.length; i++) ...[
-                if (i > 0) Container(height: 4, color: Colors.white),
+                if (i > 0) Container(height: 8, color: frameColor),
                 Expanded(child: _buildSelectableImage(paths[i], i)),
               ],
             ],
@@ -614,12 +642,12 @@ class _EditorCanvas extends StatelessWidget {
 
       case LayoutType.horizontalRow:
         return Container(
-          color: Colors.white,
+          color: frameColor,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (int i = 0; i < paths.length; i++) ...[
-                if (i > 0) Container(width: 4, color: Colors.white),
+                if (i > 0) Container(width: 4, color: frameColor),
                 Expanded(child: _buildSelectableImage(paths[i], i)),
               ],
             ],
@@ -628,7 +656,7 @@ class _EditorCanvas extends StatelessWidget {
 
       case LayoutType.grid2x2:
         return Container(
-          color: Colors.white,
+          color: frameColor,
           child: Column(
             children: [
               Expanded(
@@ -636,7 +664,7 @@ class _EditorCanvas extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(child: _buildSelectableImage(paths[0], 0)),
-                    Container(width: 4, color: Colors.white),
+                    Container(width: 4, color: frameColor),
                     Expanded(
                       child: _buildSelectableImage(
                         paths.length > 1 ? paths[1] : paths[0],
@@ -646,7 +674,7 @@ class _EditorCanvas extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(height: 4, color: Colors.white),
+              Container(height: 4, color: frameColor),
               Expanded(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -657,7 +685,7 @@ class _EditorCanvas extends StatelessWidget {
                         2,
                       ),
                     ),
-                    Container(width: 4, color: Colors.white),
+                    Container(width: 4, color: frameColor),
                     Expanded(
                       child: _buildSelectableImage(
                         paths.length > 3 ? paths[3] : paths[0],
@@ -673,17 +701,17 @@ class _EditorCanvas extends StatelessWidget {
 
       case LayoutType.grid2x3:
         return Container(
-          color: Colors.white,
+          color: frameColor,
           child: Column(
             children: [
               for (int row = 0; row < 3; row++) ...[
-                if (row > 0) Container(height: 4, color: Colors.white),
+                if (row > 0) Container(height: 4, color: frameColor),
                 Expanded(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       for (int col = 0; col < 2; col++) ...[
-                        if (col > 0) Container(width: 4, color: Colors.white),
+                        if (col > 0) Container(width: 4, color: frameColor),
                         Expanded(
                           child: _buildSelectableImage(
                             paths.length > (row * 2 + col)
@@ -703,17 +731,17 @@ class _EditorCanvas extends StatelessWidget {
 
       case LayoutType.grid2x4:
         return Container(
-          color: Colors.white,
+          color: frameColor,
           child: Column(
             children: [
               for (int row = 0; row < 4; row++) ...[
-                if (row > 0) Container(height: 4, color: Colors.white),
+                if (row > 0) Container(height: 4, color: frameColor),
                 Expanded(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       for (int col = 0; col < 2; col++) ...[
-                        if (col > 0) Container(width: 4, color: Colors.white),
+                        if (col > 0) Container(width: 4, color: frameColor),
                         Expanded(
                           child: _buildSelectableImage(
                             paths.length > (row * 2 + col)
@@ -1120,79 +1148,6 @@ class _AdjustablePhotoSlotState extends State<_AdjustablePhotoSlot> {
             Text('Photo not loaded',
                 style: TextStyle(color: Colors.white70, fontSize: 11)),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ───────── Border Frame Overlay ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-class _BorderOverlay extends StatelessWidget {
-  final String borderId;
-  const _BorderOverlay({required this.borderId});
-
-  @override
-  Widget build(BuildContext context) {
-    switch (borderId) {
-      case 'polaroid':
-        return const SizedBox.shrink();
-
-      case 'gold':
-        return Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFFFD700), width: 6),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFFFE082), width: 2),
-            ),
-          ),
-        );
-
-      case 'film':
-        return Column(
-          children: [_buildFilmStrip(), const Spacer(), _buildFilmStrip()],
-        );
-
-      case 'pastel':
-        return Container(
-          margin: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFFF80AB), width: 6),
-          ),
-        );
-
-      case 'midnight':
-        return Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFF212121), width: 14),
-          ),
-        );
-
-      default:
-        return const SizedBox.shrink();
-    }
-  }
-
-  Widget _buildFilmStrip() {
-    return Container(
-      height: 28,
-      color: Colors.black87,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(
-          8,
-          (index) => Container(
-            width: 14,
-            height: 14,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
         ),
       ),
     );
@@ -2033,10 +1988,11 @@ class _ToolBarState extends State<_ToolBar> {
                   },
                 ),
 
-                // 2. Borders Panel
-                _BorderPanel(
-                  onSelect: (borderId) {
-                    context.read<EditorBloc>().add(BorderSelected(borderId));
+                // 2. Frame Color Panel
+                _FrameColorPanel(
+                  selectedColor: context.watch<EditorBloc>().state.frameColor,
+                  onSelect: (color) {
+                    context.read<EditorBloc>().add(FrameColorChanged(color));
                   },
                 ),
 
@@ -2346,17 +2302,25 @@ class _StickerPanel extends StatelessWidget {
   }
 }
 
-class _BorderPanel extends StatelessWidget {
-  final ValueChanged<String?> onSelect;
-  const _BorderPanel({required this.onSelect});
+class _FrameColorPanel extends StatelessWidget {
+  final Color selectedColor;
+  final ValueChanged<Color> onSelect;
+  const _FrameColorPanel({
+    required this.selectedColor,
+    required this.onSelect,
+  });
 
-  static const _borders = [
-    {'id': null, 'name': 'None', 'icon': Icons.block_rounded},
-    {'id': 'polaroid', 'name': 'Polaroid', 'icon': Icons.crop_portrait_rounded},
-    {'id': 'gold', 'name': 'Gold Frame', 'icon': Icons.star_rounded},
-    {'id': 'film', 'name': 'Film Strip', 'icon': Icons.movie_creation_rounded},
-    {'id': 'pastel', 'name': 'Pastel', 'icon': Icons.favorite_rounded},
-    {'id': 'midnight', 'name': 'Midnight', 'icon': Icons.dark_mode_rounded},
+  static const _frameColors = [
+    {'name': 'White', 'color': Color(0xFFFFFFFF), 'border': Color(0xFFD6D2C8)},
+    {'name': 'Black', 'color': Colors.black, 'border': Colors.black},
+    {'name': 'Cream', 'color': Color(0xFFF5EFEB), 'border': Color(0xFFDDD0C5)},
+    {'name': 'Coffee', 'color': Color(0xFF4A2A18), 'border': Color(0xFF6B3F26)},
+    {'name': 'Blush', 'color': Color(0xFFFCE7F3), 'border': Color(0xFFF472B6)},
+    {'name': 'Sage', 'color': Color(0xFFE2ECE5), 'border': Color(0xFFA3B899)},
+    {'name': 'Sky', 'color': Color(0xFFE0F2FE), 'border': Color(0xFF7DD3FC)},
+    {'name': 'Lilac', 'color': Color(0xFFF3E8FF), 'border': Color(0xFFC084FC)},
+    {'name': 'Butter', 'color': Color(0xFFFEF3C7), 'border': Color(0xFFFCD34D)},
+    {'name': 'Rust', 'color': Color(0xFFC25E34), 'border': Color(0xFF9A3412)},
   ];
 
   @override
@@ -2364,26 +2328,33 @@ class _BorderPanel extends StatelessWidget {
     return ListView.builder(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      itemCount: _borders.length,
+      itemCount: _frameColors.length,
       itemBuilder: (context, index) {
-        final item = _borders[index];
-        final id = item['id'] as String?;
+        final item = _frameColors[index];
         final name = item['name'] as String;
-        final icon = item['icon'] as IconData;
+        final color = item['color'] as Color;
+        final borderColor = item['border'] as Color;
+        final isSelected = selectedColor.toARGB32() == color.toARGB32();
+        final isDark = color.computeLuminance() < 0.5;
 
         return GestureDetector(
-          onTap: () => onSelect(id),
+          onTap: () => onSelect(color),
           child: Container(
             margin: const EdgeInsets.only(right: 12),
             width: 82,
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F3EE),
+              color: color,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFD6D2C8)),
+              border: Border.all(
+                color: isSelected ? AppColors.accent : borderColor,
+                width: isSelected ? 2.5 : 1.2,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 4,
+                  color: isSelected
+                      ? AppColors.accent.withValues(alpha: 0.35)
+                      : Colors.black.withValues(alpha: 0.08),
+                  blurRadius: isSelected ? 8 : 4,
                   offset: const Offset(0, 2),
                 ),
               ],
@@ -2391,15 +2362,35 @@ class _BorderPanel extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, color: const Color(0xFF4B5563), size: 26),
-                const SizedBox(height: 6),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected
+                        ? (isDark ? Colors.white : const Color(0xFF1E1E1E))
+                        : Colors.transparent,
+                    border: Border.all(
+                      color: isDark ? Colors.white54 : Colors.black26,
+                      width: 1,
+                    ),
+                  ),
+                  child: isSelected
+                      ? Icon(
+                          Icons.check_rounded,
+                          size: 18,
+                          color: isDark ? Colors.black : Colors.white,
+                        )
+                      : null,
+                ),
+                const SizedBox(height: 8),
                 Text(
                   name,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF1E1E1E),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF1E1E1E),
                     fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                   ),
                 ),
               ],

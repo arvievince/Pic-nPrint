@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/material.dart';
 import 'package:equatable/equatable.dart';
 import '../../../core/models/models.dart';
 
@@ -56,7 +57,7 @@ class TextDeleted extends EditorEvent {
   List<Object?> get props => [textId];
 }
 
-/// User selected a border.
+/// User selected a border (legacy).
 class BorderSelected extends EditorEvent {
   final String? borderAssetPath; // null = no border
   const BorderSelected(this.borderAssetPath);
@@ -64,11 +65,20 @@ class BorderSelected extends EditorEvent {
   List<Object?> get props => [borderAssetPath];
 }
 
+/// User selected a frame color for the photobooth print.
+class FrameColorChanged extends EditorEvent {
+  final Color frameColor;
+  const FrameColorChanged(this.frameColor);
+  @override
+  List<Object?> get props => [frameColor];
+}
+
 /// User tapped "Done" — compose or save the final image.
 class EditorConfirmed extends EditorEvent {
   final Uint8List? renderedBytes;
-  const EditorConfirmed({this.renderedBytes});
+  final Uint8List? printBytes;
+  const EditorConfirmed({this.renderedBytes, this.printBytes});
 
   @override
-  List<Object?> get props => [renderedBytes];
+  List<Object?> get props => [renderedBytes, printBytes];
 }

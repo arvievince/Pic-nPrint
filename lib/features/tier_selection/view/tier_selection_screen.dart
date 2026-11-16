@@ -26,7 +26,7 @@ class TierSelectionScreen extends StatefulWidget {
 }
 
 class _TierSelectionScreenState extends State<TierSelectionScreen> {
-  static const int _timeoutSeconds = 60;
+  static const int _timeoutSeconds = 30;
   int _remainingSeconds = _timeoutSeconds;
   Timer? _timer;
   String? _logoPath;

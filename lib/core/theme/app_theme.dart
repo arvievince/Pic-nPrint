@@ -6,16 +6,16 @@ export 'camera_filter.dart';
 class AppColors {
   AppColors._();
 
-  static const Color primary = Color(0xFF5B52E0);
-  static const Color primaryDark = Color(0xFF453CAE);
-  static const Color accent = Color(0xFFFF5277);
-  static const Color background = Color(0xFFF6F8FC);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFEEF2F7);
-  static const Color cardBorder = Color(0xFFE2E8F0);
+  static const Color primary = Color(0xFF6B3F26); // Espresso brown
+  static const Color primaryDark = Color(0xFF4A2A18); // Dark roast
+  static const Color accent = Color(0xFFD4813A); // Caramel gold
+  static const Color background = Color(0xFFFAF6F2); // Warm cream
+  static const Color surface = Color(0xFFFFFFFF); // White card surface
+  static const Color surfaceVariant = Color(0xFFF3ECE5); // Latte
+  static const Color cardBorder = Color(0xFFDDD0C5); // Warm mocha border
   static const Color onPrimary = Colors.white;
-  static const Color onBackground = Color(0xFF1E293B);
-  static const Color onSurface = Color(0xFF64748B);
+  static const Color onBackground = Color(0xFF2C1A0E); // Dark espresso text
+  static const Color onSurface = Color(0xFF7A5C4A); // Muted coffee-brown
   static const Color success = Color(0xFF10B981);
   static const Color error = Color(0xFFEF4444);
   static const Color warning = Color(0xFFF59E0B);
@@ -113,17 +113,17 @@ class AppTheme {
         useMaterial3: true,
         brightness: Brightness.dark,
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF6C63FF),
-          secondary: Color(0xFFFF6584),
-          surface: Color(0xFF1E1E2E),
+          primary: Color(0xFFA0633E),
+          secondary: Color(0xFFD4813A),
+          surface: Color(0xFF1E1208),
           onPrimary: Colors.white,
-          onSurface: Color(0xFFB0B0CC),
+          onSurface: Color(0xFFC9A98A),
           error: Color(0xFFFF4D6A),
         ),
-        scaffoldBackgroundColor: const Color(0xFF0F0F1A),
-        cardColor: const Color(0xFF1E1E2E),
+        scaffoldBackgroundColor: const Color(0xFF0F0804),
+        cardColor: const Color(0xFF1E1208),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1E1E2E),
+          backgroundColor: Color(0xFF1E1208),
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
@@ -136,7 +136,7 @@ class AppTheme {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF6C63FF),
+            backgroundColor: const Color(0xFFA0633E),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             shape:
@@ -147,41 +147,41 @@ class AppTheme {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFF2A2A3E),
+          fillColor: const Color(0xFF2A1A0E),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 2),
+            borderSide: const BorderSide(color: Color(0xFFA0633E), width: 2),
           ),
-          labelStyle: const TextStyle(color: Color(0xFFB0B0CC)),
-          hintStyle: const TextStyle(color: Color(0xFFB0B0CC)),
+          labelStyle: const TextStyle(color: Color(0xFFC9A98A)),
+          hintStyle: const TextStyle(color: Color(0xFFC9A98A)),
         ),
         textTheme: const TextTheme(
           displayLarge: TextStyle(
             fontSize: 48,
             fontWeight: FontWeight.w800,
-            color: Color(0xFFE0E0F0),
+            color: Color(0xFFF5EDE0),
           ),
           displayMedium: TextStyle(
             fontSize: 36,
             fontWeight: FontWeight.w700,
-            color: Color(0xFFE0E0F0),
+            color: Color(0xFFF5EDE0),
           ),
           headlineLarge: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
-            color: Color(0xFFE0E0F0),
+            color: Color(0xFFF5EDE0),
           ),
           headlineMedium: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w600,
-            color: Color(0xFFE0E0F0),
+            color: Color(0xFFF5EDE0),
           ),
-          bodyLarge: TextStyle(fontSize: 16, color: Color(0xFFE0E0F0)),
-          bodyMedium: TextStyle(fontSize: 14, color: Color(0xFFB0B0CC)),
+          bodyLarge: TextStyle(fontSize: 16, color: Color(0xFFF5EDE0)),
+          bodyMedium: TextStyle(fontSize: 14, color: Color(0xFFC9A98A)),
           labelLarge: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,

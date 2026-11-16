@@ -33,6 +33,32 @@ class CompositionService {
     return outputPath;
   }
 
+  /// Saves clean white-frame rendered canvas bytes dedicated for thermal receipt printing.
+  /// Returns the local file path of the print image.
+  Future<String> savePrintImageBytes({
+    required Uint8List bytes,
+    required String sessionId,
+  }) async {
+    final outputDir = await _getOutputDir();
+    final outputPath = p.join(outputDir, '${sessionId}_print.png');
+    final file = File(outputPath);
+    await file.writeAsBytes(bytes, flush: true);
+    return outputPath;
+  }
+
+  // /// Saves clean white-frame rendered canvas bytes dedicated for thermal receipt printing.
+  // /// Returns the local file path of the print image.
+  // Future<String> savePrintImageBytes({
+  //   required Uint8List bytes,
+  //   required String sessionId,
+  // }) async {
+  //   final outputDir = await _getOutputDir();
+  //   final outputPath = p.join(outputDir, '${sessionId}_print.png');
+  //   final file = File(outputPath);
+  //   await file.writeAsBytes(bytes, flush: true);
+  //   return outputPath;
+  // }
+
   /// Composes all images + overlays into a single final image.
   /// Returns the local file path of the composed image.
   Future<String> compose({
@@ -75,6 +101,19 @@ class CompositionService {
 
     return outputPath;
   }
+
+  // /// Saves clean white-frame rendered canvas bytes dedicated for thermal receipt printing.
+  // /// Returns the local file path of the print image.
+  // Future<String> savePrintImageBytes({
+  //   required Uint8List bytes,
+  //   required String sessionId,
+  // }) async {
+  //   final outputDir = await _getOutputDir();
+  //   final outputPath = p.join(outputDir, '${sessionId}_print.png');
+  //   final file = File(outputPath);
+  //   await file.writeAsBytes(bytes, flush: true);
+  //   return outputPath;
+  // }
 
   /// Creates an animated GIF for quad/hex modes. Returns GIF file path.
   Future<String?> createGif({
@@ -439,7 +478,8 @@ img.Image _buildBento(List<img.Image> images, {String? brandText}) {
   const margin = 24;
 
   if (images.length == 1) {
-    final im = _cropAndResizeImage(images[0], canvasW - (margin * 2), canvasH - (margin * 2));
+    final im = _cropAndResizeImage(
+        images[0], canvasW - (margin * 2), canvasH - (margin * 2));
     img.compositeImage(canvas, im, dstX: margin, dstY: margin);
     return canvas;
   }

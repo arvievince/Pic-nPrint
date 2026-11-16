@@ -36,6 +36,7 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
     on<TextUpdated>(_onTextUpdated);
     on<TextDeleted>(_onTextDeleted);
     on<BorderSelected>(_onBorderSelected);
+    on<FrameColorChanged>(_onFrameColorChanged);
     on<EditorConfirmed>(_onConfirmed);
   }
 
@@ -83,6 +84,10 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
     emit(state.copyWith(borderAssetPath: event.borderAssetPath));
   }
 
+  void _onFrameColorChanged(FrameColorChanged event, Emitter<EditorState> emit) {
+    emit(state.copyWith(frameColor: event.frameColor));
+  }
+
   // ─── Compose ──────────────────────────────────────────────────────────────────
 
   Future<void> _onConfirmed(
@@ -91,11 +96,18 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
 
     try {
       final String composedPath;
+      String? printPath;
       if (event.renderedBytes != null) {
         composedPath = await _compositionService.saveComposedImageBytes(
           bytes: event.renderedBytes!,
           sessionId: session.sessionId,
         );
+        if (event.printBytes != null) {
+          printPath = await _compositionService.savePrintImageBytes(
+            bytes: event.printBytes!,
+            sessionId: session.sessionId,
+          );
+        }
       } else {
         composedPath = await _compositionService.compose(
           session: session,
@@ -106,7 +118,11 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
           brandText: brandText,
         );
       }
-      emit(state.copyWith(isComposing: false, composedPath: composedPath));
+      emit(state.copyWith(
+        isComposing: false,
+        composedPath: composedPath,
+        printPath: printPath,
+      ));
     } catch (e) {
       emit(state.copyWith(
         isComposing: false,

@@ -41,6 +41,7 @@ class SessionModel extends Equatable {
   final List<String> imagePaths; // local paths of captured/uploaded images
   final String? filter; // active color filter e.g. 'natural', 'noir', 'retro', 'pop', 'fade'
   final String? composedImagePath; // final composed image path
+  final String? printImagePath; // clean white-frame image dedicated for thermal receipt printing
   final String? gifPath; // optional GIF path
   final String? driveFileId; // Drive file ID after upload
   final String? driveShareUrl; // public share URL for QR code
@@ -61,6 +62,7 @@ class SessionModel extends Equatable {
     this.imagePaths = const [],
     this.filter,
     this.composedImagePath,
+    this.printImagePath,
     this.gifPath,
     this.driveFileId,
     this.driveShareUrl,
@@ -81,6 +83,7 @@ class SessionModel extends Equatable {
     List<String>? imagePaths,
     String? filter,
     String? composedImagePath,
+    String? printImagePath,
     String? gifPath,
     String? driveFileId,
     String? driveShareUrl,
@@ -98,6 +101,7 @@ class SessionModel extends Equatable {
       imagePaths: imagePaths ?? this.imagePaths,
       filter: filter ?? this.filter,
       composedImagePath: composedImagePath ?? this.composedImagePath,
+      printImagePath: printImagePath ?? this.printImagePath,
       gifPath: gifPath ?? this.gifPath,
       driveFileId: driveFileId ?? this.driveFileId,
       driveShareUrl: driveShareUrl ?? this.driveShareUrl,
@@ -119,6 +123,7 @@ class SessionModel extends Equatable {
         imagePaths,
         filter,
         composedImagePath,
+        printImagePath,
         createdAt,
       ];
 }

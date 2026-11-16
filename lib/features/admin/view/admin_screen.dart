@@ -72,7 +72,11 @@ class _PasswordGateState extends State<_PasswordGate> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Admin Access'),
+        title: Text(
+          'Admin Access',
+          style: Theme.of(context).textTheme.headlineLarge,
+          textAlign: TextAlign.center,
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => context.goNamed(AppRoute.attract),
@@ -202,7 +206,11 @@ class _AdminPanelState extends State<_AdminPanel> {
             }
           },
         ),
-        title: Text('Admin Panel • ${_labelFor(widget.state.activeSection)}'),
+        title: Text(
+          'Admin Panel • ${_labelFor(widget.state.activeSection)}',
+          style: Theme.of(context).textTheme.headlineMedium,
+          textAlign: TextAlign.center,
+        ),
         actions: [
           TextButton.icon(
             icon: const Icon(Icons.logout_rounded, color: AppColors.error),
@@ -2029,9 +2037,8 @@ class _SupabaseSectionState extends State<_SupabaseSection> {
                           strokeWidth: 2.5, color: Colors.white),
                     )
                   : const Icon(Icons.cloud_upload_rounded),
-              label: Text(_isSaving
-                  ? 'Registering Kiosk...'
-                  : 'Save & Register Kiosk'),
+              label: Text(
+                  _isSaving ? 'Registering Kiosk...' : 'Save & Register Kiosk'),
               onPressed: _isSaving ? null : _saveAndRegisterKiosk,
             ),
           ),
@@ -3130,16 +3137,21 @@ class _VouchersSectionState extends State<_VouchersSection> {
                                 decoration: BoxDecoration(
                                   color: AppColors.surfaceVariant,
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.white12),
+                                  border:
+                                      Border.all(color: AppColors.cardBorder),
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<int>(
                                     value: _activeStatus,
-                                    dropdownColor: AppColors.surfaceVariant,
+                                    dropdownColor: Colors.white,
                                     style: const TextStyle(
-                                        fontSize: 13, color: Colors.white),
-                                    icon: const Icon(Icons.arrow_drop_down,
-                                        color: AppColors.onSurface, size: 20),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.onBackground),
+                                    icon: const Icon(
+                                        Icons.arrow_drop_down_rounded,
+                                        color: AppColors.onBackground,
+                                        size: 20),
                                     items: const [
                                       DropdownMenuItem(
                                           value: 0,
@@ -3175,16 +3187,21 @@ class _VouchersSectionState extends State<_VouchersSection> {
                                 decoration: BoxDecoration(
                                   color: AppColors.surfaceVariant,
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.white12),
+                                  border:
+                                      Border.all(color: AppColors.cardBorder),
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<ShotMode?>(
                                     value: _selectedTier,
-                                    dropdownColor: AppColors.surfaceVariant,
+                                    dropdownColor: Colors.white,
                                     style: const TextStyle(
-                                        fontSize: 13, color: Colors.white),
-                                    icon: const Icon(Icons.arrow_drop_down,
-                                        color: AppColors.onSurface, size: 20),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.onBackground),
+                                    icon: const Icon(
+                                        Icons.arrow_drop_down_rounded,
+                                        color: AppColors.onBackground,
+                                        size: 20),
                                     items: [
                                       const DropdownMenuItem(
                                           value: null,
@@ -3496,16 +3513,21 @@ class _VouchersSectionState extends State<_VouchersSection> {
                                   decoration: BoxDecoration(
                                     color: AppColors.surfaceVariant,
                                     borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: Colors.white12),
+                                    border:
+                                        Border.all(color: AppColors.cardBorder),
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<int>(
                                       value: _rowsPerPage,
-                                      dropdownColor: AppColors.surfaceVariant,
+                                      dropdownColor: Colors.white,
                                       style: const TextStyle(
-                                          fontSize: 13, color: Colors.white),
-                                      icon: const Icon(Icons.arrow_drop_down,
-                                          color: AppColors.onSurface, size: 18),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.onBackground),
+                                      icon: const Icon(
+                                          Icons.arrow_drop_down_rounded,
+                                          color: AppColors.onBackground,
+                                          size: 18),
                                       items: const [
                                         DropdownMenuItem(
                                             value: 5, child: Text('5')),
@@ -4211,16 +4233,20 @@ class _SalesSectionState extends State<_SalesSection> {
                                     decoration: BoxDecoration(
                                       color: AppColors.surfaceVariant,
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.white12),
+                                      border: Border.all(
+                                          color: AppColors.cardBorder),
                                     ),
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<_SalesDateFilter>(
                                         value: _dateFilter,
-                                        dropdownColor: AppColors.surfaceVariant,
+                                        dropdownColor: Colors.white,
                                         style: const TextStyle(
-                                            fontSize: 13, color: Colors.white),
-                                        icon: const Icon(Icons.arrow_drop_down,
-                                            color: AppColors.onSurface,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.onBackground),
+                                        icon: const Icon(
+                                            Icons.arrow_drop_down_rounded,
+                                            color: AppColors.onBackground,
                                             size: 20),
                                         items: [
                                           const DropdownMenuItem(
@@ -4298,16 +4324,20 @@ class _SalesSectionState extends State<_SalesSection> {
                                     decoration: BoxDecoration(
                                       color: AppColors.surfaceVariant,
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.white12),
+                                      border: Border.all(
+                                          color: AppColors.cardBorder),
                                     ),
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<ShotMode?>(
                                         value: _selectedTier,
-                                        dropdownColor: AppColors.surfaceVariant,
+                                        dropdownColor: Colors.white,
                                         style: const TextStyle(
-                                            fontSize: 13, color: Colors.white),
-                                        icon: const Icon(Icons.arrow_drop_down,
-                                            color: AppColors.onSurface,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.onBackground),
+                                        icon: const Icon(
+                                            Icons.arrow_drop_down_rounded,
+                                            color: AppColors.onBackground,
                                             size: 20),
                                         items: [
                                           const DropdownMenuItem(
@@ -4538,20 +4568,20 @@ class _SalesSectionState extends State<_SalesSection> {
                                       decoration: BoxDecoration(
                                         color: AppColors.surfaceVariant,
                                         borderRadius: BorderRadius.circular(6),
-                                        border:
-                                            Border.all(color: Colors.white12),
+                                        border: Border.all(
+                                            color: AppColors.cardBorder),
                                       ),
                                       child: DropdownButtonHideUnderline(
                                         child: DropdownButton<int>(
                                           value: _rowsPerPage,
-                                          dropdownColor:
-                                              AppColors.surfaceVariant,
+                                          dropdownColor: Colors.white,
                                           style: const TextStyle(
                                               fontSize: 13,
-                                              color: Colors.white),
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.onBackground),
                                           icon: const Icon(
-                                              Icons.arrow_drop_down,
-                                              color: AppColors.onSurface,
+                                              Icons.arrow_drop_down_rounded,
+                                              color: AppColors.onBackground,
                                               size: 18),
                                           items: const [
                                             DropdownMenuItem(
@@ -4898,8 +4928,39 @@ class _DataSectionState extends State<_DataSection> {
                   decoration: const InputDecoration(hintText: 'e.g. MNL1'),
                 ),
                 const SizedBox(height: 20),
-                Text('Voucher Cryptographic Secret Key',
-                    style: Theme.of(context).textTheme.bodyMedium),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Voucher Cryptographic Secret Key',
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    TextButton.icon(
+                        icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                        label: const Text(
+                          'Generate Key',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        onPressed: () {
+                          final rand = Random.secure();
+                          final bytes = List<int>.generate(
+                            16,
+                            (_) => rand.nextInt(256),
+                          );
+                          final hex = bytes
+                              .map((b) => b.toRadixString(16).padLeft(2, '0'))
+                              .join();
+                          setState(() {
+                            _voucherSecretCtrl.text = hex;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'New voucher secret generated! Tap "Save Location & Secret" to apply.',
+                              ),
+                            ),
+                          );
+                        }),
+                  ],
+                ),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _voucherSecretCtrl,
@@ -4907,34 +4968,9 @@ class _DataSectionState extends State<_DataSection> {
                     hintText: 'Secret HMAC key used for checksum verification',
                   ),
                 ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.shuffle_rounded),
-                  label: const Text('Generate New Random Secret'),
-                  onPressed: () {
-                    final rand = Random.secure();
-                    final bytes = List<int>.generate(
-                      16,
-                      (_) => rand.nextInt(256),
-                    );
-                    final hex = bytes
-                        .map((b) => b.toRadixString(16).padLeft(2, '0'))
-                        .join();
-                    setState(() {
-                      _voucherSecretCtrl.text = hex;
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'New voucher secret generated! Tap "Save Location & Secret" to apply.',
-                        ),
-                      ),
-                    );
-                  },
-                ),
                 const SizedBox(height: 24),
                 SizedBox(
-                  height: 48,
+                  height: 50,
                   child: ElevatedButton.icon(
                     icon: _isSavingLocation
                         ? const SizedBox(
