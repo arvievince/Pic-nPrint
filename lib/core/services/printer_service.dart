@@ -94,6 +94,86 @@ class PrinterService {
     }
   }
 
+  /// Print a formatted voucher ticket slip.
+  Future<void> printVoucherSlip({
+    required PrinterModel printer,
+    required VoucherModel voucher,
+    String? kioskTitle,
+  }) async {
+    final profile = await _getProfile();
+    final is80mm = printer.paperWidthMm == 80;
+    final paperSize = is80mm ? PaperSize.mm80 : PaperSize.mm58;
+    final generator = Generator(paperSize, profile);
+
+    final title = (kioskTitle != null && kioskTitle.trim().isNotEmpty)
+        ? kioskTitle.trim().toUpperCase()
+        : 'PIC & PRINT';
+    final divider = '=' * (is80mm ? 48 : 32);
+
+    List<int> bytes = [];
+    bytes += generator.reset();
+    bytes += generator.text(divider);
+    bytes += generator.text(
+      title,
+      styles: const PosStyles(
+        align: PosAlign.center,
+        bold: true,
+      ),
+    );
+    bytes += generator.text(
+      'VOUCHER SLIP',
+      styles: const PosStyles(
+        align: PosAlign.center,
+        bold: true,
+      ),
+    );
+    bytes += generator.text(divider);
+
+    bytes += generator.feed(1);
+    bytes += generator.text(
+      'CODE:',
+      styles: const PosStyles(align: PosAlign.center, bold: true),
+    );
+    bytes += generator.text(
+      voucher.code,
+      styles: const PosStyles(
+        align: PosAlign.center,
+        bold: true,
+        height: PosTextSize.size2,
+        width: PosTextSize.size2,
+      ),
+    );
+    bytes += generator.feed(1);
+
+    bytes += generator.text(
+      'TIER:    ${voucher.shotMode.label} (${voucher.shotMode.photoCount} Photos)',
+      styles: const PosStyles(bold: true),
+    );
+    bytes += generator.text(
+      'PRICE:   PHP ${voucher.priceSnapshot.toStringAsFixed(2)}',
+      styles: const PosStyles(bold: true),
+    );
+    final expiryFormatted = voucher.expiresAt.toString().length >= 16
+        ? voucher.expiresAt.toString().substring(0, 16)
+        : voucher.expiresAt.toString();
+    bytes += generator.text('EXPIRES: $expiryFormatted');
+    bytes += generator.text(divider);
+
+    bytes += generator.text(
+      'Enter this code at the kiosk\nto start your photo session!',
+      styles: const PosStyles(align: PosAlign.center),
+    );
+    bytes += generator.feed(3);
+    bytes += generator.cut();
+
+    final transport = _createTransport(printer);
+    try {
+      await transport.sendBytes(Uint8List.fromList(bytes));
+    } finally {
+      await transport.close();
+    }
+  }
+
   /// Print a test slip to verify printer communication.
   Future<void> testPrint(PrinterModel printer) async {
     final now = DateTime.now();

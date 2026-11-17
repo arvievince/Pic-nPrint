@@ -2346,13 +2346,13 @@ class _FrameColorPanel extends StatelessWidget {
               color: color,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected ? AppColors.accent : borderColor,
+                color: isSelected ? AppColors.error : borderColor,
                 width: isSelected ? 2.5 : 1.2,
               ),
               boxShadow: [
                 BoxShadow(
                   color: isSelected
-                      ? AppColors.accent.withValues(alpha: 0.35)
+                      ? AppColors.error.withValues(alpha: 0.35)
                       : Colors.black.withValues(alpha: 0.08),
                   blurRadius: isSelected ? 8 : 4,
                   offset: const Offset(0, 2),

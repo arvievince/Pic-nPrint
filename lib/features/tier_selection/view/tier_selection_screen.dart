@@ -8,6 +8,8 @@ import 'package:google_fonts/google_fonts.dart' show GoogleFonts;
 import '../../../core/database/app_database.dart';
 import '../../../core/models/models.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/services/printer_service.dart';
+import '../../../core/services/voucher_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/responsive.dart';
 
@@ -108,12 +110,6 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
 
       if (!mounted) return;
 
-      // If exactly 1 tier is enabled, skip selection and navigate directly.
-      if (tierOptions.length == 1) {
-        _navigateWithTier(tierOptions.first);
-        return;
-      }
-
       setState(() {
         _tiers = tierOptions;
         _showPrice = showPriceRaw.toLowerCase() == 'true';
@@ -144,43 +140,58 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
     }
   }
 
-  void _navigateWithTier(_TierOption tier) {
+  bool _isProcessing = false;
+
+  Future<void> _handleTierSelected(_TierOption tier) async {
+    if (_isProcessing) return;
+    _isProcessing = true;
     _timer?.cancel();
-    final session = _buildEventSession(tier);
-    if (session.shotMode.photoCount == 1) {
-      context.goNamed(AppRoute.capture, extra: session);
-    } else {
-      context.goNamed(AppRoute.layout, extra: session);
+
+    try {
+      final db = context.read<AppDatabase>();
+      final voucherService = context.read<VoucherService>();
+      final printerService = context.read<PrinterService>();
+
+      // 1. Generate new voucher for the selected tier
+      final voucher = await voucherService.generateVoucher(
+        mode: tier.mode,
+        priceSnapshot: tier.price,
+      );
+
+      // 2. Direct thermal printing in background
+      final printers = await db.getAllPrinters();
+      final defaultPrinter = printers.where((p) => p.isDefault).firstOrNull;
+      if (defaultPrinter != null) {
+        final printerModel = PrinterModel(
+          id: defaultPrinter.id,
+          name: defaultPrinter.name,
+          transport: defaultPrinter.transport == 'usb'
+              ? PrinterTransport.usb
+              : defaultPrinter.transport == 'bluetooth'
+                  ? PrinterTransport.bluetooth
+                  : PrinterTransport.network,
+          address: defaultPrinter.address,
+          paperWidthMm: defaultPrinter.paperWidthMm,
+          isDefault: true,
+        );
+        unawaited(
+          printerService.printVoucherSlip(
+            printer: printerModel,
+            voucher: voucher,
+            kioskTitle: _title,
+          ).catchError((_) {}),
+        );
+      }
+
+      // 3. Immediately show the enter voucher screen
+      if (mounted) {
+        context.goNamed(AppRoute.voucher);
+      }
+    } catch (_) {
+      if (mounted) {
+        context.goNamed(AppRoute.voucher);
+      }
     }
-  }
-
-  /// Builds a voucherless [SessionModel] for Event Mode.
-  /// Session ID format: EVT-YYMMDD-HHMMSS
-  SessionModel _buildEventSession(_TierOption tier) {
-    final now = DateTime.now();
-    final date = '${now.year.toString().substring(2)}'
-        '${now.month.toString().padLeft(2, '0')}'
-        '${now.day.toString().padLeft(2, '0')}';
-    final time = '${now.hour.toString().padLeft(2, '0')}'
-        '${now.minute.toString().padLeft(2, '0')}'
-        '${now.second.toString().padLeft(2, '0')}';
-    final sessionId = 'EVT-$date-$time';
-
-    final voucher = VoucherModel(
-      code: 'EVT-MODE',
-      locationId: 'EVT',
-      shotMode: tier.mode,
-      serial: '0000',
-      expiresAt: now.add(const Duration(days: 3650)), // ~10 years — no expiry
-      priceSnapshot: tier.price ?? 0.0,
-    );
-
-    return SessionModel(
-      sessionId: sessionId,
-      voucher: voucher,
-      shotMode: tier.mode,
-      createdAt: now,
-    );
   }
 
   @override
@@ -209,47 +220,13 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
               : _buildFallbackTitle(),
         ),
         centerTitle: true,
-        // leading: IconButton(
-        //   icon: const Icon(Icons.arrow_back_ios_new_rounded),
-        //   onPressed: () {
-        //     _timer?.cancel();
-        //     context.goNamed(AppRoute.attract);
-        //   },
-        // ),
-        // actions: [
-        //   Padding(
-        //     padding: const EdgeInsets.only(right: 16),
-        //     child: Center(
-        //       child: Container(
-        //         padding:
-        //             const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        //         decoration: BoxDecoration(
-        //           color: AppColors.surfaceVariant,
-        //           borderRadius: BorderRadius.circular(16),
-        //         ),
-        //         child: Row(
-        //           mainAxisSize: MainAxisSize.min,
-        //           children: [
-        //             const Icon(
-        //               Icons.timer_outlined,
-        //               size: 16,
-        //               color: AppColors.onSurface,
-        //             ),
-        //             const SizedBox(width: 4),
-        //             Text(
-        //               '${_remainingSeconds}s',
-        //               style: GoogleFonts.bricolageGrotesque(
-        //                 fontSize: 13,
-        //                 fontWeight: FontWeight.w600,
-        //                 color: AppColors.onSurface,
-        //               ),
-        //             ),
-        //           ],
-        //         ),
-        //       ),
-        //     ),
-        //   ),
-        // ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () {
+            _timer?.cancel();
+            context.goNamed(AppRoute.attract);
+          },
+        ),
       ),
       body: Listener(
         behavior: HitTestBehavior.translucent,
@@ -266,7 +243,7 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
                 : _TierGrid(
                     tiers: _tiers,
                     showPrice: _showPrice,
-                    onSelect: _navigateWithTier,
+                    onSelect: _handleTierSelected,
                   ),
       ),
     );

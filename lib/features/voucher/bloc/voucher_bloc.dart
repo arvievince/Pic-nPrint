@@ -41,10 +41,15 @@ class VoucherBloc extends Bloc<VoucherEvent, VoucherState> {
 
   Future<void> _onSubmitted(
       VoucherSubmitted event, Emitter<VoucherState> emit) async {
-    // Guard: must be in VoucherInitial to have a code
-    if (state is! VoucherInitial) return;
-    final code = (state as VoucherInitial).currentCode.trim();
-    if (code.isEmpty) return;
+    final code = (event.code ??
+            (state is VoucherInitial
+                ? (state as VoucherInitial).currentCode
+                : ''))
+        .trim();
+    if (code.isEmpty) {
+      emit(const VoucherInvalid('Please enter a voucher code.'));
+      return;
+    }
 
     emit(const VoucherValidating());
 

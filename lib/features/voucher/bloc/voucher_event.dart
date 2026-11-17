@@ -16,7 +16,11 @@ class VoucherCodeChanged extends VoucherEvent {
 
 /// User tapped "Submit" to validate the entered code.
 class VoucherSubmitted extends VoucherEvent {
-  const VoucherSubmitted();
+  final String? code;
+  const VoucherSubmitted([this.code]);
+
+  @override
+  List<Object?> get props => [code];
 }
 
 /// Reset the bloc (e.g. after navigating back or on error dismiss).

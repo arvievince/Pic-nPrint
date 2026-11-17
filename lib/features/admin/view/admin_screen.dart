@@ -2799,6 +2799,7 @@ Future<void> _printVoucherSlipHelper({
     final db = context.read<AppDatabase>();
     final printers = await db.getAllPrinters();
     final defaultPrinter = printers.where((p) => p.isDefault).firstOrNull;
+    final title = await db.getSetting('kiosk_title');
     if (defaultPrinter != null && context.mounted) {
       final printerModel = PrinterModel(
         id: defaultPrinter.id,
@@ -2812,17 +2813,18 @@ Future<void> _printVoucherSlipHelper({
         paperWidthMm: defaultPrinter.paperWidthMm,
         isDefault: true,
       );
-      await context.read<PrinterService>().printText(
+      final voucher = VoucherModel(
+        code: code,
+        locationId: '',
+        shotMode: mode,
+        serial: '',
+        expiresAt: expiresAt,
+        priceSnapshot: price,
+      );
+      await context.read<PrinterService>().printVoucherSlip(
             printer: printerModel,
-            text: '================================\n'
-                '       PHOTORECEIPT VOUCHER     \n'
-                '================================\n'
-                'CODE: $code\n'
-                'TIER: ${mode.label} (${mode.photoCount} Photos)\n'
-                'PRICE: ₱${price.toStringAsFixed(2)}\n'
-                'EXPIRES: ${expiresAt.toString().substring(0, 16)}\n'
-                '================================\n'
-                'Type this code at the kiosk!\n\n',
+            voucher: voucher,
+            kioskTitle: title,
           );
     }
   } catch (_) {}
@@ -2885,10 +2887,14 @@ class _VouchersSectionState extends State<_VouchersSection> {
   ShotMode? _selectedTier;
   int _currentPage = 0;
   int _rowsPerPage = 10;
+  late bool _showOnScreenKeyboard;
 
   @override
   void initState() {
     super.initState();
+    _showOnScreenKeyboard =
+        (widget.settings['show_onscreen_keyboard'] ?? 'false').toLowerCase() ==
+            'true';
     _loadVouchers();
   }
 
@@ -3066,6 +3072,53 @@ class _VouchersSectionState extends State<_VouchersSection> {
               ],
             );
           },
+        ),
+
+        const SizedBox(height: 20),
+
+        // ── Kiosk Voucher Screen Keyboard Setting ──────────────────────────
+        Card(
+          color: AppColors.surface,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.keyboard_outlined,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+              ),
+              title: const Text(
+                'Show On-Screen Kiosk Keyboard',
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.onBackground),
+              ),
+              subtitle: const Text(
+                'Displays a touch keypad on the voucher entry screen for touchscreen kiosks. When turned off, uses your laptop or Android device keyboard.',
+                style: TextStyle(color: AppColors.onSurface, fontSize: 13),
+              ),
+              value: _showOnScreenKeyboard,
+              onChanged: (val) {
+                setState(() => _showOnScreenKeyboard = val);
+                context.read<AdminBloc>().add(
+                      AdminSettingUpdated(
+                        key: 'show_onscreen_keyboard',
+                        value: val.toString(),
+                      ),
+                    );
+              },
+            ),
+          ),
         ),
 
         const SizedBox(height: 20),

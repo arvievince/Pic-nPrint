@@ -37,7 +37,6 @@ class _AttractScreenState extends State<AttractScreen> {
   String? _polaroid2Path;
   String? _polaroid3Path;
   String? _polaroid4Path;
-  bool _eventModeEnabled = false;
 
   @override
   void initState() {
@@ -63,7 +62,6 @@ class _AttractScreenState extends State<AttractScreen> {
       final title = await db.getSetting('kiosk_title');
       final subtitle = await db.getSetting('kiosk_subtitle');
       final logoPath = await db.getSetting('kiosk_logo_path');
-      final eventMode = await db.getSetting('event_mode_enabled');
       final p1 = await db.getSetting('attract_polaroid_1_path');
       final p2 = await db.getSetting('attract_polaroid_2_path');
       final p3 = await db.getSetting('attract_polaroid_3_path');
@@ -104,7 +102,6 @@ class _AttractScreenState extends State<AttractScreen> {
                   File(p4.trim()).existsSync())
               ? p4.trim()
               : null;
-          _eventModeEnabled = eventMode?.toLowerCase() == 'true';
         });
       }
     } catch (_) {}
@@ -112,11 +109,7 @@ class _AttractScreenState extends State<AttractScreen> {
 
   void _onStartTap() {
     context.read<AttractBloc>().add(const AttractTapped());
-    if (_eventModeEnabled) {
-      context.goNamed(AppRoute.tierSelect);
-    } else {
-      context.goNamed(AppRoute.voucher);
-    }
+    context.goNamed(AppRoute.tierSelect);
   }
 
   @override
@@ -124,11 +117,7 @@ class _AttractScreenState extends State<AttractScreen> {
     return BlocListener<AttractBloc, AttractState>(
       listener: (context, state) {
         if (state is AttractNavigating) {
-          if (_eventModeEnabled) {
-            context.goNamed(AppRoute.tierSelect);
-          } else {
-            context.goNamed(AppRoute.voucher);
-          }
+          context.goNamed(AppRoute.tierSelect);
         }
       },
       child: BlocBuilder<AttractBloc, AttractState>(
@@ -139,7 +128,7 @@ class _AttractScreenState extends State<AttractScreen> {
             behavior: HitTestBehavior.opaque,
             onTap: _onStartTap,
             child: Scaffold(
-              backgroundColor: AppColors.background,
+              backgroundColor: AppColors.surface,
               body: LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
