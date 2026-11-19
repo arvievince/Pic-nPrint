@@ -33,7 +33,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -71,13 +71,30 @@ class AppDatabase extends _$AppDatabase {
                   'ALTER TABLE sessions_table ADD COLUMN expires_at INTEGER;');
             } catch (_) {}
           }
+          if (from < 4) {
+            // Add printer_type and paper_size columns to printers_table
+            try {
+              await customStatement(
+                  "ALTER TABLE printers_table ADD COLUMN printer_type TEXT NOT NULL DEFAULT 'thermal';");
+            } catch (_) {}
+            try {
+              await customStatement(
+                  "ALTER TABLE printers_table ADD COLUMN paper_size TEXT NOT NULL DEFAULT '80mm';");
+            } catch (_) {}
+            // Add is_color_print to sessions_table
+            try {
+              await customStatement(
+                  'ALTER TABLE sessions_table ADD COLUMN is_color_print INTEGER NOT NULL DEFAULT 0;');
+            } catch (_) {}
+          }
         },
       );
 
   // ─── Settings ───────────────────────────────────────────────────────────────
 
   Future<String?> getSetting(String key) async {
-    final row = await (select(settingsTable)..where((t) => t.key.equals(key))).getSingleOrNull();
+    final row = await (select(settingsTable)..where((t) => t.key.equals(key)))
+        .getSingleOrNull();
     return row?.value;
   }
 
@@ -114,6 +131,20 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<PrinterEntry>> getAllPrinters() => select(printersTable).get();
 
+  Future<PrinterEntry?> getDefaultThermalPrinter() async {
+    final rows = await (select(printersTable)
+          ..where((t) => t.printerType.equals('thermal')))
+        .get();
+    return rows.where((p) => p.isDefault).firstOrNull ?? rows.firstOrNull;
+  }
+
+  Future<PrinterEntry?> getDefaultDocumentPrinter() async {
+    final rows = await (select(printersTable)
+          ..where((t) => t.printerType.equals('document')))
+        .get();
+    return rows.where((p) => p.isDefault).firstOrNull ?? rows.firstOrNull;
+  }
+
   Future<void> upsertPrinter(PrintersTableCompanion printer) =>
       into(printersTable).insertOnConflictUpdate(printer);
 
@@ -121,7 +152,8 @@ class AppDatabase extends _$AppDatabase {
       (delete(printersTable)..where((t) => t.id.equals(id))).go();
 
   Future<void> setDefaultPrinter(String id) async {
-    await (update(printersTable)).write(const PrintersTableCompanion(isDefault: Value(false)));
+    await (update(printersTable))
+        .write(const PrintersTableCompanion(isDefault: Value(false)));
     await (update(printersTable)..where((t) => t.id.equals(id)))
         .write(const PrintersTableCompanion(isDefault: Value(true)));
   }
@@ -129,18 +161,23 @@ class AppDatabase extends _$AppDatabase {
   // ─── Vouchers ───────────────────────────────────────────────────────────────
 
   Future<VoucherEntry?> getVoucher(String code) =>
-      (select(vouchersTable)..where((t) => t.code.equals(code))).getSingleOrNull();
+      (select(vouchersTable)..where((t) => t.code.equals(code)))
+          .getSingleOrNull();
 
   Future<List<VoucherEntry>> getAllVouchers() => select(vouchersTable).get();
 
   Future<void> insertVoucher(VouchersTableCompanion v) =>
       into(vouchersTable).insert(v);
 
-  Future<void> updateVoucherStatus(String code, int status, {DateTime? redeemedAt, String? voidReason}) =>
-      (update(vouchersTable)..where((t) => t.code.equals(code))).write(VouchersTableCompanion(
+  Future<void> updateVoucherStatus(String code, int status,
+          {DateTime? redeemedAt, String? voidReason}) =>
+      (update(vouchersTable)..where((t) => t.code.equals(code)))
+          .write(VouchersTableCompanion(
         status: Value(status),
-        redeemedAt: redeemedAt != null ? Value(redeemedAt) : const Value.absent(),
-        voidReason: voidReason != null ? Value(voidReason) : const Value.absent(),
+        redeemedAt:
+            redeemedAt != null ? Value(redeemedAt) : const Value.absent(),
+        voidReason:
+            voidReason != null ? Value(voidReason) : const Value.absent(),
       ));
 
   // ─── Sales ──────────────────────────────────────────────────────────────────
@@ -158,10 +195,13 @@ class AppDatabase extends _$AppDatabase {
       into(sessionsTable).insert(session);
 
   Future<void> updateSession(String sessionId, SessionsTableCompanion data) =>
-      (update(sessionsTable)..where((t) => t.sessionId.equals(sessionId))).write(data);
+      (update(sessionsTable)..where((t) => t.sessionId.equals(sessionId)))
+          .write(data);
 
   Future<List<SessionEntry>> getSessionsOlderThan(DateTime cutoff) =>
-      (select(sessionsTable)..where((t) => t.createdAt.isSmallerThanValue(cutoff))).get();
+      (select(sessionsTable)
+            ..where((t) => t.createdAt.isSmallerThanValue(cutoff)))
+          .get();
 
   Future<void> deleteSession(String sessionId) =>
       (delete(sessionsTable)..where((t) => t.sessionId.equals(sessionId))).go();
@@ -179,7 +219,8 @@ class AppDatabase extends _$AppDatabase {
         updatedAt: Value(DateTime.now()),
       ));
     } else {
-      await (update(adminAuthTable)..where((t) => t.id.equals(existing.id))).write(AdminAuthTableCompanion(
+      await (update(adminAuthTable)..where((t) => t.id.equals(existing.id)))
+          .write(AdminAuthTableCompanion(
         passwordHash: Value(hash),
         updatedAt: Value(DateTime.now()),
       ));

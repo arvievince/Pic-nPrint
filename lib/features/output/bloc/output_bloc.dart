@@ -128,25 +128,44 @@ class OutputBloc extends Bloc<OutputEvent, OutputState> {
     if (imagePath == null) return;
 
     try {
-      final printers = await _db.getAllPrinters();
-      final defaultPrinter =
-          printers.where((p) => p.isDefault).firstOrNull ?? printers.firstOrNull;
+      PrinterEntry? targetPrinter;
 
-      if (defaultPrinter == null) {
+      if (session.isColorPrint) {
+        // Color mode: route to default document/color printer
+        targetPrinter = await _db.getDefaultDocumentPrinter();
+        if (targetPrinter == null) {
+          // Fallback to any default printer if no document printer configured
+          final all = await _db.getAllPrinters();
+          targetPrinter = all.where((p) => p.isDefault).firstOrNull ??
+              all.firstOrNull;
+        }
+      } else {
+        // B&W thermal mode: route to default thermal printer
+        targetPrinter = await _db.getDefaultThermalPrinter();
+        if (targetPrinter == null) {
+          final all = await _db.getAllPrinters();
+          targetPrinter = all.where((p) => p.isDefault).firstOrNull ??
+              all.firstOrNull;
+        }
+      }
+
+      if (targetPrinter == null) {
         emit(const OutputPrintFailed('No printer configured.'));
         return;
       }
 
       final model = PrinterModel(
-        id: defaultPrinter.id,
-        name: defaultPrinter.name,
+        id: targetPrinter.id,
+        name: targetPrinter.name,
+        printerType: PrinterTypeExtension.fromDb(targetPrinter.printerType),
         transport: PrinterTransport.values.firstWhere(
-          (t) => t.name == defaultPrinter.transport,
+          (t) => t.name == targetPrinter!.transport,
           orElse: () => PrinterTransport.network,
         ),
-        address: defaultPrinter.address,
-        paperWidthMm: defaultPrinter.paperWidthMm,
-        isDefault: defaultPrinter.isDefault,
+        address: targetPrinter.address,
+        paperWidthMm: targetPrinter.paperWidthMm,
+        paperSize: targetPrinter.paperSize,
+        isDefault: targetPrinter.isDefault,
       );
 
       await _printerService.printImage(printer: model, imagePath: imagePath);

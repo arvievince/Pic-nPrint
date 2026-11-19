@@ -22,6 +22,7 @@ import '../../../core/services/security_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/services/supabase_storage_service.dart';
 import '../../../core/services/excel_export_service.dart';
+import '../../../core/services/printer_detection_service.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -1040,15 +1041,35 @@ class _PrintersSection extends StatefulWidget {
 
 class _PrintersSectionState extends State<_PrintersSection> {
   late Future<List<PrinterEntry>> _printersFuture;
+  bool _colorPrintingEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _loadPrinters();
+    _loadColorSetting();
   }
 
   void _loadPrinters() {
     _printersFuture = context.read<AppDatabase>().getAllPrinters();
+  }
+
+  Future<void> _loadColorSetting() async {
+    try {
+      final db = context.read<AppDatabase>();
+      final val = await db.getSetting('color_printing_enabled');
+      if (mounted) {
+        setState(() {
+          _colorPrintingEnabled = val?.toLowerCase() == 'true';
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleColorPrinting(bool val) async {
+    setState(() => _colorPrintingEnabled = val);
+    final db = context.read<AppDatabase>();
+    await db.setSetting('color_printing_enabled', val ? 'true' : 'false');
   }
 
   @override
@@ -1071,14 +1092,14 @@ class _PrintersSectionState extends State<_PrintersSection> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Manage thermal receipt printers for vouchers & photo receipts.',
+                    'Manage thermal receipt printers and document/color photo printers.',
                     style: TextStyle(color: AppColors.onSurface),
                   ),
                   const SizedBox(height: 12),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.add_rounded),
                     label: const Text('Add Printer'),
-                    onPressed: () => _showAddPrinterDialog(context),
+                    onPressed: () => _showPrinterDialog(context),
                   ),
                 ],
               );
@@ -1096,7 +1117,7 @@ class _PrintersSectionState extends State<_PrintersSection> {
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Manage thermal receipt printers for vouchers & photo receipts.',
+                        'Manage thermal receipt printers and document/color photo printers.',
                         style: TextStyle(color: AppColors.onSurface),
                       ),
                     ],
@@ -1106,12 +1127,61 @@ class _PrintersSectionState extends State<_PrintersSection> {
                 ElevatedButton.icon(
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Add Printer'),
-                  onPressed: () => _showAddPrinterDialog(context),
+                  onPressed: () => _showPrinterDialog(context),
                 ),
               ],
             );
           },
         ),
+
+        // ── Color Printing Master Toggle ────────────────────────────────────
+        const SizedBox(height: 20),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _colorPrintingEnabled
+                  ? AppColors.primary.withValues(alpha: 0.6)
+                  : Colors.white12,
+              width: _colorPrintingEnabled ? 1.5 : 1,
+            ),
+          ),
+          child: SwitchListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            secondary: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: _colorPrintingEnabled
+                    ? AppColors.primary.withValues(alpha: 0.15)
+                    : Colors.white10,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.palette_rounded,
+                color:
+                    _colorPrintingEnabled ? AppColors.primary : Colors.white54,
+                size: 22,
+              ),
+            ),
+            title: const Text(
+              'Enable Color / Document Printing',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              _colorPrintingEnabled
+                  ? 'ON — Customers will choose between Color Photo Print and B&W Thermal before Tier Selection.'
+                  : 'OFF — All sessions print to the Thermal Receipt Printer.',
+              style: const TextStyle(color: AppColors.onSurface, fontSize: 12),
+            ),
+            value: _colorPrintingEnabled,
+            activeThumbColor: AppColors.primary,
+            onChanged: _toggleColorPrinting,
+          ),
+        ),
+        const SizedBox(height: 8),
         const SizedBox(height: 24),
         FutureBuilder<List<PrinterEntry>>(
           future: _printersFuture,
@@ -1159,7 +1229,7 @@ class _PrintersSectionState extends State<_PrintersSection> {
                     ElevatedButton.icon(
                       icon: const Icon(Icons.add_rounded),
                       label: const Text('Add Your First Printer'),
-                      onPressed: () => _showAddPrinterDialog(context),
+                      onPressed: () => _showPrinterDialog(context),
                     ),
                   ],
                 ),
@@ -1171,9 +1241,11 @@ class _PrintersSectionState extends State<_PrintersSection> {
                 final model = PrinterModel(
                   id: p.id,
                   name: p.name,
+                  printerType: PrinterTypeExtension.fromDb(p.printerType),
                   transport: _parseTransport(p.transport),
                   address: p.address,
                   paperWidthMm: p.paperWidthMm,
+                  paperSize: p.paperSize,
                   isDefault: p.isDefault,
                 );
 
@@ -1258,6 +1330,16 @@ class _PrintersSectionState extends State<_PrintersSection> {
                                           ),
                                       ],
                                     ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit_outlined,
+                                      color: AppColors.primary,
+                                      size: 22,
+                                    ),
+                                    tooltip: 'Edit Printer',
+                                    onPressed: () => _showPrinterDialog(context,
+                                        existing: p),
                                   ),
                                   IconButton(
                                     icon: const Icon(
@@ -1449,6 +1531,15 @@ class _PrintersSectionState extends State<_PrintersSection> {
                               ),
                             IconButton(
                               icon: const Icon(
+                                Icons.edit_outlined,
+                                color: AppColors.primary,
+                              ),
+                              tooltip: 'Edit Printer',
+                              onPressed: () =>
+                                  _showPrinterDialog(context, existing: p),
+                            ),
+                            IconButton(
+                              icon: const Icon(
                                 Icons.delete_outline_rounded,
                                 color: AppColors.error,
                               ),
@@ -1529,132 +1620,419 @@ class _PrintersSectionState extends State<_PrintersSection> {
     }
   }
 
-  void _showAddPrinterDialog(BuildContext context) {
-    final nameCtrl = TextEditingController();
-    final addrCtrl = TextEditingController(text: '192.168.1.100');
-    var selectedTransport = PrinterTransport.network;
-    var selectedPaperWidth = 80;
-    var isDefault = true;
+  void _showPrinterDialog(BuildContext context, {PrinterEntry? existing}) {
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final addrCtrl = TextEditingController(
+      text: existing?.address ?? (existing == null ? '192.168.1.100' : ''),
+    );
+    var selectedPrinterType = existing != null
+        ? PrinterTypeExtension.fromDb(existing.printerType)
+        : PrinterType.thermal;
+    var selectedTransport = existing != null
+        ? _parseTransport(existing.transport)
+        : PrinterTransport.network;
+    var selectedPaperSize = existing?.paperSize ?? '80mm';
+    var selectedPaperWidth = existing?.paperWidthMm ?? 80;
+    var isDefault = existing?.isDefault ?? (existing == null);
+
+    final detectionService = PrinterDetectionService();
+    List<DetectedPrinter> detectedPrinters = [];
+    bool isDetecting = false;
 
     showDialog(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.surface,
-          title: const Text('Add Printer'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Printer Name',
-                    hintText: 'e.g. Receipt Printer 1',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<PrinterTransport>(
-                  initialValue: selectedTransport,
-                  decoration: const InputDecoration(
-                    labelText: 'Connection Type',
-                  ),
-                  items: PrinterTransport.values
-                      .map(
-                        (t) => DropdownMenuItem(value: t, child: Text(t.label)),
-                      )
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) {
-                      setDialogState(() {
-                        selectedTransport = v;
-                        if (v == PrinterTransport.network) {
-                          addrCtrl.text = '192.168.1.100';
-                        } else if (v == PrinterTransport.usb) {
-                          addrCtrl.text = 'COM3';
-                        } else {
-                          addrCtrl.text = '00:11:22:33:44:55';
+        builder: (ctx, setDialogState) {
+          void scanDevices() async {
+            setDialogState(() {
+              isDetecting = true;
+              detectedPrinters = [];
+            });
+            List<DetectedPrinter> results = [];
+            if (selectedTransport == PrinterTransport.usb ||
+                selectedTransport == PrinterTransport.system) {
+              results = await detectionService.detectUsbSystemPrinters();
+            } else if (selectedTransport == PrinterTransport.bluetooth) {
+              results = await detectionService.detectBluetoothDevices();
+            }
+            setDialogState(() {
+              isDetecting = false;
+              detectedPrinters = results;
+            });
+          }
+
+          // Trigger scan when opening dialog if USB or Bluetooth
+          if ((selectedTransport == PrinterTransport.usb ||
+                  selectedTransport == PrinterTransport.bluetooth ||
+                  selectedTransport == PrinterTransport.system) &&
+              detectedPrinters.isEmpty &&
+              !isDetecting) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => scanDevices());
+          }
+
+          return AlertDialog(
+            backgroundColor: AppColors.surface,
+            title: Text(existing == null ? 'Add Printer' : 'Edit Printer'),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. Printer Category / Purpose
+                    DropdownButtonFormField<PrinterType>(
+                      initialValue: selectedPrinterType,
+                      decoration: const InputDecoration(
+                        labelText: 'Printer Purpose / Type',
+                        helperText:
+                            'Thermal receipt vs document/color photo printer',
+                      ),
+                      items: PrinterType.values
+                          .map(
+                            (t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(t.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() {
+                            selectedPrinterType = v;
+                            if (v == PrinterType.thermal) {
+                              selectedPaperWidth = 80;
+                              selectedPaperSize = '80mm';
+                            } else {
+                              selectedPaperSize = '4x6';
+                              selectedPaperWidth = 102;
+                            }
+                          });
                         }
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: addrCtrl,
-                  decoration: InputDecoration(
-                    labelText: selectedTransport == PrinterTransport.network
-                        ? 'IP Address (Port 9100)'
-                        : selectedTransport == PrinterTransport.usb
-                            ? 'Port / Device Path'
-                            : 'Bluetooth MAC Address',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<int>(
-                  initialValue: selectedPaperWidth,
-                  decoration: const InputDecoration(labelText: 'Paper Width'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 80,
-                      child: Text('80mm (Standard receipt)'),
+                      },
                     ),
-                    DropdownMenuItem(
-                      value: 58,
-                      child: Text('58mm (Compact receipt)'),
+                    const SizedBox(height: 16),
+
+                    // 2. Connection Type
+                    DropdownButtonFormField<PrinterTransport>(
+                      initialValue: selectedTransport,
+                      decoration: const InputDecoration(
+                        labelText: 'Connection Type',
+                      ),
+                      items: PrinterTransport.values
+                          .map(
+                            (t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(t.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() {
+                            selectedTransport = v;
+                            if (v == PrinterTransport.network) {
+                              addrCtrl.text = '192.168.1.100';
+                            } else if (v == PrinterTransport.usb) {
+                              addrCtrl.text = 'USB001';
+                            } else if (v == PrinterTransport.bluetooth) {
+                              addrCtrl.text = '';
+                            }
+                          });
+                          if (v == PrinterTransport.usb ||
+                              v == PrinterTransport.bluetooth ||
+                              v == PrinterTransport.system) {
+                            scanDevices();
+                          }
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 3. Smart Detected Devices List (for USB/System and Bluetooth)
+                    if (selectedTransport == PrinterTransport.usb ||
+                        selectedTransport == PrinterTransport.bluetooth ||
+                        selectedTransport == PrinterTransport.system) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            selectedTransport == PrinterTransport.bluetooth
+                                ? 'Paired Bluetooth Devices'
+                                : 'Available / Installed Printers',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: AppColors.onSurface,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.refresh_rounded, size: 20),
+                            tooltip: 'Rescan devices',
+                            onPressed: isDetecting ? null : scanDevices,
+                          ),
+                        ],
+                      ),
+                      if (isDetecting)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Scanning for devices...',
+                                  style: TextStyle(
+                                      fontSize: 12, color: AppColors.onSurface),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else if (detectedPrinters.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: Text(
+                            selectedTransport == PrinterTransport.bluetooth
+                                ? 'No paired Bluetooth devices found. Make sure your printer is paired in Windows Bluetooth settings.'
+                                : 'No installed printers detected via Windows spooler. You can enter the port manually below.',
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.onSurface),
+                          ),
+                        )
+                      else
+                        Container(
+                          constraints: const BoxConstraints(maxHeight: 150),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white12),
+                          ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: detectedPrinters.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1, color: Colors.white10),
+                            itemBuilder: (context, idx) {
+                              final item = detectedPrinters[idx];
+                              final isSelected =
+                                  addrCtrl.text == item.address ||
+                                      nameCtrl.text == item.name;
+                              return ListTile(
+                                dense: true,
+                                leading: Icon(
+                                  selectedTransport ==
+                                          PrinterTransport.bluetooth
+                                      ? Icons.bluetooth_rounded
+                                      : Icons.print_rounded,
+                                  size: 18,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : Colors.white54,
+                                ),
+                                title: Text(
+                                  item.name,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    color:
+                                        isSelected ? AppColors.primary : null,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  item.address,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.onSurface,
+                                  ),
+                                ),
+                                trailing: isSelected
+                                    ? const Icon(Icons.check_circle_rounded,
+                                        size: 16, color: AppColors.primary)
+                                    : null,
+                                onTap: () {
+                                  setDialogState(() {
+                                    nameCtrl.text = item.name;
+                                    addrCtrl.text = item.address;
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+
+                    // 4. Printer Name
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Printer Name',
+                        hintText: 'e.g. Front Desk Thermal or Photo Printer',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 5. Port / Address (Only shown as primary input for Network, or editable verification for others)
+                    TextField(
+                      controller: addrCtrl,
+                      decoration: InputDecoration(
+                        labelText: selectedTransport == PrinterTransport.network
+                            ? 'IP Address (Port 9100)'
+                            : selectedTransport == PrinterTransport.bluetooth
+                                ? 'Bluetooth MAC / Device ID'
+                                : 'Port Name / Path (e.g. USB001, COM3)',
+                        hintText: selectedTransport == PrinterTransport.network
+                            ? '192.168.1.100:9100'
+                            : '',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 6. Paper Size & Dimensions
+                    if (selectedPrinterType == PrinterType.thermal) ...[
+                      DropdownButtonFormField<int>(
+                        initialValue: selectedPaperWidth,
+                        decoration:
+                            const InputDecoration(labelText: 'Paper Width'),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 80,
+                            child: Text('80mm (Standard thermal receipt)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 58,
+                            child: Text('58mm (Compact thermal receipt)'),
+                          ),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) {
+                            setDialogState(() {
+                              selectedPaperWidth = v;
+                              selectedPaperSize = '${v}mm';
+                            });
+                          }
+                        },
+                      ),
+                    ] else ...[
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedPaperSize,
+                        decoration: const InputDecoration(
+                            labelText: 'Document Paper Size'),
+                        items: const [
+                          DropdownMenuItem(
+                            value: '4x6',
+                            child: Text(
+                                '4×6 in (4R Photo — Universal Photobooth)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'A6',
+                            child: Text('A6 Photo (105 × 148 mm)'),
+                          ),
+                          DropdownMenuItem(
+                            value: '5x7',
+                            child: Text('5×7 in (5R Photo)'),
+                          ),
+                          DropdownMenuItem(
+                            value: '2x6',
+                            child: Text('2×6 in (Classic Photo Strip)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'square4x4',
+                            child: Text('4×4 in (Square Photo)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'A4',
+                            child: Text('A4 Document (210 × 297 mm)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Letter',
+                            child: Text('US Letter (8.5 × 11 in)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Legal',
+                            child: Text('US Legal (8.5 × 14 in)'),
+                          ),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) {
+                            setDialogState(() {
+                              selectedPaperSize = v;
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+
+                    // 7. Default Checkbox
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        'Set as Default ${selectedPrinterType == PrinterType.thermal ? "Thermal" : "Document"} Printer',
+                      ),
+                      value: isDefault,
+                      onChanged: (v) =>
+                          setDialogState(() => isDefault = v ?? false),
                     ),
                   ],
-                  onChanged: (v) {
-                    if (v != null) setDialogState(() => selectedPaperWidth = v);
-                  },
                 ),
-                const SizedBox(height: 12),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Set as Default Printer'),
-                  value: isDefault,
-                  onChanged: (v) =>
-                      setDialogState(() => isDefault = v ?? false),
-                ),
-              ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameCtrl.text.trim();
-                final addr = addrCtrl.text.trim();
-                if (name.isEmpty || addr.isEmpty) return;
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final name = nameCtrl.text.trim();
+                  final addr = addrCtrl.text.trim();
+                  if (name.isEmpty || addr.isEmpty) return;
 
-                final id = const Uuid().v4();
-                final db = context.read<AppDatabase>();
-                await db.upsertPrinter(
-                  PrintersTableCompanion(
-                    id: drift.Value(id),
-                    name: drift.Value(name),
-                    transport: drift.Value(selectedTransport.name),
-                    address: drift.Value(addr),
-                    paperWidthMm: drift.Value(selectedPaperWidth),
-                    isDefault: drift.Value(isDefault),
-                  ),
-                );
+                  final id = existing?.id ?? const Uuid().v4();
+                  final db = context.read<AppDatabase>();
+                  await db.upsertPrinter(
+                    PrintersTableCompanion(
+                      id: drift.Value(id),
+                      name: drift.Value(name),
+                      printerType: drift.Value(selectedPrinterType.name),
+                      transport: drift.Value(selectedTransport.name),
+                      address: drift.Value(addr),
+                      paperWidthMm: drift.Value(selectedPaperWidth),
+                      paperSize: drift.Value(selectedPaperSize),
+                      isDefault: drift.Value(isDefault),
+                    ),
+                  );
 
-                if (isDefault) {
-                  await db.setDefaultPrinter(id);
-                }
+                  if (isDefault) {
+                    await db.setDefaultPrinter(id);
+                  }
 
-                if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-                setState(_loadPrinters);
-              },
-              child: const Text('Save Printer'),
-            ),
-          ],
-        ),
+                  if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                  setState(_loadPrinters);
+                },
+                child:
+                    Text(existing == null ? 'Save Printer' : 'Update Printer'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1665,6 +2043,8 @@ class _PrintersSectionState extends State<_PrintersSection> {
         return PrinterTransport.usb;
       case 'bluetooth':
         return PrinterTransport.bluetooth;
+      case 'system':
+        return PrinterTransport.system;
       default:
         return PrinterTransport.network;
     }
@@ -3100,8 +3480,7 @@ class _VouchersSectionState extends State<_VouchersSection> {
               title: const Text(
                 'Show On-Screen Kiosk Keyboard',
                 style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onBackground),
+                    fontWeight: FontWeight.w600, color: AppColors.onBackground),
               ),
               subtitle: const Text(
                 'Displays a touch keypad on the voucher entry screen for touchscreen kiosks. When turned off, uses your laptop or Android device keyboard.',

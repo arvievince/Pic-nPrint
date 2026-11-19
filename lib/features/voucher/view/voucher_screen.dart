@@ -33,6 +33,8 @@ class _VoucherScreenState extends State<VoucherScreen> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   bool _showOnScreenKeyboard = false;
+  /// isColorPrint forwarded from TierSelectionScreen via route extra.
+  bool _isColorPrint = false;
 
   @override
   void initState() {
@@ -43,6 +45,14 @@ class _VoucherScreenState extends State<VoucherScreen> {
       if (mounted) {
         context.read<VoucherBloc>().add(const VoucherReset());
         _focusNode.requestFocus();
+        // Read isColorPrint from route extra if forwarded by TierSelectionScreen
+        try {
+          final extra = GoRouterState.of(context).extra;
+          if (extra is Map<String, dynamic> &&
+              extra.containsKey('isColorPrint')) {
+            setState(() => _isColorPrint = extra['isColorPrint'] as bool? ?? false);
+          }
+        } catch (_) {}
       }
     });
   }
@@ -121,8 +131,10 @@ class _VoucherScreenState extends State<VoucherScreen> {
     return BlocListener<VoucherBloc, VoucherState>(
       listener: (context, state) {
         if (state is VoucherValid) {
-          final session =
-              context.read<VoucherBloc>().buildSession(state.voucher);
+          final session = context
+              .read<VoucherBloc>()
+              .buildSession(state.voucher)
+              .copyWith(isColorPrint: _isColorPrint);
           if (session.shotMode.photoCount == 1) {
             context.goNamed(AppRoute.capture, extra: session);
           } else {

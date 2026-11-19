@@ -12,6 +12,7 @@ import '../../../core/services/printer_service.dart';
 import '../../../core/services/voucher_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/responsive.dart';
+import '../../color_mode/view/color_mode_selection_screen.dart';
 
 /// Shown in Event Mode instead of VoucherScreen.
 ///
@@ -33,6 +34,8 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
   Timer? _timer;
   String? _logoPath;
   String? _title;
+  /// isColorPrint forwarded from ColorModeSelectionScreen (or false by default).
+  bool _isColorPrint = false;
 
   List<_TierOption> _tiers = [];
   bool _loading = true;
@@ -41,6 +44,15 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
   @override
   void initState() {
     super.initState();
+    // Read isColorPrint forwarded from ColorModeSelectionScreen (if any)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        final extra = GoRouterState.of(context).extra;
+        if (extra is ColorModeArgs) {
+          setState(() => _isColorPrint = extra.isColorPrint);
+        }
+      } catch (_) {}
+    });
     _startTimer();
     _loadTiers();
   }
@@ -152,6 +164,38 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
       final voucherService = context.read<VoucherService>();
       final printerService = context.read<PrinterService>();
 
+      // ── Check whether Event Mode is enabled ──────────────────────────────
+      final eventModeOn =
+          (await db.getSetting('event_mode_enabled'))?.toLowerCase() == 'true';
+
+      if (eventModeOn) {
+        // Event Mode ON: no voucher, no print — go straight to Capture/Layout
+        final locationId = await db.getSetting('location_id') ?? 'EVT';
+        final session = SessionModel(
+          sessionId: 'EVT-${DateTime.now().millisecondsSinceEpoch}',
+          voucher: VoucherModel(
+            code: 'EVENT',
+            locationId: locationId,
+            shotMode: tier.mode,
+            serial: '00000',
+            expiresAt: DateTime.now().add(const Duration(hours: 4)),
+            priceSnapshot: tier.price ?? 0.0,
+          ),
+          shotMode: tier.mode,
+          isColorPrint: _isColorPrint,
+          createdAt: DateTime.now(),
+        );
+        if (mounted) {
+          if (session.shotMode.photoCount == 1) {
+            context.goNamed(AppRoute.capture, extra: session);
+          } else {
+            context.goNamed(AppRoute.layout, extra: session);
+          }
+        }
+        return;
+      }
+
+      // ── Event Mode OFF: generate voucher, print slip, show entry screen ───
       // 1. Generate new voucher for the selected tier
       final voucher = await voucherService.generateVoucher(
         mode: tier.mode,
@@ -159,37 +203,45 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
       );
 
       // 2. Direct thermal printing in background
-      final printers = await db.getAllPrinters();
-      final defaultPrinter = printers.where((p) => p.isDefault).firstOrNull;
-      if (defaultPrinter != null) {
+      final defaultThermal = await db.getDefaultThermalPrinter();
+      if (defaultThermal != null) {
         final printerModel = PrinterModel(
-          id: defaultPrinter.id,
-          name: defaultPrinter.name,
-          transport: defaultPrinter.transport == 'usb'
+          id: defaultThermal.id,
+          name: defaultThermal.name,
+          transport: defaultThermal.transport == 'usb'
               ? PrinterTransport.usb
-              : defaultPrinter.transport == 'bluetooth'
+              : defaultThermal.transport == 'bluetooth'
                   ? PrinterTransport.bluetooth
                   : PrinterTransport.network,
-          address: defaultPrinter.address,
-          paperWidthMm: defaultPrinter.paperWidthMm,
+          address: defaultThermal.address,
+          paperWidthMm: defaultThermal.paperWidthMm,
+          paperSize: defaultThermal.paperSize,
           isDefault: true,
         );
         unawaited(
-          printerService.printVoucherSlip(
-            printer: printerModel,
-            voucher: voucher,
-            kioskTitle: _title,
-          ).catchError((_) {}),
+          printerService
+              .printVoucherSlip(
+                printer: printerModel,
+                voucher: voucher,
+                kioskTitle: _title,
+              )
+              .catchError((_) {}),
         );
       }
 
-      // 3. Immediately show the enter voucher screen
+      // 3. Navigate to voucher entry screen, forwarding isColorPrint
       if (mounted) {
-        context.goNamed(AppRoute.voucher);
+        context.goNamed(
+          AppRoute.voucher,
+          extra: {'isColorPrint': _isColorPrint},
+        );
       }
     } catch (_) {
       if (mounted) {
-        context.goNamed(AppRoute.voucher);
+        context.goNamed(
+          AppRoute.voucher,
+          extra: {'isColorPrint': _isColorPrint},
+        );
       }
     }
   }

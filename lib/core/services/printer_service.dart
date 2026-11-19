@@ -1,9 +1,12 @@
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:ffi/ffi.dart';
 import 'package:image/image.dart' as img;
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 
 import '../models/models.dart';
+import 'printer_detection_service.dart';
 
 /// Abstract printer transport — implemented by each transport type below.
 abstract class PrinterTransportBase {
@@ -38,11 +41,13 @@ class PrinterService {
   }) async {
     final imageBytes = File(imagePath).readAsBytesSync();
     final srcImage = img.decodeImage(imageBytes);
-    if (srcImage == null) throw PrinterException('Could not decode image for printing.');
+    if (srcImage == null) {
+      throw PrinterException('Could not decode image for printing.');
+    }
 
     // 1. Resize to paper width
     final dotsWide = printer.paperWidthMm == 80 ? 576 : 384;
-    final scaled   = img.copyResize(srcImage, width: dotsWide);
+    final scaled = img.copyResize(srcImage, width: dotsWide);
 
     // 2. High-quality B&W filter + Floyd-Steinberg dithering optimized for thermal paper
     final dithered = _ditherForThermal(scaled);
@@ -195,9 +200,11 @@ class PrinterService {
       case PrinterTransport.network:
         return NetworkPrinterTransport(address: printer.address);
       case PrinterTransport.usb:
-        return UsbPrinterTransport(address: printer.address);
+        return UsbPrinterTransport(name: printer.name, address: printer.address);
       case PrinterTransport.bluetooth:
         return BluetoothPrinterTransport(address: printer.address);
+      case PrinterTransport.system:
+        return SystemPrinterTransport(name: printer.name, address: printer.address);
     }
   }
 
@@ -217,11 +224,20 @@ class PrinterService {
     final grey = img.grayscale(input);
 
     // 2. Unsharp masking to keep facial features, eyes, glasses, and contours sharp
-    final sharpened = img.convolution(grey, filter: [
-      0, -1, 0,
-      -1, 5, -1,
-      0, -1, 0,
-    ], div: 1, amount: 0.3);
+    final sharpened = img.convolution(grey,
+        filter: [
+          0,
+          -1,
+          0,
+          -1,
+          5,
+          -1,
+          0,
+          -1,
+          0,
+        ],
+        div: 1,
+        amount: 0.3);
 
     // 3. Dynamic range / tone mapping calibrated for thermal paper
     final lum = Float64List(w * h);
@@ -318,7 +334,8 @@ class NetworkPrinterTransport implements PrinterTransportBase {
       _socket!.add(bytes);
       await _socket!.flush();
     } on SocketException catch (e) {
-      throw PrinterException('Failed to connect to printer at $host:$port: ${e.message}');
+      throw PrinterException(
+          'Failed to connect to printer at $host:$port: ${e.message}');
     } catch (e) {
       throw PrinterException('Printer communication error ($host:$port): $e');
     }
@@ -337,21 +354,65 @@ class NetworkPrinterTransport implements PrinterTransportBase {
   }
 }
 
-/// USB transport — Windows writes raw bytes to COM port.
+/// USB transport — sends raw ESC/POS bytes to Windows printer via winspool spooler,
+/// or serial COM port fallback.
 class UsbPrinterTransport implements PrinterTransportBase {
-  final String address; // COM port (Windows) or device path
+  final String name; // Configured printer name (e.g. "XP-90")
+  final String address; // Port or identifier (e.g. "USB001", "COM3")
 
-  UsbPrinterTransport({required this.address});
+  UsbPrinterTransport({required this.name, required this.address});
 
   @override
   Future<void> sendBytes(Uint8List bytes) async {
     if (Platform.isWindows) {
-      final port = File(address);
-      await port.writeAsBytes(bytes);
+      // 1. Try Windows Print Spooler with the printer name (e.g. "XP-90")
+      if (name.isNotEmpty && WindowsRawSpooler.sendRawBytes(name, bytes)) {
+        return;
+      }
+
+      // 2. Try Windows Print Spooler with address (in case user stored the printer name in address)
+      if (address.isNotEmpty &&
+          address != name &&
+          WindowsRawSpooler.sendRawBytes(address, bytes)) {
+        return;
+      }
+
+      // 3. Look up if address matches any installed printer port (e.g. "USB001" -> "XP-90")
+      try {
+        final detected = await PrinterDetectionService().detectUsbSystemPrinters();
+        for (final p in detected) {
+          if (p.address.trim().toLowerCase() == address.trim().toLowerCase() ||
+              p.name.trim().toLowerCase() == name.trim().toLowerCase()) {
+            if (WindowsRawSpooler.sendRawBytes(p.name, bytes)) {
+              return;
+            }
+          }
+        }
+      } catch (_) {}
+
+      // 4. Serial COM port fallback (e.g. "\\.\COM3")
+      if (address.toUpperCase().startsWith('COM')) {
+        try {
+          final portName = address.startsWith(r'\\.\')
+              ? address
+              : r'\\.\' + address.toUpperCase();
+          final port = File(portName);
+          await port.writeAsBytes(bytes);
+          return;
+        } catch (_) {}
+      }
+
+      throw PrinterException(
+        'Failed to send print job to Windows USB printer "$name" (port: $address).\n'
+        'Please check that:\n'
+        '1. The printer is powered on and connected via USB.\n'
+        '2. The printer driver is installed in Windows Settings > Bluetooth & Devices > Printers.\n'
+        '3. The printer name matches the installed name in Windows.',
+      );
     } else {
       throw PrinterException(
-        'Direct USB COM printing is only supported on Windows. '
-        'On Android, please use a Network (TCP/IP) printer.',
+        'Direct USB thermal printing is currently supported on Windows. '
+        'On Android, please use a Network (TCP/IP) or Bluetooth thermal printer.',
       );
     }
   }
@@ -369,11 +430,202 @@ class BluetoothPrinterTransport implements PrinterTransportBase {
   @override
   Future<void> sendBytes(Uint8List bytes) async {
     // TODO: integrate flutter_bluetooth_serial or print_bluetooth_thermal
-    throw PrinterException('Bluetooth printing not yet implemented. Use USB or network.');
+    throw PrinterException(
+        'Bluetooth printing not yet implemented. Use USB or network.');
   }
 
   @override
   Future<void> close() async {}
+}
+
+/// System / OS installed printer transport — sends raw ESC/POS bytes via Windows print spooler.
+class SystemPrinterTransport implements PrinterTransportBase {
+  final String name;
+  final String address;
+
+  SystemPrinterTransport({required this.name, required this.address});
+
+  @override
+  Future<void> sendBytes(Uint8List bytes) async {
+    if (Platform.isWindows) {
+      if (name.isNotEmpty && WindowsRawSpooler.sendRawBytes(name, bytes)) {
+        return;
+      }
+      if (address.isNotEmpty &&
+          address != name &&
+          WindowsRawSpooler.sendRawBytes(address, bytes)) {
+        return;
+      }
+      try {
+        final detected = await PrinterDetectionService().detectUsbSystemPrinters();
+        for (final p in detected) {
+          if (p.address.trim().toLowerCase() == address.trim().toLowerCase() ||
+              p.name.trim().toLowerCase() == name.trim().toLowerCase()) {
+            if (WindowsRawSpooler.sendRawBytes(p.name, bytes)) {
+              return;
+            }
+          }
+        }
+      } catch (_) {}
+      throw PrinterException(
+        'Failed to send print job to Windows printer "$name" (port: $address).',
+      );
+    } else {
+      throw PrinterException(
+        'System printer transport is only supported on Windows.',
+      );
+    }
+  }
+
+  @override
+  Future<void> close() async {}
+}
+
+// ─── Windows Win32 Print Spooler (RAW ESC/POS Dispatcher) ───────────────────
+
+final class _DocInfo1W extends Struct {
+  external Pointer<Utf16> pDocName;
+  external Pointer<Utf16> pOutputFile;
+  external Pointer<Utf16> pDatatype;
+}
+
+typedef _OpenPrinterWNative = Int32 Function(
+  Pointer<Utf16> pPrinterName,
+  Pointer<IntPtr> phPrinter,
+  Pointer<Void> pDefault,
+);
+typedef _OpenPrinterWDart = int Function(
+  Pointer<Utf16> pPrinterName,
+  Pointer<IntPtr> phPrinter,
+  Pointer<Void> pDefault,
+);
+
+typedef _StartDocPrinterWNative = Int32 Function(
+  IntPtr hPrinter,
+  Uint32 level,
+  Pointer<_DocInfo1W> pDocInfo,
+);
+typedef _StartDocPrinterWDart = int Function(
+  int hPrinter,
+  int level,
+  Pointer<_DocInfo1W> pDocInfo,
+);
+
+typedef _StartPagePrinterNative = Int32 Function(IntPtr hPrinter);
+typedef _StartPagePrinterDart = int Function(int hPrinter);
+
+typedef _WritePrinterNative = Int32 Function(
+  IntPtr hPrinter,
+  Pointer<Void> pBuf,
+  Uint32 cbBuf,
+  Pointer<Uint32> pcWritten,
+);
+typedef _WritePrinterDart = int Function(
+  int hPrinter,
+  Pointer<Void> pBuf,
+  int cbBuf,
+  Pointer<Uint32> pcWritten,
+);
+
+typedef _EndPagePrinterNative = Int32 Function(IntPtr hPrinter);
+typedef _EndPagePrinterDart = int Function(int hPrinter);
+
+typedef _EndDocPrinterNative = Int32 Function(IntPtr hPrinter);
+typedef _EndDocPrinterDart = int Function(int hPrinter);
+
+typedef _ClosePrinterNative = Int32 Function(IntPtr hPrinter);
+typedef _ClosePrinterDart = int Function(int hPrinter);
+
+/// Directly spools raw bytes (ESC/POS or binary) to a named Windows printer
+/// using the native Win32 `winspool.drv` print spooler API.
+class WindowsRawSpooler {
+  static bool sendRawBytes(
+    String printerName,
+    Uint8List bytes, {
+    String docName = 'Pic-nPrint RAW Job',
+  }) {
+    if (!Platform.isWindows || bytes.isEmpty) return false;
+
+    DynamicLibrary winspool;
+    try {
+      winspool = DynamicLibrary.open('winspool.drv');
+    } catch (_) {
+      return false;
+    }
+
+    final openPrinter = winspool
+        .lookupFunction<_OpenPrinterWNative, _OpenPrinterWDart>('OpenPrinterW');
+    final startDocPrinter = winspool
+        .lookupFunction<_StartDocPrinterWNative, _StartDocPrinterWDart>(
+            'StartDocPrinterW');
+    final startPagePrinter = winspool
+        .lookupFunction<_StartPagePrinterNative, _StartPagePrinterDart>(
+            'StartPagePrinter');
+    final writePrinter = winspool
+        .lookupFunction<_WritePrinterNative, _WritePrinterDart>('WritePrinter');
+    final endPagePrinter = winspool
+        .lookupFunction<_EndPagePrinterNative, _EndPagePrinterDart>(
+            'EndPagePrinter');
+    final endDocPrinter = winspool
+        .lookupFunction<_EndDocPrinterNative, _EndDocPrinterDart>('EndDocPrinter');
+    final closePrinter = winspool
+        .lookupFunction<_ClosePrinterNative, _ClosePrinterDart>('ClosePrinter');
+
+    final pPrinterName = printerName.toNativeUtf16();
+    final phPrinter = calloc<IntPtr>();
+
+    try {
+      final openRes = openPrinter(pPrinterName, phPrinter, nullptr);
+      if (openRes == 0) {
+        return false;
+      }
+      final hPrinter = phPrinter.value;
+
+      final pDocInfo = calloc<_DocInfo1W>();
+      final pDocNameStr = docName.toNativeUtf16();
+      final pDataTypeStr = 'RAW'.toNativeUtf16();
+
+      pDocInfo.ref.pDocName = pDocNameStr;
+      pDocInfo.ref.pOutputFile = nullptr;
+      pDocInfo.ref.pDatatype = pDataTypeStr;
+
+      try {
+        final docId = startDocPrinter(hPrinter, 1, pDocInfo);
+        if (docId <= 0) {
+          return false;
+        }
+
+        try {
+          startPagePrinter(hPrinter);
+
+          final pBuf = calloc<Uint8>(bytes.length);
+          pBuf.asTypedList(bytes.length).setAll(0, bytes);
+          final pWritten = calloc<Uint32>();
+
+          try {
+            writePrinter(hPrinter, pBuf.cast(), bytes.length, pWritten);
+          } finally {
+            calloc.free(pBuf);
+            calloc.free(pWritten);
+          }
+
+          endPagePrinter(hPrinter);
+        } finally {
+          endDocPrinter(hPrinter);
+        }
+      } finally {
+        calloc.free(pDocNameStr);
+        calloc.free(pDataTypeStr);
+        calloc.free(pDocInfo);
+        closePrinter(hPrinter);
+      }
+
+      return true;
+    } finally {
+      calloc.free(pPrinterName);
+      calloc.free(phPrinter);
+    }
+  }
 }
 
 class PrinterException implements Exception {

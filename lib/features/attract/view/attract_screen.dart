@@ -107,18 +107,28 @@ class _AttractScreenState extends State<AttractScreen> {
     } catch (_) {}
   }
 
-  void _onStartTap() {
+  void _onStartTap() async {
     context.read<AttractBloc>().add(const AttractTapped());
-    context.goNamed(AppRoute.tierSelect);
+    // Check admin toggle for color printing
+    try {
+      final db = context.read<AppDatabase>();
+      final colorEnabled = await db.getSetting('color_printing_enabled');
+      if (!mounted) return;
+      if (colorEnabled == 'true') {
+        context.goNamed(AppRoute.colorModeSelect);
+      } else {
+        context.goNamed(AppRoute.tierSelect);
+      }
+    } catch (_) {
+      if (mounted) context.goNamed(AppRoute.tierSelect);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocListener<AttractBloc, AttractState>(
       listener: (context, state) {
-        if (state is AttractNavigating) {
-          context.goNamed(AppRoute.tierSelect);
-        }
+        // Navigation is handled directly in _onStartTap — nothing to do here.
       },
       child: BlocBuilder<AttractBloc, AttractState>(
         builder: (context, state) {

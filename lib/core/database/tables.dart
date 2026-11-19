@@ -36,9 +36,17 @@ class AssetsTable extends Table {
 class PrintersTable extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
-  TextColumn get transport => text()(); // 'network' | 'usb' | 'bluetooth'
+  /// 'thermal' (ESC/POS receipt) | 'document' (color/photo document printer)
+  TextColumn get printerType =>
+      text().withDefault(const Constant('thermal'))();
+  TextColumn get transport =>
+      text()(); // 'network' | 'usb' | 'bluetooth' | 'system'
   TextColumn get address => text()();
   IntColumn get paperWidthMm => integer().withDefault(const Constant(80))();
+  /// Paper size key: '80mm' | '58mm' | '4x6' | 'A6' | '5x7' | '2x6' |
+  /// 'square4x4' | 'A4' | 'Letter' | 'Legal'
+  TextColumn get paperSize =>
+      text().withDefault(const Constant('80mm'))();
   BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
 
   @override
@@ -101,6 +109,9 @@ class SessionsTable extends Table {
   TextColumn get gifUrl => text().nullable()();
   TextColumn get uploadStatus => text().withDefault(const Constant('pending'))();
   DateTimeColumn get expiresAt => dateTime().nullable()();
+  /// Whether this session is a color / document print (true) or thermal B&W (false).
+  BoolColumn get isColorPrint =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {sessionId};

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/attract/view/attract_screen.dart';
+import '../../features/color_mode/view/color_mode_selection_screen.dart';
 import '../../features/voucher/view/voucher_screen.dart';
 import '../../features/capture/view/capture_screen.dart';
 import '../../features/layout/view/layout_screen.dart';
@@ -44,6 +45,7 @@ class AppRoute {
   AppRoute._();
 
   static const String attract = 'attract'; // /
+  static const String colorModeSelect = 'color-mode-select'; // /color-mode-select
   static const String voucher = 'voucher'; // /voucher
   static const String tierSelect = 'tier-select'; // /tier-select (Event Mode)
   static const String capture = 'capture'; // /capture
@@ -77,6 +79,13 @@ GoRouter createRouter() {
         path: '/',
         name: AppRoute.attract,
         builder: (context, state) => const AttractScreen(),
+      ),
+
+      // ── 1b. Color Mode Selection (shown when color_printing_enabled = ON) ─
+      GoRoute(
+        path: '/color-mode-select',
+        name: AppRoute.colorModeSelect,
+        builder: (context, state) => const ColorModeSelectionScreen(),
       ),
 
       // ── 2. Voucher Entry ──────────────────────────────────────────────────

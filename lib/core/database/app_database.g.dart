@@ -697,6 +697,14 @@ class $PrintersTableTable extends PrintersTable
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
       'name', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _printerTypeMeta =
+      const VerificationMeta('printerType');
+  @override
+  late final GeneratedColumn<String> printerType = GeneratedColumn<String>(
+      'printer_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('thermal'));
   static const VerificationMeta _transportMeta =
       const VerificationMeta('transport');
   @override
@@ -717,6 +725,14 @@ class $PrintersTableTable extends PrintersTable
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(80));
+  static const VerificationMeta _paperSizeMeta =
+      const VerificationMeta('paperSize');
+  @override
+  late final GeneratedColumn<String> paperSize = GeneratedColumn<String>(
+      'paper_size', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('80mm'));
   static const VerificationMeta _isDefaultMeta =
       const VerificationMeta('isDefault');
   @override
@@ -728,8 +744,16 @@ class $PrintersTableTable extends PrintersTable
           GeneratedColumn.constraintIsAlways('CHECK ("is_default" IN (0, 1))'),
       defaultValue: const Constant(false));
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, name, transport, address, paperWidthMm, isDefault];
+  List<GeneratedColumn> get $columns => [
+        id,
+        name,
+        printerType,
+        transport,
+        address,
+        paperWidthMm,
+        paperSize,
+        isDefault
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -751,6 +775,12 @@ class $PrintersTableTable extends PrintersTable
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
+    if (data.containsKey('printer_type')) {
+      context.handle(
+          _printerTypeMeta,
+          printerType.isAcceptableOrUnknown(
+              data['printer_type']!, _printerTypeMeta));
+    }
     if (data.containsKey('transport')) {
       context.handle(_transportMeta,
           transport.isAcceptableOrUnknown(data['transport']!, _transportMeta));
@@ -769,6 +799,10 @@ class $PrintersTableTable extends PrintersTable
           paperWidthMm.isAcceptableOrUnknown(
               data['paper_width_mm']!, _paperWidthMmMeta));
     }
+    if (data.containsKey('paper_size')) {
+      context.handle(_paperSizeMeta,
+          paperSize.isAcceptableOrUnknown(data['paper_size']!, _paperSizeMeta));
+    }
     if (data.containsKey('is_default')) {
       context.handle(_isDefaultMeta,
           isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta));
@@ -786,12 +820,16 @@ class $PrintersTableTable extends PrintersTable
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      printerType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}printer_type'])!,
       transport: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}transport'])!,
       address: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}address'])!,
       paperWidthMm: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}paper_width_mm'])!,
+      paperSize: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}paper_size'])!,
       isDefault: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_default'])!,
     );
@@ -806,25 +844,36 @@ class $PrintersTableTable extends PrintersTable
 class PrinterEntry extends DataClass implements Insertable<PrinterEntry> {
   final String id;
   final String name;
+
+  /// 'thermal' (ESC/POS receipt) | 'document' (color/photo document printer)
+  final String printerType;
   final String transport;
   final String address;
   final int paperWidthMm;
+
+  /// Paper size key: '80mm' | '58mm' | '4x6' | 'A6' | '5x7' | '2x6' |
+  /// 'square4x4' | 'A4' | 'Letter' | 'Legal'
+  final String paperSize;
   final bool isDefault;
   const PrinterEntry(
       {required this.id,
       required this.name,
+      required this.printerType,
       required this.transport,
       required this.address,
       required this.paperWidthMm,
+      required this.paperSize,
       required this.isDefault});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
+    map['printer_type'] = Variable<String>(printerType);
     map['transport'] = Variable<String>(transport);
     map['address'] = Variable<String>(address);
     map['paper_width_mm'] = Variable<int>(paperWidthMm);
+    map['paper_size'] = Variable<String>(paperSize);
     map['is_default'] = Variable<bool>(isDefault);
     return map;
   }
@@ -833,9 +882,11 @@ class PrinterEntry extends DataClass implements Insertable<PrinterEntry> {
     return PrintersTableCompanion(
       id: Value(id),
       name: Value(name),
+      printerType: Value(printerType),
       transport: Value(transport),
       address: Value(address),
       paperWidthMm: Value(paperWidthMm),
+      paperSize: Value(paperSize),
       isDefault: Value(isDefault),
     );
   }
@@ -846,9 +897,11 @@ class PrinterEntry extends DataClass implements Insertable<PrinterEntry> {
     return PrinterEntry(
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
+      printerType: serializer.fromJson<String>(json['printerType']),
       transport: serializer.fromJson<String>(json['transport']),
       address: serializer.fromJson<String>(json['address']),
       paperWidthMm: serializer.fromJson<int>(json['paperWidthMm']),
+      paperSize: serializer.fromJson<String>(json['paperSize']),
       isDefault: serializer.fromJson<bool>(json['isDefault']),
     );
   }
@@ -858,9 +911,11 @@ class PrinterEntry extends DataClass implements Insertable<PrinterEntry> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
+      'printerType': serializer.toJson<String>(printerType),
       'transport': serializer.toJson<String>(transport),
       'address': serializer.toJson<String>(address),
       'paperWidthMm': serializer.toJson<int>(paperWidthMm),
+      'paperSize': serializer.toJson<String>(paperSize),
       'isDefault': serializer.toJson<bool>(isDefault),
     };
   }
@@ -868,27 +923,34 @@ class PrinterEntry extends DataClass implements Insertable<PrinterEntry> {
   PrinterEntry copyWith(
           {String? id,
           String? name,
+          String? printerType,
           String? transport,
           String? address,
           int? paperWidthMm,
+          String? paperSize,
           bool? isDefault}) =>
       PrinterEntry(
         id: id ?? this.id,
         name: name ?? this.name,
+        printerType: printerType ?? this.printerType,
         transport: transport ?? this.transport,
         address: address ?? this.address,
         paperWidthMm: paperWidthMm ?? this.paperWidthMm,
+        paperSize: paperSize ?? this.paperSize,
         isDefault: isDefault ?? this.isDefault,
       );
   PrinterEntry copyWithCompanion(PrintersTableCompanion data) {
     return PrinterEntry(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
+      printerType:
+          data.printerType.present ? data.printerType.value : this.printerType,
       transport: data.transport.present ? data.transport.value : this.transport,
       address: data.address.present ? data.address.value : this.address,
       paperWidthMm: data.paperWidthMm.present
           ? data.paperWidthMm.value
           : this.paperWidthMm,
+      paperSize: data.paperSize.present ? data.paperSize.value : this.paperSize,
       isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
     );
   }
@@ -898,52 +960,62 @@ class PrinterEntry extends DataClass implements Insertable<PrinterEntry> {
     return (StringBuffer('PrinterEntry(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('printerType: $printerType, ')
           ..write('transport: $transport, ')
           ..write('address: $address, ')
           ..write('paperWidthMm: $paperWidthMm, ')
+          ..write('paperSize: $paperSize, ')
           ..write('isDefault: $isDefault')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, transport, address, paperWidthMm, isDefault);
+  int get hashCode => Object.hash(id, name, printerType, transport, address,
+      paperWidthMm, paperSize, isDefault);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is PrinterEntry &&
           other.id == this.id &&
           other.name == this.name &&
+          other.printerType == this.printerType &&
           other.transport == this.transport &&
           other.address == this.address &&
           other.paperWidthMm == this.paperWidthMm &&
+          other.paperSize == this.paperSize &&
           other.isDefault == this.isDefault);
 }
 
 class PrintersTableCompanion extends UpdateCompanion<PrinterEntry> {
   final Value<String> id;
   final Value<String> name;
+  final Value<String> printerType;
   final Value<String> transport;
   final Value<String> address;
   final Value<int> paperWidthMm;
+  final Value<String> paperSize;
   final Value<bool> isDefault;
   final Value<int> rowid;
   const PrintersTableCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
+    this.printerType = const Value.absent(),
     this.transport = const Value.absent(),
     this.address = const Value.absent(),
     this.paperWidthMm = const Value.absent(),
+    this.paperSize = const Value.absent(),
     this.isDefault = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PrintersTableCompanion.insert({
     required String id,
     required String name,
+    this.printerType = const Value.absent(),
     required String transport,
     required String address,
     this.paperWidthMm = const Value.absent(),
+    this.paperSize = const Value.absent(),
     this.isDefault = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -953,18 +1025,22 @@ class PrintersTableCompanion extends UpdateCompanion<PrinterEntry> {
   static Insertable<PrinterEntry> custom({
     Expression<String>? id,
     Expression<String>? name,
+    Expression<String>? printerType,
     Expression<String>? transport,
     Expression<String>? address,
     Expression<int>? paperWidthMm,
+    Expression<String>? paperSize,
     Expression<bool>? isDefault,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
+      if (printerType != null) 'printer_type': printerType,
       if (transport != null) 'transport': transport,
       if (address != null) 'address': address,
       if (paperWidthMm != null) 'paper_width_mm': paperWidthMm,
+      if (paperSize != null) 'paper_size': paperSize,
       if (isDefault != null) 'is_default': isDefault,
       if (rowid != null) 'rowid': rowid,
     });
@@ -973,17 +1049,21 @@ class PrintersTableCompanion extends UpdateCompanion<PrinterEntry> {
   PrintersTableCompanion copyWith(
       {Value<String>? id,
       Value<String>? name,
+      Value<String>? printerType,
       Value<String>? transport,
       Value<String>? address,
       Value<int>? paperWidthMm,
+      Value<String>? paperSize,
       Value<bool>? isDefault,
       Value<int>? rowid}) {
     return PrintersTableCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
+      printerType: printerType ?? this.printerType,
       transport: transport ?? this.transport,
       address: address ?? this.address,
       paperWidthMm: paperWidthMm ?? this.paperWidthMm,
+      paperSize: paperSize ?? this.paperSize,
       isDefault: isDefault ?? this.isDefault,
       rowid: rowid ?? this.rowid,
     );
@@ -998,6 +1078,9 @@ class PrintersTableCompanion extends UpdateCompanion<PrinterEntry> {
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
+    if (printerType.present) {
+      map['printer_type'] = Variable<String>(printerType.value);
+    }
     if (transport.present) {
       map['transport'] = Variable<String>(transport.value);
     }
@@ -1006,6 +1089,9 @@ class PrintersTableCompanion extends UpdateCompanion<PrinterEntry> {
     }
     if (paperWidthMm.present) {
       map['paper_width_mm'] = Variable<int>(paperWidthMm.value);
+    }
+    if (paperSize.present) {
+      map['paper_size'] = Variable<String>(paperSize.value);
     }
     if (isDefault.present) {
       map['is_default'] = Variable<bool>(isDefault.value);
@@ -1021,9 +1107,11 @@ class PrintersTableCompanion extends UpdateCompanion<PrinterEntry> {
     return (StringBuffer('PrintersTableCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('printerType: $printerType, ')
           ..write('transport: $transport, ')
           ..write('address: $address, ')
           ..write('paperWidthMm: $paperWidthMm, ')
+          ..write('paperSize: $paperSize, ')
           ..write('isDefault: $isDefault, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -2141,6 +2229,16 @@ class $SessionsTableTable extends SessionsTable
   late final GeneratedColumn<DateTime> expiresAt = GeneratedColumn<DateTime>(
       'expires_at', aliasedName, true,
       type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _isColorPrintMeta =
+      const VerificationMeta('isColorPrint');
+  @override
+  late final GeneratedColumn<bool> isColorPrint = GeneratedColumn<bool>(
+      'is_color_print', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_color_print" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns => [
         sessionId,
@@ -2159,7 +2257,8 @@ class $SessionsTableTable extends SessionsTable
         photoUrl,
         gifUrl,
         uploadStatus,
-        expiresAt
+        expiresAt,
+        isColorPrint
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2267,6 +2366,12 @@ class $SessionsTableTable extends SessionsTable
       context.handle(_expiresAtMeta,
           expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta));
     }
+    if (data.containsKey('is_color_print')) {
+      context.handle(
+          _isColorPrintMeta,
+          isColorPrint.isAcceptableOrUnknown(
+              data['is_color_print']!, _isColorPrintMeta));
+    }
     return context;
   }
 
@@ -2310,6 +2415,8 @@ class $SessionsTableTable extends SessionsTable
           .read(DriftSqlType.string, data['${effectivePrefix}upload_status'])!,
       expiresAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}expires_at']),
+      isColorPrint: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_color_print'])!,
     );
   }
 
@@ -2337,6 +2444,9 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
   final String? gifUrl;
   final String uploadStatus;
   final DateTime? expiresAt;
+
+  /// Whether this session is a color / document print (true) or thermal B&W (false).
+  final bool isColorPrint;
   const SessionEntry(
       {required this.sessionId,
       required this.voucherCode,
@@ -2354,7 +2464,8 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
       this.photoUrl,
       this.gifUrl,
       required this.uploadStatus,
-      this.expiresAt});
+      this.expiresAt,
+      required this.isColorPrint});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2393,6 +2504,7 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
     if (!nullToAbsent || expiresAt != null) {
       map['expires_at'] = Variable<DateTime>(expiresAt);
     }
+    map['is_color_print'] = Variable<bool>(isColorPrint);
     return map;
   }
 
@@ -2432,6 +2544,7 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
       expiresAt: expiresAt == null && nullToAbsent
           ? const Value.absent()
           : Value(expiresAt),
+      isColorPrint: Value(isColorPrint),
     );
   }
 
@@ -2457,6 +2570,7 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
       gifUrl: serializer.fromJson<String?>(json['gifUrl']),
       uploadStatus: serializer.fromJson<String>(json['uploadStatus']),
       expiresAt: serializer.fromJson<DateTime?>(json['expiresAt']),
+      isColorPrint: serializer.fromJson<bool>(json['isColorPrint']),
     );
   }
   @override
@@ -2480,6 +2594,7 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
       'gifUrl': serializer.toJson<String?>(gifUrl),
       'uploadStatus': serializer.toJson<String>(uploadStatus),
       'expiresAt': serializer.toJson<DateTime?>(expiresAt),
+      'isColorPrint': serializer.toJson<bool>(isColorPrint),
     };
   }
 
@@ -2500,7 +2615,8 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
           Value<String?> photoUrl = const Value.absent(),
           Value<String?> gifUrl = const Value.absent(),
           String? uploadStatus,
-          Value<DateTime?> expiresAt = const Value.absent()}) =>
+          Value<DateTime?> expiresAt = const Value.absent(),
+          bool? isColorPrint}) =>
       SessionEntry(
         sessionId: sessionId ?? this.sessionId,
         voucherCode: voucherCode ?? this.voucherCode,
@@ -2523,6 +2639,7 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
         gifUrl: gifUrl.present ? gifUrl.value : this.gifUrl,
         uploadStatus: uploadStatus ?? this.uploadStatus,
         expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
+        isColorPrint: isColorPrint ?? this.isColorPrint,
       );
   SessionEntry copyWithCompanion(SessionsTableCompanion data) {
     return SessionEntry(
@@ -2557,6 +2674,9 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
           ? data.uploadStatus.value
           : this.uploadStatus,
       expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
+      isColorPrint: data.isColorPrint.present
+          ? data.isColorPrint.value
+          : this.isColorPrint,
     );
   }
 
@@ -2579,7 +2699,8 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
           ..write('photoUrl: $photoUrl, ')
           ..write('gifUrl: $gifUrl, ')
           ..write('uploadStatus: $uploadStatus, ')
-          ..write('expiresAt: $expiresAt')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('isColorPrint: $isColorPrint')
           ..write(')'))
         .toString();
   }
@@ -2602,7 +2723,8 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
       photoUrl,
       gifUrl,
       uploadStatus,
-      expiresAt);
+      expiresAt,
+      isColorPrint);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2623,7 +2745,8 @@ class SessionEntry extends DataClass implements Insertable<SessionEntry> {
           other.photoUrl == this.photoUrl &&
           other.gifUrl == this.gifUrl &&
           other.uploadStatus == this.uploadStatus &&
-          other.expiresAt == this.expiresAt);
+          other.expiresAt == this.expiresAt &&
+          other.isColorPrint == this.isColorPrint);
 }
 
 class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
@@ -2644,6 +2767,7 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
   final Value<String?> gifUrl;
   final Value<String> uploadStatus;
   final Value<DateTime?> expiresAt;
+  final Value<bool> isColorPrint;
   final Value<int> rowid;
   const SessionsTableCompanion({
     this.sessionId = const Value.absent(),
@@ -2663,6 +2787,7 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
     this.gifUrl = const Value.absent(),
     this.uploadStatus = const Value.absent(),
     this.expiresAt = const Value.absent(),
+    this.isColorPrint = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SessionsTableCompanion.insert({
@@ -2683,6 +2808,7 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
     this.gifUrl = const Value.absent(),
     this.uploadStatus = const Value.absent(),
     this.expiresAt = const Value.absent(),
+    this.isColorPrint = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : sessionId = Value(sessionId),
         voucherCode = Value(voucherCode),
@@ -2707,6 +2833,7 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
     Expression<String>? gifUrl,
     Expression<String>? uploadStatus,
     Expression<DateTime>? expiresAt,
+    Expression<bool>? isColorPrint,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2727,6 +2854,7 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
       if (gifUrl != null) 'gif_url': gifUrl,
       if (uploadStatus != null) 'upload_status': uploadStatus,
       if (expiresAt != null) 'expires_at': expiresAt,
+      if (isColorPrint != null) 'is_color_print': isColorPrint,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2749,6 +2877,7 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
       Value<String?>? gifUrl,
       Value<String>? uploadStatus,
       Value<DateTime?>? expiresAt,
+      Value<bool>? isColorPrint,
       Value<int>? rowid}) {
     return SessionsTableCompanion(
       sessionId: sessionId ?? this.sessionId,
@@ -2768,6 +2897,7 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
       gifUrl: gifUrl ?? this.gifUrl,
       uploadStatus: uploadStatus ?? this.uploadStatus,
       expiresAt: expiresAt ?? this.expiresAt,
+      isColorPrint: isColorPrint ?? this.isColorPrint,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2826,6 +2956,9 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
     if (expiresAt.present) {
       map['expires_at'] = Variable<DateTime>(expiresAt.value);
     }
+    if (isColorPrint.present) {
+      map['is_color_print'] = Variable<bool>(isColorPrint.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2852,6 +2985,7 @@ class SessionsTableCompanion extends UpdateCompanion<SessionEntry> {
           ..write('gifUrl: $gifUrl, ')
           ..write('uploadStatus: $uploadStatus, ')
           ..write('expiresAt: $expiresAt, ')
+          ..write('isColorPrint: $isColorPrint, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3524,9 +3658,11 @@ typedef $$PrintersTableTableCreateCompanionBuilder = PrintersTableCompanion
     Function({
   required String id,
   required String name,
+  Value<String> printerType,
   required String transport,
   required String address,
   Value<int> paperWidthMm,
+  Value<String> paperSize,
   Value<bool> isDefault,
   Value<int> rowid,
 });
@@ -3534,9 +3670,11 @@ typedef $$PrintersTableTableUpdateCompanionBuilder = PrintersTableCompanion
     Function({
   Value<String> id,
   Value<String> name,
+  Value<String> printerType,
   Value<String> transport,
   Value<String> address,
   Value<int> paperWidthMm,
+  Value<String> paperSize,
   Value<bool> isDefault,
   Value<int> rowid,
 });
@@ -3556,6 +3694,9 @@ class $$PrintersTableTableFilterComposer
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get printerType => $composableBuilder(
+      column: $table.printerType, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get transport => $composableBuilder(
       column: $table.transport, builder: (column) => ColumnFilters(column));
 
@@ -3564,6 +3705,9 @@ class $$PrintersTableTableFilterComposer
 
   ColumnFilters<int> get paperWidthMm => $composableBuilder(
       column: $table.paperWidthMm, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get paperSize => $composableBuilder(
+      column: $table.paperSize, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isDefault => $composableBuilder(
       column: $table.isDefault, builder: (column) => ColumnFilters(column));
@@ -3584,6 +3728,9 @@ class $$PrintersTableTableOrderingComposer
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get printerType => $composableBuilder(
+      column: $table.printerType, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get transport => $composableBuilder(
       column: $table.transport, builder: (column) => ColumnOrderings(column));
 
@@ -3593,6 +3740,9 @@ class $$PrintersTableTableOrderingComposer
   ColumnOrderings<int> get paperWidthMm => $composableBuilder(
       column: $table.paperWidthMm,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get paperSize => $composableBuilder(
+      column: $table.paperSize, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get isDefault => $composableBuilder(
       column: $table.isDefault, builder: (column) => ColumnOrderings(column));
@@ -3613,6 +3763,9 @@ class $$PrintersTableTableAnnotationComposer
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
+  GeneratedColumn<String> get printerType => $composableBuilder(
+      column: $table.printerType, builder: (column) => column);
+
   GeneratedColumn<String> get transport =>
       $composableBuilder(column: $table.transport, builder: (column) => column);
 
@@ -3621,6 +3774,9 @@ class $$PrintersTableTableAnnotationComposer
 
   GeneratedColumn<int> get paperWidthMm => $composableBuilder(
       column: $table.paperWidthMm, builder: (column) => column);
+
+  GeneratedColumn<String> get paperSize =>
+      $composableBuilder(column: $table.paperSize, builder: (column) => column);
 
   GeneratedColumn<bool> get isDefault =>
       $composableBuilder(column: $table.isDefault, builder: (column) => column);
@@ -3654,36 +3810,44 @@ class $$PrintersTableTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
             Value<String> name = const Value.absent(),
+            Value<String> printerType = const Value.absent(),
             Value<String> transport = const Value.absent(),
             Value<String> address = const Value.absent(),
             Value<int> paperWidthMm = const Value.absent(),
+            Value<String> paperSize = const Value.absent(),
             Value<bool> isDefault = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               PrintersTableCompanion(
             id: id,
             name: name,
+            printerType: printerType,
             transport: transport,
             address: address,
             paperWidthMm: paperWidthMm,
+            paperSize: paperSize,
             isDefault: isDefault,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String id,
             required String name,
+            Value<String> printerType = const Value.absent(),
             required String transport,
             required String address,
             Value<int> paperWidthMm = const Value.absent(),
+            Value<String> paperSize = const Value.absent(),
             Value<bool> isDefault = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               PrintersTableCompanion.insert(
             id: id,
             name: name,
+            printerType: printerType,
             transport: transport,
             address: address,
             paperWidthMm: paperWidthMm,
+            paperSize: paperSize,
             isDefault: isDefault,
             rowid: rowid,
           ),
@@ -4203,6 +4367,7 @@ typedef $$SessionsTableTableCreateCompanionBuilder = SessionsTableCompanion
   Value<String?> gifUrl,
   Value<String> uploadStatus,
   Value<DateTime?> expiresAt,
+  Value<bool> isColorPrint,
   Value<int> rowid,
 });
 typedef $$SessionsTableTableUpdateCompanionBuilder = SessionsTableCompanion
@@ -4224,6 +4389,7 @@ typedef $$SessionsTableTableUpdateCompanionBuilder = SessionsTableCompanion
   Value<String?> gifUrl,
   Value<String> uploadStatus,
   Value<DateTime?> expiresAt,
+  Value<bool> isColorPrint,
   Value<int> rowid,
 });
 
@@ -4288,6 +4454,9 @@ class $$SessionsTableTableFilterComposer
 
   ColumnFilters<DateTime> get expiresAt => $composableBuilder(
       column: $table.expiresAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isColorPrint => $composableBuilder(
+      column: $table.isColorPrint, builder: (column) => ColumnFilters(column));
 }
 
 class $$SessionsTableTableOrderingComposer
@@ -4354,6 +4523,10 @@ class $$SessionsTableTableOrderingComposer
 
   ColumnOrderings<DateTime> get expiresAt => $composableBuilder(
       column: $table.expiresAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isColorPrint => $composableBuilder(
+      column: $table.isColorPrint,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$SessionsTableTableAnnotationComposer
@@ -4415,6 +4588,9 @@ class $$SessionsTableTableAnnotationComposer
 
   GeneratedColumn<DateTime> get expiresAt =>
       $composableBuilder(column: $table.expiresAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isColorPrint => $composableBuilder(
+      column: $table.isColorPrint, builder: (column) => column);
 }
 
 class $$SessionsTableTableTableManager extends RootTableManager<
@@ -4460,6 +4636,7 @@ class $$SessionsTableTableTableManager extends RootTableManager<
             Value<String?> gifUrl = const Value.absent(),
             Value<String> uploadStatus = const Value.absent(),
             Value<DateTime?> expiresAt = const Value.absent(),
+            Value<bool> isColorPrint = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SessionsTableCompanion(
@@ -4480,6 +4657,7 @@ class $$SessionsTableTableTableManager extends RootTableManager<
             gifUrl: gifUrl,
             uploadStatus: uploadStatus,
             expiresAt: expiresAt,
+            isColorPrint: isColorPrint,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -4500,6 +4678,7 @@ class $$SessionsTableTableTableManager extends RootTableManager<
             Value<String?> gifUrl = const Value.absent(),
             Value<String> uploadStatus = const Value.absent(),
             Value<DateTime?> expiresAt = const Value.absent(),
+            Value<bool> isColorPrint = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SessionsTableCompanion.insert(
@@ -4520,6 +4699,7 @@ class $$SessionsTableTableTableManager extends RootTableManager<
             gifUrl: gifUrl,
             uploadStatus: uploadStatus,
             expiresAt: expiresAt,
+            isColorPrint: isColorPrint,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

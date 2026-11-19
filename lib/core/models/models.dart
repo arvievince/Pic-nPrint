@@ -53,6 +53,10 @@ class SessionModel extends Equatable {
   final DateTime createdAt;
   /// Number of retakes used so far in this session (ephemeral, not persisted to DB).
   final int retakesUsed;
+  /// Whether the customer chose color / document printing for this session.
+  /// true  → route to Document/Color printer at output.
+  /// false → route to Thermal receipt printer at output (default).
+  final bool isColorPrint;
 
   const SessionModel({
     required this.sessionId,
@@ -72,6 +76,7 @@ class SessionModel extends Equatable {
     this.uploadStatus = 'pending',
     required this.createdAt,
     this.retakesUsed = 0,
+    this.isColorPrint = false,
   });
 
   String? get shareUrl => photoUrl ?? driveShareUrl;
@@ -92,6 +97,7 @@ class SessionModel extends Equatable {
     String? gifUrl,
     String? uploadStatus,
     int? retakesUsed,
+    bool? isColorPrint,
   }) {
     return SessionModel(
       sessionId: sessionId,
@@ -111,6 +117,7 @@ class SessionModel extends Equatable {
       uploadStatus: uploadStatus ?? this.uploadStatus,
       createdAt: createdAt,
       retakesUsed: retakesUsed ?? this.retakesUsed,
+      isColorPrint: isColorPrint ?? this.isColorPrint,
     );
   }
 
@@ -132,17 +139,21 @@ class SessionModel extends Equatable {
 class PrinterModel extends Equatable {
   final String id;
   final String name;
-  final PrinterTransport transport; // network / usb / bluetooth
-  final String address; // IP address, COM port, or BT MAC
-  final int paperWidthMm; // 80 or 58
+  final PrinterType printerType; // thermal | document
+  final PrinterTransport transport; // network / usb / bluetooth / system
+  final String address; // IP address, COM port, BT MAC, or system printer name
+  final int paperWidthMm; // 80 or 58 (for thermal)
+  final String paperSize; // '80mm' | '58mm' | '4x6' | 'A6' | '5x7' | '2x6' | 'square4x4' | 'A4' | 'Letter' | 'Legal'
   final bool isDefault;
 
   const PrinterModel({
     required this.id,
     required this.name,
+    this.printerType = PrinterType.thermal,
     required this.transport,
     required this.address,
     this.paperWidthMm = 80,
+    this.paperSize = '80mm',
     this.isDefault = false,
   });
 
@@ -150,15 +161,38 @@ class PrinterModel extends Equatable {
   List<Object?> get props => [
         id,
         name,
+        printerType,
         transport,
         address,
         paperWidthMm,
+        paperSize,
         isDefault,
       ];
 }
 
+/// Printer purpose / category.
+enum PrinterType { thermal, document }
+
+extension PrinterTypeExtension on PrinterType {
+  String get label {
+    switch (this) {
+      case PrinterType.thermal:
+        return 'Thermal Receipt Printer';
+      case PrinterType.document:
+        return 'Document / Color Photo Printer';
+    }
+  }
+
+  String get dbValue => name; // 'thermal' | 'document'
+
+  static PrinterType fromDb(String? value) {
+    if (value == 'document') return PrinterType.document;
+    return PrinterType.thermal;
+  }
+}
+
 /// Printer connection transport type.
-enum PrinterTransport { network, usb, bluetooth }
+enum PrinterTransport { network, usb, bluetooth, system }
 
 extension PrinterTransportExtension on PrinterTransport {
   String get label {
@@ -169,6 +203,8 @@ extension PrinterTransportExtension on PrinterTransport {
         return 'USB';
       case PrinterTransport.bluetooth:
         return 'Bluetooth';
+      case PrinterTransport.system:
+        return 'Installed System Printer';
     }
   }
 }
