@@ -200,11 +200,13 @@ class PrinterService {
       case PrinterTransport.network:
         return NetworkPrinterTransport(address: printer.address);
       case PrinterTransport.usb:
-        return UsbPrinterTransport(name: printer.name, address: printer.address);
+        return UsbPrinterTransport(
+            name: printer.name, address: printer.address);
       case PrinterTransport.bluetooth:
         return BluetoothPrinterTransport(address: printer.address);
       case PrinterTransport.system:
-        return SystemPrinterTransport(name: printer.name, address: printer.address);
+        return SystemPrinterTransport(
+            name: printer.name, address: printer.address);
     }
   }
 
@@ -379,7 +381,8 @@ class UsbPrinterTransport implements PrinterTransportBase {
 
       // 3. Look up if address matches any installed printer port (e.g. "USB001" -> "XP-90")
       try {
-        final detected = await PrinterDetectionService().detectUsbSystemPrinters();
+        final detected =
+            await PrinterDetectionService().detectUsbSystemPrinters();
         for (final p in detected) {
           if (p.address.trim().toLowerCase() == address.trim().toLowerCase() ||
               p.name.trim().toLowerCase() == name.trim().toLowerCase()) {
@@ -457,7 +460,8 @@ class SystemPrinterTransport implements PrinterTransportBase {
         return;
       }
       try {
-        final detected = await PrinterDetectionService().detectUsbSystemPrinters();
+        final detected =
+            await PrinterDetectionService().detectUsbSystemPrinters();
         for (final p in detected) {
           if (p.address.trim().toLowerCase() == address.trim().toLowerCase() ||
               p.name.trim().toLowerCase() == name.trim().toLowerCase()) {
@@ -555,19 +559,20 @@ class WindowsRawSpooler {
 
     final openPrinter = winspool
         .lookupFunction<_OpenPrinterWNative, _OpenPrinterWDart>('OpenPrinterW');
-    final startDocPrinter = winspool
-        .lookupFunction<_StartDocPrinterWNative, _StartDocPrinterWDart>(
+    final startDocPrinter =
+        winspool.lookupFunction<_StartDocPrinterWNative, _StartDocPrinterWDart>(
             'StartDocPrinterW');
-    final startPagePrinter = winspool
-        .lookupFunction<_StartPagePrinterNative, _StartPagePrinterDart>(
+    final startPagePrinter =
+        winspool.lookupFunction<_StartPagePrinterNative, _StartPagePrinterDart>(
             'StartPagePrinter');
     final writePrinter = winspool
         .lookupFunction<_WritePrinterNative, _WritePrinterDart>('WritePrinter');
-    final endPagePrinter = winspool
-        .lookupFunction<_EndPagePrinterNative, _EndPagePrinterDart>(
+    final endPagePrinter =
+        winspool.lookupFunction<_EndPagePrinterNative, _EndPagePrinterDart>(
             'EndPagePrinter');
-    final endDocPrinter = winspool
-        .lookupFunction<_EndDocPrinterNative, _EndDocPrinterDart>('EndDocPrinter');
+    final endDocPrinter =
+        winspool.lookupFunction<_EndDocPrinterNative, _EndDocPrinterDart>(
+            'EndDocPrinter');
     final closePrinter = winspool
         .lookupFunction<_ClosePrinterNative, _ClosePrinterDart>('ClosePrinter');
 

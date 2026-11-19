@@ -912,8 +912,14 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
     try {
       final file = await _cameraController!.takePicture();
+      // Center-crop the raw camera frame to a 1:1 square master asset.
+      // This ensures all tiers (double, triple, quad, six, eight) display
+      // spacious, non-letterboxed photos in the editor and on printed output.
+      // final croppedPath = await _cropToSquare(file.path);
       if (context.mounted) {
-        context.read<CaptureBloc>().add(PhotoCaptured(file.path));
+        context
+            .read<CaptureBloc>()
+            .add(PhotoCaptured(file.path)); // croppedPath
       }
     } catch (e) {
       if (context.mounted) {
@@ -924,15 +930,36 @@ class _CaptureScreenState extends State<CaptureScreen> {
     }
   }
 
+  /// Center-crops a JPEG to a perfect 1:1 square and overwrites the file.
+  /// Returns the path of the cropped file.
+  Future<String> _cropToSquare(String path) async {
+    try {
+      final bytes = await File(path).readAsBytes();
+      final src = img.decodeImage(bytes);
+      if (src == null) return path;
+      final side = src.width < src.height ? src.width : src.height;
+      final x = (src.width - side) ~/ 2;
+      final y = (src.height - side) ~/ 2;
+      final cropped = img.copyCrop(src, x: x, y: y, width: side, height: side);
+      final outBytes = img.encodeJpg(cropped, quality: 92);
+      await File(path).writeAsBytes(outBytes);
+    } catch (_) {
+      // If crop fails for any reason, return the original uncropped path
+    }
+    return path;
+  }
+
   Future<String> _generateDemoPhoto(int shotNumber) async {
     final tempDir = await getTemporaryDirectory();
     final filePath =
         '${tempDir.path}/demo_photo_${DateTime.now().millisecondsSinceEpoch}_$shotNumber.jpg';
-    final image = img.Image(width: 900, height: 1200);
+    // Generate a 1:1 square demo image (900×900) so the editor displays it
+    // in the correct square slot without any letterboxing.
+    final image = img.Image(width: 900, height: 900);
 
     // Aesthetic sunset gradient image for demo testing
-    for (int y = 0; y < 1200; y++) {
-      final t = y / 1200.0;
+    for (int y = 0; y < 900; y++) {
+      final t = y / 900.0;
       final r = (255 * (1 - t) + 107 * t).toInt().clamp(0, 255);
       final g = (114 * (1 - t) + 34 * t).toInt().clamp(0, 255);
       final b = (83 * (1 - t) + 82 * t).toInt().clamp(0, 255);
@@ -953,8 +980,11 @@ class _CaptureScreenState extends State<CaptureScreen> {
       // Retake mode: select exactly 1 photo to replace the chosen slot
       final file = await picker.pickImage(source: ImageSource.gallery);
       if (file != null && context.mounted) {
+        // final cropped = await _cropToSquare(file.path);
+        // if (context.mounted) {
         context.read<CaptureBloc>().add(ImagesUploaded([file.path]));
       }
+      // }
       return;
     }
 
@@ -972,8 +1002,13 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
     if (paths.isEmpty) return;
 
+    // final croppedPaths = <String>[];
+    // for (final p in paths) {
+    //   croppedPaths.add(await _cropToSquare(p));
+    // }
+
     if (context.mounted) {
-      context.read<CaptureBloc>().add(ImagesUploaded(paths));
+      context.read<CaptureBloc>().add(ImagesUploaded(paths)); //croppedPaths
     }
   }
 }

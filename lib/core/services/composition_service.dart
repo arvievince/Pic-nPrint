@@ -234,19 +234,26 @@ Future<void> _composeIsolate(_ComposeParams params) async {
 
   switch (params.layout) {
     case LayoutType.single:
-      canvas = images.first;
+      final side = images.first.width < images.first.height
+          ? images.first.width
+          : images.first.height;
+      canvas = _cropAndResizeImage(images.first, side, side);
       break;
 
     case LayoutType.verticalStrip:
-      // Stack all images vertically (classic photo booth strip)
-      final w = images.map((i) => i.width).reduce((a, b) => a > b ? a : b);
-      final totalH = images.map((i) => i.height).reduce((a, b) => a + b);
-      canvas = img.Image(width: w, height: totalH);
-      img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
-      var y = 0;
-      for (final im in images) {
-        img.compositeImage(canvas, im, dstX: 0, dstY: y);
-        y += im.height;
+      // Stack all images vertically as 1:1 square slots
+      {
+        // Use the max width as the square cell dimension
+        final w = images.map((i) => i.width).reduce((a, b) => a > b ? a : b);
+        final squareImages = images.map((im) => _cropAndResizeImage(im, w, w)).toList();
+        final totalH = w * squareImages.length;
+        canvas = img.Image(width: w, height: totalH);
+        img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
+        var y = 0;
+        for (final im in squareImages) {
+          img.compositeImage(canvas, im, dstX: 0, dstY: y);
+          y += im.height;
+        }
       }
       break;
 
@@ -290,28 +297,29 @@ Future<void> _composeIsolate(_ComposeParams params) async {
     canvas = _applyBorder(canvas, params.borderAssetPath!);
   }
 
-  // Wrap canvas in white frame with top logo bar and matching bottom chin
+  // Wrap canvas in white frame with logo pinned to bottom footer only
   if (params.logoPath != null && File(params.logoPath!).existsSync()) {
-    final headerH = (canvas.height * 0.08).toInt().clamp(60, 180);
-    final footerH = headerH; // same height as top header
-    const sideBorder = 0;
+    // Footer height: 8% of photo canvas height, clamped 60–180px
+    final footerH = (canvas.height * 0.08).toInt().clamp(60, 180);
 
     final framedCanvas = img.Image(
-      width: canvas.width + sideBorder * 2,
-      height: canvas.height + headerH + footerH,
+      width: canvas.width,
+      height: canvas.height + footerH,
     );
     img.fill(framedCanvas, color: img.ColorRgb8(255, 255, 255));
-    img.compositeImage(framedCanvas, canvas, dstX: sideBorder, dstY: headerH);
+    // Photos sit at the top; footer is below
+    img.compositeImage(framedCanvas, canvas, dstX: 0, dstY: 0);
 
     try {
       final logoImg = img.decodeImage(File(params.logoPath!).readAsBytesSync());
       if (logoImg != null) {
-        final targetH = (headerH * 0.75).toInt();
+        final targetH = (footerH * 0.75).toInt();
         final targetW = (logoImg.width * (targetH / logoImg.height)).toInt();
         final resizedLogo =
             img.copyResize(logoImg, width: targetW, height: targetH);
+        // Centre logo horizontally, centre it vertically in the footer strip
         final dstX = (framedCanvas.width - resizedLogo.width) ~/ 2;
-        final dstY = (headerH - resizedLogo.height) ~/ 2;
+        final dstY = canvas.height + (footerH - resizedLogo.height) ~/ 2;
         img.compositeImage(framedCanvas, resizedLogo, dstX: dstX, dstY: dstY);
       }
     } catch (_) {}
@@ -415,16 +423,22 @@ img.Image _applyBorder(img.Image source, String borderId) {
 }
 
 img.Image _buildGrid(List<img.Image> images, {required int columns}) {
-  final cellW = images.map((i) => i.width).reduce((a, b) => a > b ? a : b);
-  final cellH = images.map((i) => i.height).reduce((a, b) => a > b ? a : b);
+  // Use the max dimension across all images as the square cell size
+  // so every slot is 1:1 regardless of the original capture ratio.
+  final allMax = images
+      .map((i) => i.width > i.height ? i.width : i.height)
+      .reduce((a, b) => a > b ? a : b);
+  final cellSize = allMax; // square: cellW == cellH
   final rows = (images.length / columns).ceil();
-  final canvas = img.Image(width: cellW * columns, height: cellH * rows);
+  final canvas = img.Image(width: cellSize * columns, height: cellSize * rows);
   img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
 
   for (int i = 0; i < images.length; i++) {
     final col = i % columns;
     final row = i ~/ columns;
-    img.compositeImage(canvas, images[i], dstX: col * cellW, dstY: row * cellH);
+    // Crop-and-resize each image into a perfect square cell
+    final cell = _cropAndResizeImage(images[i], cellSize, cellSize);
+    img.compositeImage(canvas, cell, dstX: col * cellSize, dstY: row * cellSize);
   }
 
   return canvas;

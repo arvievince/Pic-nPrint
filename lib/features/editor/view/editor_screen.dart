@@ -321,7 +321,7 @@ class _EditorCanvas extends StatelessWidget {
 
   double _getAspectRatio() {
     final paths = session.imagePaths;
-    if (paths.length <= 1) return 3 / 4;
+    if (paths.length <= 1) return 1.0 / 1.16;
 
     final layout = session.layout ??
         (paths.length == 4
@@ -334,21 +334,34 @@ class _EditorCanvas extends StatelessWidget {
 
     switch (layout) {
       case LayoutType.single:
-        return 3 / 4;
+        // 1 × (1:1 square photo) + 70px footer ≈ 1:1.16
+        return 1.0 / 1.16;
+
       case LayoutType.verticalStrip:
-        return paths.length == 2
-            ? 2 / 3
-            : (paths.length >= 3 ? 1 / 2.2 : 9 / 16);
+        // N stacked 1:1 square photos + 70px footer
+        // Double (2): 1:2.20  Triple (3): 1:3.25
+        if (paths.length == 2) return 1.0 / 2.20;
+        if (paths.length == 3) return 1.0 / 3.25;
+        // Fallback for any other length
+        return 1.0 / (paths.length + 0.25);
+
       case LayoutType.horizontalRow:
         return paths.length >= 3 ? 16 / 10 : 4 / 3;
+
       case LayoutType.grid2x2:
-        return 1.0;
+        // 2×2 grid of 1:1 square photos → photo area is 1:1 + footer ≈ 1:1.16
+        return 1.0 / 1.16;
+
       case LayoutType.grid2x3:
-        return 2 / 3;
+        // 2 cols × 3 rows of 1:1 square → photo area is 2:3 + footer ≈ 2:3.35
+        return 2.0 / 3.35;
+
       case LayoutType.grid2x4:
-        return 2 / 3;
+        // 2 cols × 4 rows of 1:1 square → photo area is 2:4 + footer ≈ 2:4.35
+        return 2.0 / 4.35;
+
       case LayoutType.bento:
-        return 2 / 3;
+        return 2.0 / 3.35;
     }
   }
 
@@ -411,15 +424,13 @@ class _EditorCanvas extends StatelessWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // ────── 1. Base Layout: Top Logo Bar + Middle Photos (with Border) + Bottom Footer ──────
+                      // ────── 1. Base Layout: Photos on top, Logo Footer pinned to bottom ──────
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const SizedBox(
-                            height: 8,
-                          ),
+                          const SizedBox(height: 8),
 
-                          // Middle: Photo Layout edge-to-edge (no left/right space)
+                          // Middle: Photo Layout — 1:1 square slots for all tiers
                           Expanded(
                             child: Padding(
                               padding:
@@ -428,38 +439,7 @@ class _EditorCanvas extends StatelessWidget {
                             ),
                           ),
 
-                          // Bottom Footer: Universal Session Barcode
-                          // SizedBox(
-                          //   height: footerHeight,
-                          //   child: Center(
-                          //     child: Padding(
-                          //       padding: const EdgeInsets.symmetric(
-                          //         vertical: 0,
-                          //         horizontal: 8,
-                          //       ),
-                          //       // child: ConstrainedBox(
-                          //       //   constraints: const BoxConstraints(
-                          //       //     maxWidth: 450,
-                          //       //     maxHeight: 60,
-                          //       //   ),
-                          //       //   child: BarcodeWidget(
-                          //       //     barcode: Barcode.code128(),
-                          //       //     data: session.sessionId,
-                          //       //     drawText: true,
-                          //       //     style: const TextStyle(
-                          //       //       color: Colors.white,
-                          //       //       fontSize: 9,
-                          //       //       fontWeight: FontWeight.w600,
-                          //       //       letterSpacing: 0.5,
-                          //       //     ),
-                          //       //     color: Colors.black,
-                          //       //   ),
-                          //       // ),
-                          //     ),
-                          //   ),
-                          // ),
-
-                          // Top Header with Logo (Always visible and displayed)
+                          // Bottom Footer: Branding Logo / Studio Name (always at bottom)
                           SizedBox(
                             height: footerHeight,
                             child: Center(
@@ -473,7 +453,6 @@ class _EditorCanvas extends StatelessWidget {
                                         File(logoPath!),
                                         fit: BoxFit.contain,
                                         filterQuality: FilterQuality.high,
-                                        // Apply brandColor filter when a non-white frame color is selected
                                         color: hasCustomFrameColor
                                             ? brandColor
                                             : null,
@@ -511,10 +490,6 @@ class _EditorCanvas extends StatelessWidget {
                               ),
                             ),
                           ),
-
-                          // const SizedBox(
-                          //   height: 8,
-                          // )
                         ],
                       ),
 
