@@ -83,6 +83,31 @@ class SessionModel extends Equatable {
   bool get hasSoftcopy => photoUrl != null || driveShareUrl != null;
   bool get hasGifSoftcopy => gifUrl != null;
 
+  /// Print size category: 'single', 'strip' or 'grid'. Used to pick the
+  /// configured physical width for color document printing.
+  String get printSizeKind {
+    final count = imagePaths.length;
+    if (count <= 1) return 'single';
+    final chosen = layout ??
+        (count == 4
+            ? LayoutType.grid2x2
+            : count == 6
+                ? LayoutType.grid2x3
+                : count >= 8
+                    ? LayoutType.grid2x4
+                    : LayoutType.verticalStrip);
+    switch (chosen) {
+      case LayoutType.single:
+        return 'single';
+      case LayoutType.grid2x2:
+      case LayoutType.grid2x3:
+      case LayoutType.grid2x4:
+        return 'grid';
+      default:
+        return 'strip';
+    }
+  }
+
   /// Canonical composition aspect ratio (width / height) matching the printed paper strip.
   double get compositionAspectRatio {
     final paths = imagePaths;

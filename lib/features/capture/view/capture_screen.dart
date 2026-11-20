@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +18,25 @@ import '../../../core/database/app_database.dart';
 import '../../../core/models/models.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
+
+// ─── Isolate Worker for Flipping Saved Camera JPEG ───────────────────────────
+
+/// Top-level isolate entry point that flips a saved camera JPEG horizontally in place
+/// so that the saved asset matches the unmirrored live camera preview.
+Future<String> _flipSavedPhotoInIsolate(String path) async {
+  try {
+    final file = File(path);
+    final bytes = await file.readAsBytes();
+    final src = img.decodeImage(bytes);
+    if (src == null) return path;
+    final flipped = img.flipHorizontal(src);
+    final outBytes = img.encodeJpg(flipped, quality: 95);
+    await file.writeAsBytes(outBytes, flush: true);
+  } catch (e) {
+    debugPrint('[CaptureScreen] Error flipping saved photo: $e');
+  }
+  return path;
+}
 
 // ─── Capture Screen ──────────────────────────────────────────────────────────
 
@@ -41,6 +61,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
   CameraFilter _selectedFilter = CameraFilter.natural;
   String? _logoPath;
   String? _title;
+  bool _flipSaved = true;
 
   @override
   void initState() {
@@ -60,8 +81,10 @@ class _CaptureScreenState extends State<CaptureScreen> {
       final db = context.read<AppDatabase>();
       final logoPath = await db.getSetting('kiosk_logo_path');
       final title = await db.getSetting('kiosk_title');
+      final flipSaved = await db.getSetting('camera_flip_saved');
       if (mounted) {
         setState(() {
+          _flipSaved = flipSaved != 'false';
           if (logoPath != null && logoPath.trim().isNotEmpty) {
             final trimmed = logoPath.trim();
             if (trimmed.startsWith('assets/') || File(trimmed).existsSync()) {
@@ -912,14 +935,15 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
     try {
       final file = await _cameraController!.takePicture();
-      // Center-crop the raw camera frame to a 1:1 square master asset.
-      // This ensures all tiers (double, triple, quad, six, eight) display
-      // spacious, non-letterboxed photos in the editor and on printed output.
-      // final croppedPath = await _cropToSquare(file.path);
+      // Un-mirror the saved JPEG so the editor, output, and printed photo match
+      // the live capture preview orientation (WYSIWYG).
+      if (_flipSaved) {
+        await compute(_flipSavedPhotoInIsolate, file.path);
+      }
       if (context.mounted) {
         context
             .read<CaptureBloc>()
-            .add(PhotoCaptured(file.path)); // croppedPath
+            .add(PhotoCaptured(file.path));
       }
     } catch (e) {
       if (context.mounted) {

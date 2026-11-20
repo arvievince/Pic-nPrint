@@ -173,7 +173,27 @@ class OutputBloc extends Bloc<OutputEvent, OutputState> {
         isDefault: targetPrinter.isDefault,
       );
 
-      await _printerService.printImage(printer: model, imagePath: imagePath);
+      double? targetWidth;
+      bool alignRight = false;
+      if (model.printerType == PrinterType.document) {
+        alignRight = (await _db.getSetting('print_align')) == 'right';
+        final kind = session.printSizeKind;
+        final key = 'print_width_${kind}_in';
+        final def = kind == 'single'
+            ? 2.5
+            : kind == 'grid'
+                ? 4.0
+                : 2.0;
+        targetWidth =
+            double.tryParse(await _db.getSetting(key) ?? '') ?? def;
+      }
+
+      await _printerService.printImage(
+        printer: model,
+        imagePath: imagePath,
+        targetWidthInches: targetWidth,
+        alignRight: alignRight,
+      );
     } catch (e) {
       emit(OutputPrintFailed(e.toString()));
     }

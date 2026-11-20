@@ -43,6 +43,8 @@ class PrinterService {
   Future<void> printImage({
     required PrinterModel printer,
     required String imagePath,
+    double? targetWidthInches,
+    bool alignRight = false,
   }) async {
     final imageBytes = File(imagePath).readAsBytesSync();
     final srcImage = img.decodeImage(imageBytes);
@@ -52,7 +54,12 @@ class PrinterService {
 
     // Route Document / Color printers to native Windows GDI printing
     if (printer.printerType == PrinterType.document) {
-      await _printDocumentImage(printer: printer, image: srcImage);
+      await _printDocumentImage(
+        printer: printer,
+        image: srcImage,
+        targetWidthInches: targetWidthInches,
+        alignRight: alignRight,
+      );
       return;
     }
 
@@ -92,6 +99,8 @@ class PrinterService {
   Future<void> _printDocumentImage({
     required PrinterModel printer,
     required img.Image image,
+    double? targetWidthInches,
+    bool alignRight = false,
     String docName = 'Pic-nPrint Photo',
   }) async {
     if (!Platform.isWindows) {
@@ -130,6 +139,8 @@ class PrinterService {
         printerName: candidate,
         image: image,
         paperSize: printer.paperSize,
+        targetWidthInches: targetWidthInches,
+        alignRight: alignRight,
         docName: docName,
       );
       if (error == null) {
@@ -374,6 +385,7 @@ class PrinterService {
       await _printDocumentImage(
         printer: printer,
         image: testImage,
+        targetWidthInches: 4.0,
         docName: 'Pic-nPrint Test Page',
       );
       return;
@@ -995,6 +1007,7 @@ class WindowsGdiPrinter {
   // GetDeviceCaps indices
   static const int _horzRes = 8;
   static const int _vertRes = 10;
+  static const int _logPixelsX = 88;
 
   // StretchBlt modes & ROP
   static const int _halftone = 4;
@@ -1064,6 +1077,8 @@ class WindowsGdiPrinter {
     required String printerName,
     required img.Image image,
     required String paperSize,
+    double? targetWidthInches,
+    bool alignRight = false,
     String docName = 'Pic-nPrint Photo',
   }) {
     if (!Platform.isWindows) {
@@ -1174,27 +1189,57 @@ class WindowsGdiPrinter {
             setStretchBltMode(hdc, _halftone);
             setBrushOrgEx(hdc, 0, 0, nullptr);
 
-            // Compute centered, aspect-ratio-preserved destination rectangle
-            // with clean 3% safety margin inside the printable area
-            final marginX = (pageW * 0.03).round();
-            final marginY = (pageH * 0.03).round();
+            final fixedSize = targetWidthInches != null && targetWidthInches > 0;
+            final dpiForMargin = getDeviceCaps(hdc, _logPixelsX);
+            // Fixed-size prints use a tight 0.15 in margin (corner placement);
+            // fit-to-page prints keep the 3% safety margin.
+            final marginX = fixedSize
+                ? (0.15 * (dpiForMargin > 0 ? dpiForMargin : 300)).round()
+                : (pageW * 0.03).round();
+            final marginY = fixedSize
+                ? (0.15 * (dpiForMargin > 0 ? dpiForMargin : 300)).round()
+                : (pageH * 0.03).round();
             final availW = (pageW - marginX * 2).clamp(1, pageW);
             final availH = (pageH - marginY * 2).clamp(1, pageH);
 
             final imgAspect = image.width / image.height;
             final availAspect = availW / availH;
 
-            final int destW;
-            final int destH;
-            if (imgAspect > availAspect) {
-              destW = availW;
-              destH = (availW / imgAspect).round().clamp(1, availH);
+            int destW;
+            int destH;
+            int destX;
+            int destY;
+            if (targetWidthInches != null && targetWidthInches > 0) {
+              // Fixed physical size: inches × printer DPI, aspect preserved.
+              final dpiX = getDeviceCaps(hdc, _logPixelsX);
+              destW = (targetWidthInches * (dpiX > 0 ? dpiX : 300)).round();
+              destH = (destW / imgAspect).round();
+              // Safety clamp: shrink proportionally if larger than printable area.
+              if (destW > availW || destH > availH) {
+                final scale = [availW / destW, availH / destH]
+                    .reduce((a, b) => a < b ? a : b);
+                destW = (destW * scale).round();
+                destH = (destH * scale).round();
+              }
+              destW = destW.clamp(1, availW);
+              destH = destH.clamp(1, availH);
+              // Top-left (or top-right) corner, single copy — saves paper.
+              destX = alignRight
+                  ? pageW - marginX - destW
+                  : marginX;
+              destY = marginY;
             } else {
-              destH = availH;
-              destW = (availH * imgAspect).round().clamp(1, availW);
+              // Fit-to-page (used by admin test pages).
+              if (imgAspect > availAspect) {
+                destW = availW;
+                destH = (availW / imgAspect).round().clamp(1, availH);
+              } else {
+                destH = availH;
+                destW = (availH * imgAspect).round().clamp(1, availW);
+              }
+              destX = marginX + ((availW - destW) ~/ 2);
+              destY = marginY + ((availH - destH) ~/ 2);
             }
-            final destX = marginX + ((availW - destW) ~/ 2);
-            final destY = marginY + ((availH - destH) ~/ 2);
 
             // Convert image to top-down 32-bit BGRA buffer (composited over white)
             final pixelCount = image.width * image.height;

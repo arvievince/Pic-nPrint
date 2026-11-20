@@ -723,6 +723,7 @@ class _CameraSectionState extends State<_CameraSection> {
   late final TextEditingController _gapCtrl;
   late final TextEditingController _maxRetakesCtrl;
   bool _isSaving = false;
+  bool _flipSaved = true;
 
   // ── Event Mode ───────────────────────────────────────────────────────────
   bool _eventModeEnabled = false;
@@ -749,6 +750,9 @@ class _CameraSectionState extends State<_CameraSection> {
     _maxRetakesCtrl = TextEditingController(
       text: widget.settings['max_retakes'] ?? '1',
     );
+    _flipSaved =
+        (widget.settings['camera_flip_saved'] ?? 'true').toLowerCase() !=
+            'false';
 
     // ── Event Mode defaults from saved settings ───────────────────────────
     _eventModeEnabled =
@@ -792,6 +796,7 @@ class _CameraSectionState extends State<_CameraSection> {
             'countdown_seconds': countdown,
             'shot_gap_seconds': gap,
             'max_retakes': maxRetakes,
+            'camera_flip_saved': _flipSaved.toString(),
             'event_mode_enabled': _eventModeEnabled.toString(),
             'event_mode_tiers': tiersCSV.isEmpty ? 'S,D,T,F,X,O' : tiersCSV,
             'event_mode_price_display': _eventModeShowPrice.toString(),
@@ -886,6 +891,28 @@ class _CameraSectionState extends State<_CameraSection> {
               }
               return null;
             },
+          ),
+          const SizedBox(height: 20),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: SwitchListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              title: const Text(
+                'Flip saved camera photo',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Un-mirrors the captured file so Editor & Output match the Capture preview.',
+                style: TextStyle(color: AppColors.onSurface, fontSize: 13),
+              ),
+              value: _flipSaved,
+              activeThumbColor: AppColors.primary,
+              onChanged: (v) => setState(() => _flipSaved = v),
+            ),
           ),
           const SizedBox(height: 24),
           // ─── Event Mode ─────────────────────────────────────────────────
@@ -1039,6 +1066,146 @@ class _PrintersSection extends StatefulWidget {
   State<_PrintersSection> createState() => _PrintersSectionState();
 }
 
+/// Admin card to edit physical print widths (inches) for color document printing.
+class _ColorPrintSizeCard extends StatefulWidget {
+  const _ColorPrintSizeCard();
+
+  @override
+  State<_ColorPrintSizeCard> createState() => _ColorPrintSizeCardState();
+}
+
+class _ColorPrintSizeCardState extends State<_ColorPrintSizeCard> {
+  static const _keys = [
+    'print_width_single_in',
+    'print_width_strip_in',
+    'print_width_grid_in',
+  ];
+  static const _defaults = ['2.5', '2.0', '4.0'];
+  static const _labels = [
+    'Single shot width (in)',
+    'Strip width (in)',
+    'Grid width (in)',
+  ];
+  final _controllers = List.generate(3, (_) => TextEditingController());
+  String _align = 'left';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final db = context.read<AppDatabase>();
+    for (var i = 0; i < 3; i++) {
+      final v = await db.getSetting(_keys[i]);
+      _controllers[i].text = (v == null || v.isEmpty) ? _defaults[i] : v;
+    }
+    _align = (await db.getSetting('print_align')) == 'right' ? 'right' : 'left';
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _save() async {
+    final db = context.read<AppDatabase>();
+    final messenger = ScaffoldMessenger.of(context);
+    for (var i = 0; i < 3; i++) {
+      final v = double.tryParse(_controllers[i].text.trim());
+      if (v == null || v < 1.0 || v > 8.0) {
+        messenger.showSnackBar(SnackBar(
+          content: Text('${_labels[i]} must be between 1.0 and 8.0'),
+          backgroundColor: AppColors.error,
+        ));
+        return;
+      }
+    }
+    for (var i = 0; i < 3; i++) {
+      await db.setSetting(
+          _keys[i], double.parse(_controllers[i].text.trim()).toString());
+    }
+    await db.setSetting('print_align', _align);
+    messenger.showSnackBar(const SnackBar(
+      content: Text('Color print settings saved'),
+      backgroundColor: AppColors.success,
+    ));
+  }
+
+  void _reset() {
+    _align = 'left';
+    for (var i = 0; i < 3; i++) {
+      _controllers[i].text = _defaults[i];
+    }
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Color Print Size',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 4),
+          const Text(
+            'Physical print width including the border (document printers only). One copy, top-center.',
+            style: TextStyle(color: AppColors.onSurface, fontSize: 12),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              for (var i = 0; i < 3; i++)
+                SizedBox(
+                  width: 190,
+                  child: TextField(
+                    controller: _controllers[i],
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(labelText: _labels[i]),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            initialValue: _align,
+            decoration: const InputDecoration(labelText: 'Print alignment'),
+            items: const [
+              DropdownMenuItem(value: 'left', child: Text('Left side (top)')),
+              DropdownMenuItem(value: 'right', child: Text('Right side (top)')),
+            ],
+            onChanged: (v) => setState(() => _align = v ?? 'left'),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              ElevatedButton(onPressed: _save, child: const Text('Save')),
+              const SizedBox(width: 12),
+              TextButton(
+                  onPressed: _reset, child: const Text('Reset to defaults')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PrintersSectionState extends State<_PrintersSection> {
   late Future<List<PrinterEntry>> _printersFuture;
   bool _colorPrintingEnabled = false;
@@ -1181,7 +1348,8 @@ class _PrintersSectionState extends State<_PrintersSection> {
             onChanged: _toggleColorPrinting,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
+        const _ColorPrintSizeCard(),
         const SizedBox(height: 24),
         FutureBuilder<List<PrinterEntry>>(
           future: _printersFuture,
