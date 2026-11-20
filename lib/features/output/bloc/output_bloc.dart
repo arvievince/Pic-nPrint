@@ -65,10 +65,12 @@ class OutputBloc extends Bloc<OutputEvent, OutputState> {
     emit(const OutputPrinting());
 
     final uploadFuture = _doUpload(sessionWithImage);
-    final printFuture = _doPrint(
-      emit,
-      sessionWithImage.printImagePath ?? sessionWithImage.composedImagePath,
-    );
+    final printPath = sessionWithImage.isColorPrint
+        ? (sessionWithImage.composedImagePath ??
+            sessionWithImage.printImagePath)
+        : (sessionWithImage.printImagePath ??
+            sessionWithImage.composedImagePath);
+    final printFuture = _doPrint(emit, printPath);
 
     final results = await Future.wait([
       uploadFuture,
@@ -99,7 +101,10 @@ class OutputBloc extends Bloc<OutputEvent, OutputState> {
 
   Future<void> _onPrintRequested(
       PrintRequested event, Emitter<OutputState> emit) async {
-    await _doPrint(emit, session.printImagePath ?? session.composedImagePath);
+    final printPath = session.isColorPrint
+        ? (session.composedImagePath ?? session.printImagePath)
+        : (session.printImagePath ?? session.composedImagePath);
+    await _doPrint(emit, printPath);
   }
 
   void _onQrDismissed(QrDismissed event, Emitter<OutputState> emit) {
