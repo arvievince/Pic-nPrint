@@ -83,6 +83,53 @@ class SessionModel extends Equatable {
   bool get hasSoftcopy => photoUrl != null || driveShareUrl != null;
   bool get hasGifSoftcopy => gifUrl != null;
 
+  /// Canonical composition aspect ratio (width / height) matching the printed paper strip.
+  double get compositionAspectRatio {
+    final paths = imagePaths;
+    if (paths.length <= 1) return 1.0 / 1.16;
+
+    final chosenLayout = layout ??
+        (paths.length == 4
+            ? LayoutType.grid2x2
+            : paths.length == 6
+                ? LayoutType.grid2x3
+                : paths.length >= 8
+                    ? LayoutType.grid2x4
+                    : LayoutType.verticalStrip);
+
+    switch (chosenLayout) {
+      case LayoutType.single:
+        // 1 × (1:1 square photo) + 70px footer ≈ 1:1.16
+        return 1.0 / 1.16;
+
+      case LayoutType.verticalStrip:
+        // N stacked 1:1 square photos + 70px footer
+        // Double (2): 1:2.20  Triple (3): 1:3.25
+        if (paths.length == 2) return 1.0 / 2.20;
+        if (paths.length == 3) return 1.0 / 3.25;
+        // Fallback for any other length
+        return 1.0 / (paths.length + 0.25);
+
+      case LayoutType.horizontalRow:
+        return paths.length >= 3 ? 16 / 10 : 4 / 3;
+
+      case LayoutType.grid2x2:
+        // 2×2 grid of 1:1 square photos → photo area is 1:1 + footer ≈ 1:1.16
+        return 1.0 / 1.16;
+
+      case LayoutType.grid2x3:
+        // 2 cols × 3 rows of 1:1 square → photo area is 2:3 + footer ≈ 2:3.35
+        return 2.0 / 3.35;
+
+      case LayoutType.grid2x4:
+        // 2 cols × 4 rows of 1:1 square → photo area is 2:4 + footer ≈ 2:4.35
+        return 2.0 / 4.35;
+
+      case LayoutType.bento:
+        return 2.0 / 3.35;
+    }
+  }
+
   SessionModel copyWith({
     LayoutType? layout,
     List<String>? imagePaths,

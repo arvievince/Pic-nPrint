@@ -308,38 +308,6 @@ class _PrinterDispenserArea extends StatelessWidget {
     this.logoPath,
   });
 
-  double _getCardAspectRatio(SessionModel session) {
-    final paths = session.imagePaths;
-    if (paths.length <= 1) return 3 / 4;
-    final layout = session.layout ??
-        (paths.length == 4
-            ? LayoutType.grid2x2
-            : paths.length == 6
-                ? LayoutType.grid2x3
-                : paths.length >= 8
-                    ? LayoutType.grid2x4
-                    : LayoutType.verticalStrip);
-
-    switch (layout) {
-      case LayoutType.single:
-        return 3 / 4;
-      case LayoutType.verticalStrip:
-        return paths.length == 2
-            ? 2 / 3
-            : (paths.length >= 3 ? 1 / 2.2 : 9 / 16);
-      case LayoutType.horizontalRow:
-        return paths.length >= 3 ? 16 / 10 : 4 / 3;
-      case LayoutType.grid2x2:
-        return 1.0;
-      case LayoutType.grid2x3:
-        return 2 / 3;
-      case LayoutType.grid2x4:
-        return 1 / 2;
-      case LayoutType.bento:
-        return paths.length >= 7 ? 1 / 2 : 2 / 3;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final imagePath = session.composedImagePath ??
@@ -350,16 +318,29 @@ class _PrinterDispenserArea extends StatelessWidget {
         final availableHeight = constraints.maxHeight;
         final availableWidth = constraints.maxWidth;
 
-        final targetRatio = _getCardAspectRatio(session);
+        final targetRatio = session.compositionAspectRatio;
 
-        // Bounded card height responsive to viewport
-        final cardHeight = (availableHeight * 0.60).clamp(260.0, 380.0);
-        // Width derived directly from the layout's aspect ratio without arbitrary wide clamp
-        final cardWidth =
-            (cardHeight * targetRatio).clamp(110.0, availableWidth * 0.85);
+        const restingOffset = 16.0;
+        const bottomMargin = 16.0;
+
+        // Maximum available bounding box for the emerging card at rest:
+        final maxAllowedHeight =
+            (availableHeight - restingOffset - bottomMargin)
+                .clamp(180.0, 600.0);
+        final maxAllowedWidth = availableWidth * 0.85;
+
+        // Scale to fit height first, then constrain by width while strictly preserving targetRatio:
+        double cardHeight = maxAllowedHeight;
+        double cardWidth = cardHeight * targetRatio;
+
+        if (cardWidth > maxAllowedWidth) {
+          cardWidth = maxAllowedWidth;
+          cardHeight = cardWidth / targetRatio;
+        }
+
         final slotWidth = cardWidth + 24.0;
-        const restingOffset = 20.0;
-        final areaHeight = cardHeight + restingOffset + 36.0;
+        final slitWidth = cardWidth + 8.0;
+        final areaHeight = cardHeight + restingOffset + 24.0;
         final areaWidth = cardWidth + 48.0;
 
         return Stack(
@@ -368,7 +349,7 @@ class _PrinterDispenserArea extends StatelessWidget {
           children: [
             // ── Photo Card Emerging from Slot ──
             Positioned(
-              top: 6,
+              top: 5,
               width: areaWidth,
               height: areaHeight,
               child: ClipRect(
@@ -391,23 +372,27 @@ class _PrinterDispenserArea extends StatelessWidget {
                       height: cardHeight,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: const Color(0xFFE5E2DA),
+                          width: 0.5,
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.16),
-                            blurRadius: 22,
-                            spreadRadius: 2,
-                            offset: const Offset(0, 10),
+                            color: Colors.black.withValues(alpha: 0.18),
+                            blurRadius: 20,
+                            spreadRadius: 1,
+                            offset: const Offset(0, 8),
                           ),
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
+                            color: Colors.black.withValues(alpha: 0.06),
                             blurRadius: 6,
                             offset: const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(3.5),
                         child: _buildPhotoImage(imagePath),
                       ),
                     ),
@@ -418,7 +403,7 @@ class _PrinterDispenserArea extends StatelessWidget {
 
             // ── Physical Printer Slot / Slit (Renders in front of emerging photo) ──
             Positioned(
-              top: 1,
+              top: 0,
               child: Container(
                 width: slotWidth,
                 height: 10,
@@ -427,7 +412,7 @@ class _PrinterDispenserArea extends StatelessWidget {
                   borderRadius: BorderRadius.circular(5),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.22),
+                      color: Colors.black.withValues(alpha: 0.25),
                       blurRadius: 6,
                       offset: const Offset(0, 3),
                     ),
@@ -435,7 +420,7 @@ class _PrinterDispenserArea extends StatelessWidget {
                 ),
                 child: Center(
                   child: Container(
-                    width: cardWidth + 8,
+                    width: slitWidth,
                     height: 3,
                     decoration: BoxDecoration(
                       color: Colors.black,
@@ -465,7 +450,8 @@ class _PrinterDispenserArea extends StatelessWidget {
     if (file.existsSync()) {
       return Image.file(
         file,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
         errorBuilder: (_, __, ___) => Container(
           color: const Color(0xFFF3F1EC),
           child: const Center(
@@ -478,7 +464,8 @@ class _PrinterDispenserArea extends StatelessWidget {
 
     return Image.asset(
       path,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
       errorBuilder: (_, __, ___) => Container(
         color: const Color(0xFFF3F1EC),
         child: const Center(
