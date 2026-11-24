@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/database/app_database.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -29,6 +32,8 @@ class _ColorModeSelectionScreenState extends State<ColorModeSelectionScreen>
   static const _timeoutSeconds = 30;
   int _remaining = _timeoutSeconds;
   Timer? _countdownTimer;
+  String? _logoPath;
+  String? _title;
 
   late final AnimationController _fadeCtrl;
   late final Animation<double> _fadeAnim;
@@ -52,6 +57,30 @@ class _ColorModeSelectionScreenState extends State<ColorModeSelectionScreen>
         if (mounted) context.goNamed(AppRoute.attract);
       }
     });
+    _loadBranding();
+  }
+
+  Future<void> _loadBranding() async {
+    try {
+      final db = context.read<AppDatabase>();
+      final logoPath = await db.getSetting('kiosk_logo_path');
+      final title = await db.getSetting('kiosk_title');
+      if (!mounted) return;
+      setState(() {
+        final trimmed = logoPath?.trim() ?? '';
+        if (trimmed.isNotEmpty &&
+            (trimmed.startsWith('assets/') || File(trimmed).existsSync())) {
+          _logoPath = trimmed;
+        } else {
+          _logoPath = null;
+        }
+        if (title != null && title.trim().isNotEmpty) {
+          _title = title.trim();
+        }
+      });
+    } catch (e) {
+      debugPrint('[ColorModeSelection] Error loading branding: $e');
+    }
   }
 
   @override
@@ -73,6 +102,35 @@ class _ColorModeSelectionScreenState extends State<ColorModeSelectionScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF8F6F0),
+        elevation: 0,
+        title: SizedBox(
+          height: 38,
+          child: _logoPath != null
+              ? (_logoPath!.startsWith('assets/')
+                  ? Image.asset(
+                      _logoPath!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => _buildFallbackTitle(),
+                    )
+                  : (File(_logoPath!).existsSync()
+                      ? Image.file(
+                          File(_logoPath!),
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => _buildFallbackTitle(),
+                        )
+                      : _buildFallbackTitle()))
+              : _buildFallbackTitle(),
+        ),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () {
+            context.goNamed(AppRoute.attract);
+          },
+        ),
+      ),
       body: FadeTransition(
         opacity: _fadeAnim,
         child: SafeArea(
@@ -100,80 +158,94 @@ class _ColorModeSelectionScreenState extends State<ColorModeSelectionScreen>
                         Text(
                           'Select how you want your photo printed.',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: AppColors.onSurface,
-                                fontSize: 16,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: AppColors.onSurface,
+                                    fontSize: 16,
+                                  ),
                         ),
-                        const SizedBox(height: 8),
-                        // Countdown chip
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.timer_outlined,
-                                  size: 14, color: AppColors.onSurface),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Returns to start in $_remaining s',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        // const SizedBox(height: 8),
+                        // // Countdown chip
+                        // Container(
+                        //   padding: const EdgeInsets.symmetric(
+                        //       horizontal: 14, vertical: 4),
+                        //   decoration: BoxDecoration(
+                        //     color: AppColors.surface,
+                        //     borderRadius: BorderRadius.circular(20),
+                        //     border: Border.all(color: Colors.white12),
+                        //   ),
+                        //   child: Row(
+                        //     mainAxisSize: MainAxisSize.min,
+                        //     children: [
+                        //       const Icon(Icons.timer_outlined,
+                        //           size: 14, color: AppColors.onSurface),
+                        //       const SizedBox(width: 6),
+                        //       Text(
+                        //         'Returns to start in $_remaining s',
+                        //         style: const TextStyle(
+                        //           fontSize: 13,
+                        //           color: AppColors.onSurface,
+                        //         ),
+                        //       ),
+                        //     ],
+                        //   ),
+                        // ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 36),
 
                   // ── Mode Cards ────────────────────────────────────────────
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: isWide
-                          ? Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                    child: _ModeCard(
-                                  isColor: true,
-                                  onTap: () => _selectMode(true),
-                                )),
-                                const SizedBox(width: 24),
-                                Expanded(
-                                    child: _ModeCard(
-                                  isColor: false,
-                                  onTap: () => _selectMode(false),
-                                )),
-                              ],
-                            )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                    child: _ModeCard(
-                                  isColor: true,
-                                  onTap: () => _selectMode(true),
-                                )),
-                                const SizedBox(height: 20),
-                                Expanded(
-                                    child: _ModeCard(
-                                  isColor: false,
-                                  onTap: () => _selectMode(false),
-                                )),
-                              ],
+                      child: LayoutBuilder(
+                        builder: (context, box) {
+                          const gap = 24.0;
+                          // Square side derived from the available space.
+                          final double side = isWide
+                              ? ((box.maxWidth - gap) / 2)
+                                  .clamp(0.0, box.maxHeight)
+                                  .clamp(0.0, 520.0)
+                              : ((box.maxHeight - gap) / 2)
+                                  .clamp(0.0, box.maxWidth)
+                                  .clamp(0.0, 520.0);
+
+                          final cards = [
+                            SizedBox(
+                              width: side,
+                              height: side,
+                              child: _ModeCard(
+                                isColor: true,
+                                onTap: () => _selectMode(true),
+                              ),
                             ),
+                            SizedBox(
+                              width: isWide ? gap : 0,
+                              height: isWide ? 0 : gap,
+                            ),
+                            SizedBox(
+                              width: side,
+                              height: side,
+                              child: _ModeCard(
+                                isColor: false,
+                                onTap: () => _selectMode(false),
+                              ),
+                            ),
+                          ];
+
+                          return Center(
+                            child: isWide
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: cards,
+                                  )
+                                : Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: cards,
+                                  ),
+                          );
+                        },
+                      ),
                     ),
                   ),
 
@@ -183,6 +255,16 @@ class _ColorModeSelectionScreenState extends State<ColorModeSelectionScreen>
             },
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFallbackTitle() {
+    return Text(
+      _title ?? 'Pic’n’Slip',
+      style: GoogleFonts.bricolageGrotesque(
+        fontSize: 20,
+        fontWeight: FontWeight.w900,
       ),
     );
   }
@@ -211,15 +293,12 @@ class _ModeCardState extends State<_ModeCard> {
         ? const Color(0xFF2A1A0A) // deep warm espresso for color
         : AppColors.surface;
 
-    final Color borderColor = isColor
-        ? AppColors.primary
-        : Colors.white24;
+    final Color borderColor = isColor ? AppColors.primary : Colors.white24;
 
     final Color accentColor = isColor ? AppColors.primary : Colors.grey[400]!;
 
-    final IconData icon = isColor
-        ? Icons.palette_rounded
-        : Icons.receipt_long_rounded;
+    final IconData icon =
+        isColor ? Icons.palette_rounded : Icons.receipt_long_rounded;
 
     final String title =
         isColor ? 'Full Color Photo Print' : 'Black & White Receipt';
@@ -264,105 +343,117 @@ class _ModeCardState extends State<_ModeCard> {
                 : [],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Icon circle
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: accentColor.withValues(alpha: 0.4), width: 1.5),
-                  ),
-                  child: Icon(icon, color: accentColor, size: 36),
-                ),
-                const SizedBox(height: 20),
-
-                // Title
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.bricolageGrotesque(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Subtitle
-                Text(
-                  subtitle,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.onSurface,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 18),
-
-                // Badge
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                        color: accentColor.withValues(alpha: 0.4), width: 1),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isColor ? Icons.print_rounded : Icons.receipt_rounded,
-                        size: 14,
-                        color: accentColor,
+            padding: const EdgeInsets.all(20),
+            // Scale the content down to fit the (square) card on any screen.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: SizedBox(
+                width: 300,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Icon circle
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: accentColor.withValues(alpha: 0.4),
+                            width: 1.5),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        badge,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: accentColor,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                      child: Icon(icon, color: accentColor, size: 36),
+                    ),
+                    const SizedBox(height: 20),
 
-                const SizedBox(height: 20),
-
-                // Select button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accentColor,
-                      foregroundColor: isColor
-                          ? AppColors.onPrimary
-                          : Colors.black87,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                    // Title
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.bricolageGrotesque(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
                       ),
                     ),
-                    onPressed: widget.onTap,
-                    child: Text(
-                      'Select',
+                    const SizedBox(height: 10),
+
+                    // Subtitle
+                    Text(
+                      subtitle,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w700),
+                        fontSize: 14,
+                        color: AppColors.onSurface,
+                        height: 1.4,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 18),
+
+                    // Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: accentColor.withValues(alpha: 0.4),
+                            width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isColor
+                                ? Icons.print_rounded
+                                : Icons.receipt_rounded,
+                            size: 14,
+                            color: accentColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            badge,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: accentColor,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // // Select button
+                    // SizedBox(
+                    //   width: double.infinity,
+                    //   child: ElevatedButton(
+                    //     style: ElevatedButton.styleFrom(
+                    //       backgroundColor: accentColor,
+                    //       foregroundColor: isColor
+                    //           ? AppColors.onPrimary
+                    //           : Colors.black87,
+                    //       padding: const EdgeInsets.symmetric(vertical: 14),
+                    //       shape: RoundedRectangleBorder(
+                    //         borderRadius: BorderRadius.circular(12),
+                    //       ),
+                    //     ),
+                    //     onPressed: widget.onTap,
+                    //     child: Text(
+                    //       'Select',
+                    //       style: const TextStyle(
+                    //           fontSize: 15, fontWeight: FontWeight.w700),
+                    //     ),
+                    //   ),
+                    // ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -376,4 +467,3 @@ class ColorModeArgs {
   final bool isColorPrint;
   const ColorModeArgs({required this.isColorPrint});
 }
-

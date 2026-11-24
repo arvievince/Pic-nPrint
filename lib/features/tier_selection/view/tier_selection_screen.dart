@@ -34,6 +34,7 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
   Timer? _timer;
   String? _logoPath;
   String? _title;
+
   /// isColorPrint forwarded from ColorModeSelectionScreen (or false by default).
   bool _isColorPrint = false;
 
@@ -276,7 +277,7 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () {
             _timer?.cancel();
-            context.goNamed(AppRoute.attract);
+            context.goNamed(AppRoute.colorModeSelect);
           },
         ),
       ),
