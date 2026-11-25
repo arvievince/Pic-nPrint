@@ -152,13 +152,22 @@ class SessionModel extends Equatable {
         return 1.0 / (count + 0.35);
 
       case LayoutType.boardingPass:
-        if (count == 1) return 1.0 / 1.65;
-        if (count == 2) return 1.0 / 2.60;
-        if (count == 3) return 1.0 / 3.60;
-        if (count == 4) return 1.0 / 1.62;
-        if (count == 6) return 2.0 / 3.80;
-        if (count >= 8) return 2.0 / 4.80;
-        return 1.0 / (count + 0.60);
+        if (count == 1) return 1.75;
+        if (count == 2) return 2.25;
+        if (count == 3) return 2.75;
+        if (count == 4) return 1.95;
+        if (count == 6) return 2.35;
+        if (count >= 8) return 2.75;
+        return 2.25;
+
+      case LayoutType.boardingPass2:
+        if (count == 1) return 1.0 / 1.80;
+        if (count == 2) return 1.0 / 2.85;
+        if (count == 3) return 1.0 / 3.85;
+        if (count == 4) return 1.0 / 1.80;
+        if (count == 6) return 2.0 / 4.00;
+        if (count >= 8) return 2.0 / 5.00;
+        return 1.0 / (count + 0.80);
 
       case LayoutType.instagram:
         if (count == 1) return 1.0 / 1.32;

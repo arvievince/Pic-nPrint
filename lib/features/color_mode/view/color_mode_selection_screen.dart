@@ -164,7 +164,7 @@ class _ColorModeSelectionScreenState extends State<ColorModeSelectionScreen>
                                     fontSize: 16,
                                   ),
                         ),
-                        // const SizedBox(height: 8),
+                        const SizedBox(height: 16),
                         // // Countdown chip
                         // Container(
                         //   padding: const EdgeInsets.symmetric(

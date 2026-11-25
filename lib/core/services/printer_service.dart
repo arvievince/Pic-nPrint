@@ -47,10 +47,16 @@ class PrinterService {
     bool alignRight = false,
   }) async {
     final imageBytes = File(imagePath).readAsBytesSync();
-    final srcImage = img.decodeImage(imageBytes);
-    if (srcImage == null) {
+    final decoded = img.decodeImage(imageBytes);
+    if (decoded == null) {
       throw PrinterException('Could not decode image for printing.');
     }
+
+    // Auto-rotate landscape prints (e.g. horizontal Boarding Pass) 90° CW so
+    // they print full-length on thermal rolls and portrait photo paper.
+    final srcImage = decoded.width > decoded.height
+        ? img.copyRotate(decoded, angle: 90)
+        : decoded;
 
     // Route Document / Color printers to native Windows GDI printing
     if (printer.printerType == PrinterType.document) {

@@ -139,6 +139,7 @@ class _EditorScreenState extends State<EditorScreen> {
             editorState.layout == LayoutType.onePieceWanted ||
             editorState.layout == LayoutType.receipt ||
             editorState.layout == LayoutType.boardingPass ||
+            editorState.layout == LayoutType.boardingPass2 ||
             editorState.layout == LayoutType.theaterTicket ||
             editorState.layout == LayoutType.instagram);
 
@@ -372,6 +373,8 @@ class _EditorCanvas extends StatelessWidget {
     final Color frameColor =
         renderForPrint ? Colors.white : editorState.frameColor;
 
+    final double aspectRatio = _getAspectRatio();
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
@@ -383,7 +386,7 @@ class _EditorCanvas extends StatelessWidget {
           margin: isCapturing
               ? EdgeInsets.zero
               : const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          constraints: const BoxConstraints(maxWidth: 500),
+          constraints: BoxConstraints(maxWidth: aspectRatio > 1.0 ? 780 : 500),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(radius),
             boxShadow: isCapturing

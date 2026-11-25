@@ -256,11 +256,29 @@ Future<void> _composeIsolate(_ComposeParams params) async {
       }
       break;
 
+    case LayoutType.boardingPass:
+      if (images.length <= 3) {
+        final w = images.map((i) => i.width).reduce((a, b) => a > b ? a : b);
+        final squareImages =
+            images.map((im) => _cropAndResizeImage(im, w, w)).toList();
+        canvas = img.Image(width: w * squareImages.length, height: w);
+        img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
+        var x = 0;
+        for (final im in squareImages) {
+          img.compositeImage(canvas, im, dstX: x, dstY: 0);
+          x += im.width;
+        }
+      } else {
+        final cols = (images.length / 2).ceil();
+        canvas = _buildGrid(images, columns: cols);
+      }
+      break;
+
     case LayoutType.classicStrip:
     case LayoutType.receipt:
     case LayoutType.spotify:
     case LayoutType.filmStrip:
-    case LayoutType.boardingPass:
+    case LayoutType.boardingPass2:
     case LayoutType.polaroid:
     case LayoutType.onePieceWanted:
     case LayoutType.theaterTicket:

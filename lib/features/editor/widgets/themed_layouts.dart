@@ -184,6 +184,8 @@ class ThemedLayoutCanvas extends StatelessWidget {
         return _buildFilmStrip();
       case LayoutType.boardingPass:
         return _buildBoardingPass();
+      case LayoutType.boardingPass2:
+        return _buildBoardingPass2();
       case LayoutType.polaroid:
         return _buildPolaroid();
       case LayoutType.instagram:
@@ -591,140 +593,604 @@ class ThemedLayoutCanvas extends StatelessWidget {
     );
   }
 
-  // ── 5. Boarding Pass ────────────────────────────────────────────────────────
+  /// Horizontal photo arrangement for landscape layouts (e.g. Boarding Pass 1).
+  Widget _buildLandscapePhotoGrid({double gap = 6}) {
+    final count = session.imagePaths.length;
+    if (count == 0) {
+      return const Center(child: Icon(Icons.broken_image_rounded, size: 48));
+    }
+
+    Widget slot(int index) {
+      final safeIndex = index < count ? index : 0;
+      return buildPhotoSlot(safeIndex);
+    }
+
+    if (count == 1) {
+      return Center(
+        child: AspectRatio(aspectRatio: 1.0, child: slot(0)),
+      );
+    }
+
+    if (count <= 3) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (int i = 0; i < count; i++) ...[
+            if (i > 0) SizedBox(width: gap),
+            Expanded(child: slot(i)),
+          ],
+        ],
+      );
+    }
+
+    // 4, 6, 8 shots → 2 rows × (count/2) columns
+    final cols = (count / 2).ceil();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (int r = 0; r < 2; r++) ...[
+          if (r > 0) SizedBox(height: gap),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (int c = 0; c < cols; c++) ...[
+                  if (c > 0) SizedBox(width: gap),
+                  Expanded(
+                    child: (r * cols + c < count)
+                        ? slot(r * cols + c)
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ── 5. Boarding Pass 1 (Horizontal Red Top-Banner Ticket) ───────────────────
   Widget _buildBoardingPass() {
-    final bg = renderForPrint ? Colors.white : const Color(0xFFFDFCF9);
+    final bg = renderForPrint ? Colors.white : const Color(0xFFF4F3EE);
     final accent =
-        renderForPrint ? Colors.black : const Color(0xFFDC2626); // Airline red
-    const ink = Color(0xFF111827);
+        renderForPrint ? Colors.black : const Color(0xFFE03A2E); // Airline red
+    const ink = Color(0xFF1F2937);
     final loc = session.voucher.locationId.toUpperCase();
-    final dateStr = DateFormat('ddMMM').format(session.createdAt).toUpperCase();
+    final dateStr = DateFormat('dMMM').format(session.createdAt).toUpperCase();
     final timeStr = DateFormat('hh:mma').format(session.createdAt);
+    final mono = GoogleFonts.courierPrime(color: ink);
 
     return Container(
       color: bg,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Top airline banner with uploaded logo
+          // Top Full-Width Red Header Bar (upright)
           Container(
+            height: 36,
             color: accent,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Flexible(
-                  child: _buildLogoWidget(
-                    tintColor: Colors.white,
-                    applyTint: true,
-                    maxHeight: 22,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'BOARDING PASS',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 11,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                    SizedBox(width: 4),
-                    Icon(Icons.flight_takeoff_rounded,
-                        color: Colors.white, size: 14),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Flight details block
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _flightField('FLIGHT', 'PNP 380', ink, large: true),
-                    _flightField(
-                      'FROM / TO',
-                      '$loc ✈ MEM',
-                      ink,
-                      large: true,
-                      alignEnd: true,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _flightField('DATE', dateStr, ink),
-                    _flightField('GATE', 'A34', ink),
-                    _flightField('TIME', timeStr, ink),
-                    _flightField(
-                      'SEAT',
-                      '${session.imagePaths.length}D',
-                      ink,
-                      alignEnd: true,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Photo area + vertical microtext
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  RotatedBox(
-                    quarterTurns: 3,
-                    child: Center(
-                      child: Text(
-                        'GATE CLOSES 25 MINUTES BEFORE DEPARTURE',
-                        style: TextStyle(
-                          color: accent,
-                          fontSize: 7,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
+                Expanded(
+                  flex: 68,
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'TOO AIRPLANE TICKET ',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: mono.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            letterSpacing: 1.1,
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.flight_rounded,
+                          color: Colors.white, size: 16),
+                    ],
                   ),
-                  const SizedBox(width: 5),
-                  Expanded(child: _buildStandardPhotoGrid(gap: 5)),
-                ],
-              ),
+                ),
+                const SizedBox(
+                  height: 28,
+                  width: 1,
+                  child: _VerticalDashedDivider(color: Colors.white70),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 32,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'BOARDING PASS',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: mono.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                      if (_hasLogo) ...[
+                        const SizedBox(width: 6),
+                        ConstrainedBox(
+                          constraints:
+                              const BoxConstraints(maxHeight: 20, maxWidth: 42),
+                          child: Image.file(
+                            File(logoPath!),
+                            fit: BoxFit.contain,
+                            color: Colors.white,
+                            colorBlendMode: BlendMode.srcIn,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
 
-          // Dashed tear-line + 1D Barcode stub
-          const SizedBox(height: 6),
-          _DashedDivider(color: Colors.black38),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 6, 14, 8),
-            child: SizedBox(
-              height: 36,
-              child: BarcodeWidget(
-                barcode: Barcode.code128(),
-                data: session.sessionId,
-                drawText: false,
-                color: ink,
-              ),
+          // Main Ticket Body: Left Flight Details + Right Horizontal Photos
+          Expanded(
+            child: Stack(
+              children: [
+                if (!renderForPrint)
+                  Positioned(
+                    left: 8,
+                    top: 6,
+                    bottom: 6,
+                    width: 160,
+                    child: CustomPaint(
+                      painter: _DottedWorldMapPainter(
+                        color: ink.withValues(alpha: 0.08),
+                      ),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 12, 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Left Column: Flight Details (upright)
+                      Expanded(
+                        flex: 34,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'FLIGHT',
+                                  style: mono.copyWith(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w700,
+                                    color: ink.withValues(alpha: 0.65),
+                                  ),
+                                ),
+                                Text(
+                                  'AIR 380',
+                                  style: mono.copyWith(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.05,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Container(
+                                  height: 1,
+                                  color: ink.withValues(alpha: 0.35),
+                                ),
+                              ],
+                            ),
+
+                            // FROM -> TO
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('FROM',
+                                        style: mono.copyWith(
+                                            fontSize: 7.5,
+                                            color:
+                                                ink.withValues(alpha: 0.65))),
+                                    Text(loc,
+                                        style: mono.copyWith(
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.w900,
+                                            height: 1.0)),
+                                  ],
+                                ),
+                                const Padding(
+                                  padding: EdgeInsets.only(bottom: 4),
+                                  child: Icon(Icons.flight_rounded,
+                                      size: 16, color: ink),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text('TO',
+                                        style: mono.copyWith(
+                                            fontSize: 7.5,
+                                            color:
+                                                ink.withValues(alpha: 0.65))),
+                                    Text('ICN',
+                                        style: mono.copyWith(
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.w900,
+                                            height: 1.0)),
+                                  ],
+                                ),
+                              ],
+                            ),
+
+                            // DATE / GATE / TIME / SIT
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                _flightField('DATE', dateStr, ink),
+                                _flightField('GATE', 'A34', ink),
+                                _flightField('TIME', timeStr, ink),
+                                _flightField('SIT', '19D', ink, alignEnd: true),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      // Right Column: Horizontal Photos + Gate Notice & Barcode
+                      Expanded(
+                        flex: 66,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: _buildLandscapePhotoGrid(gap: 6),
+                            ),
+                            const SizedBox(height: 6),
+                            SizedBox(
+                              height: 24,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'GATE CLOSES 25 MINUTES BEFORE DEPARTURE',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: mono.copyWith(
+                                        color: accent,
+                                        fontSize: 7.5,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  SizedBox(
+                                    width: 115,
+                                    height: 24,
+                                    child: BarcodeWidget(
+                                      barcode: Barcode.code128(),
+                                      data: session.sessionId,
+                                      drawText: false,
+                                      color: ink,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // ── 5b. Boarding Pass 2 (Blue Airline Portrait Strip) ───────────────────────
+  Widget _buildBoardingPass2() {
+    final bg = Colors.white;
+    final accent =
+        renderForPrint ? Colors.black : const Color(0xFF114B9F); // Airline blue
+    const ink = Color(0xFF111827);
+    final loc = session.voucher.locationId.toUpperCase();
+    final time24 = DateFormat('HH.mm').format(session.createdAt);
+    final dateStr = DateFormat('dd MMM').format(session.createdAt);
+
+    return Container(
+      color: bg,
+      child: Stack(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Top Royal Blue Airline Header
+              Container(
+                color: accent,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.flight_takeoff_rounded,
+                                  color: Colors.white, size: 15),
+                              const SizedBox(width: 5),
+                              Flexible(
+                                child: _buildLogoWidget(
+                                  tintColor: Colors.white,
+                                  applyTint: true,
+                                  maxHeight: 22,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'The Airline of Memories',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 7.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _displayBrand,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Text(
+                          'BOARDING PASS',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                        const Text(
+                          'BUSINESS CLASS',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 7.5,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Middle Photo Stack
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+                  child: _buildStandardPhotoGrid(gap: 7),
+                ),
+              ),
+
+              // Notched Tear-Line
+              SizedBox(
+                height: 20,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: _DashedDivider(color: ink),
+                    ),
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: _SideNotchPainter(color: accent),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Bottom Boarding Stub
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 2, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      height: 36,
+                      child: BarcodeWidget(
+                        barcode: Barcode.code128(),
+                        data: session.sessionId,
+                        drawText: false,
+                        color: ink,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          loc,
+                          style: const TextStyle(
+                            color: ink,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const Icon(Icons.flight_rounded, color: ink, size: 22),
+                        const Text(
+                          'ICN',
+                          style: TextStyle(
+                            color: ink,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 5),
+                      color: const Color(0xFFE5E7EB),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$_displayBrand Intl',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: ink,
+                                    fontSize: 7,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  '$loc | $time24',
+                                  style: const TextStyle(
+                                    color: ink,
+                                    fontSize: 7,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                const Text(
+                                  'Memories International',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: ink,
+                                    fontSize: 7,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  '$dateStr | $time24',
+                                  style: const TextStyle(
+                                    color: ink,
+                                    fontSize: 7,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _boarding2Stat('Gate', '01', ink),
+                        _boarding2Stat('Flow', '02', ink),
+                        _boarding2Stat(
+                          'Seat',
+                          session.imagePaths.length.toString().padLeft(2, '0'),
+                          ink,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Bottom Edge Semicircle Perforation Punches
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 10,
+            child: CustomPaint(
+              painter: _BottomPunchesPainter(color: accent),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _boarding2Stat(String label, String value, Color ink) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: ink.withValues(alpha: 0.7),
+            fontSize: 8,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: ink,
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
     );
   }
 
@@ -738,7 +1204,7 @@ class ThemedLayoutCanvas extends StatelessWidget {
           label,
           style: TextStyle(
             color: ink.withValues(alpha: 0.55),
-            fontSize: 7,
+            fontSize: 10,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.8,
           ),
@@ -747,7 +1213,7 @@ class ThemedLayoutCanvas extends StatelessWidget {
           value,
           style: TextStyle(
             color: ink,
-            fontSize: large ? 13 : 9.5,
+            fontSize: large ? 16 : 11,
             fontWeight: FontWeight.w900,
             letterSpacing: 0.4,
           ),
@@ -1302,6 +1768,8 @@ class LayoutSelectorPanel extends StatelessWidget {
         return Icons.movie_filter_rounded;
       case LayoutType.boardingPass:
         return Icons.flight_takeoff_rounded;
+      case LayoutType.boardingPass2:
+        return Icons.airplane_ticket_rounded;
       case LayoutType.polaroid:
         return Icons.crop_portrait_rounded;
       case LayoutType.instagram:
@@ -1326,7 +1794,9 @@ class LayoutSelectorPanel extends StatelessWidget {
       case LayoutType.filmStrip:
         return '35mm slate';
       case LayoutType.boardingPass:
-        return 'Flight pass';
+        return 'Red ticket';
+      case LayoutType.boardingPass2:
+        return 'Blue airline';
       case LayoutType.polaroid:
         return 'Instant film';
       case LayoutType.instagram:
@@ -1548,5 +2018,109 @@ class _TicketBorderPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TicketBorderPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+class _SideNotchPainter extends CustomPainter {
+  final Color color;
+  _SideNotchPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final radius = size.height / 2;
+    canvas.drawCircle(Offset(0, size.height / 2), radius, paint);
+    canvas.drawCircle(Offset(size.width, size.height / 2), radius, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SideNotchPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+class _BottomPunchesPainter extends CustomPainter {
+  final Color color;
+  _BottomPunchesPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    const count = 4;
+    final radius = size.height;
+    final step = size.width / (count + 1);
+    for (int i = 1; i <= count; i++) {
+      canvas.drawCircle(Offset(step * i, size.height), radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BottomPunchesPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+class _VerticalDashedDivider extends StatelessWidget {
+  final Color color;
+  const _VerticalDashedDivider({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(painter: _VerticalDashedLinePainter(color: color));
+  }
+}
+
+class _VerticalDashedLinePainter extends CustomPainter {
+  final Color color;
+  _VerticalDashedLinePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1;
+    const dashH = 3.0;
+    const space = 2.5;
+    double y = 0;
+    while (y < size.height) {
+      canvas.drawLine(Offset(0, y), Offset(0, y + dashH), paint);
+      y += dashH + space;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _VerticalDashedLinePainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+class _DottedWorldMapPainter extends CustomPainter {
+  final Color color;
+  _DottedWorldMapPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    const step = 7.0;
+    for (double y = 6; y < size.height - 6; y += step) {
+      final rowRatio = y / size.height;
+      for (double x = 4; x < size.width - 4; x += step) {
+        final colRatio = x / size.width;
+        final inContinent = (rowRatio > 0.15 &&
+                rowRatio < 0.75 &&
+                colRatio > 0.1 &&
+                colRatio < 0.42 &&
+                ((rowRatio - 0.45).abs() + (colRatio - 0.25).abs() < 0.32)) ||
+            (rowRatio > 0.2 &&
+                rowRatio < 0.8 &&
+                colRatio > 0.5 &&
+                colRatio < 0.92 &&
+                ((rowRatio - 0.48).abs() + (colRatio - 0.72).abs() < 0.35));
+        if (inContinent) {
+          canvas.drawCircle(Offset(x, y), 1.3, paint);
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DottedWorldMapPainter oldDelegate) =>
       oldDelegate.color != color;
 }

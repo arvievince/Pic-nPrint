@@ -222,6 +222,8 @@ class _LayoutCard extends StatelessWidget {
         return Icons.movie_filter_rounded;
       case LayoutType.boardingPass:
         return Icons.flight_takeoff_rounded;
+      case LayoutType.boardingPass2:
+        return Icons.airplane_ticket_rounded;
       case LayoutType.polaroid:
         return Icons.crop_portrait_rounded;
       case LayoutType.instagram:
@@ -246,7 +248,9 @@ class _LayoutCard extends StatelessWidget {
       case LayoutType.filmStrip:
         return '35mm cinema film strip';
       case LayoutType.boardingPass:
-        return 'Airline boarding pass';
+        return 'Airline boarding pass (Red)';
+      case LayoutType.boardingPass2:
+        return 'Airline boarding pass (Blue)';
       case LayoutType.polaroid:
         return 'Instant film Polaroid';
       case LayoutType.instagram:

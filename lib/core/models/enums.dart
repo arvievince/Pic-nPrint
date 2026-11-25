@@ -92,6 +92,7 @@ enum LayoutType {
   spotify,
   filmStrip,
   boardingPass,
+  boardingPass2,
   polaroid,
   instagram,
   bento,
@@ -111,7 +112,9 @@ extension LayoutTypeExtension on LayoutType {
       case LayoutType.filmStrip:
         return 'Film Strip';
       case LayoutType.boardingPass:
-        return 'Boarding';
+        return 'Boarding 1';
+      case LayoutType.boardingPass2:
+        return 'Boarding 2';
       case LayoutType.polaroid:
         return 'Polaroid';
       case LayoutType.instagram:

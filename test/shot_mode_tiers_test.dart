@@ -31,25 +31,25 @@ void main() {
       expect(PricingService.defaultPrices[ShotMode.octa], 150.0);
     });
 
-    test('All 10 photobooth theme layouts exist and Bento requires > 2 photos', () {
-      expect(LayoutType.values.length, 10);
+    test('All 11 photobooth theme layouts exist and Bento requires > 2 photos', () {
+      expect(LayoutType.values.length, 11);
 
-      // 1 and 2 shots: Bento must NOT be available (9 layouts)
+      // 1 and 2 shots: Bento must NOT be available (10 layouts)
       for (final count in [1, 2]) {
         final available = LayoutType.values
             .where((l) => l.isAvailableForCount(count))
             .toList();
         expect(available.contains(LayoutType.bento), isFalse);
-        expect(available.length, 9);
+        expect(available.length, 10);
       }
 
-      // 3, 4, 6, 8 shots: Bento IS available (all 10 layouts)
+      // 3, 4, 6, 8 shots: Bento IS available (all 11 layouts)
       for (final count in [3, 4, 6, 8]) {
         final available = LayoutType.values
             .where((l) => l.isAvailableForCount(count))
             .toList();
         expect(available.contains(LayoutType.bento), isTrue);
-        expect(available.length, 10);
+        expect(available.length, 11);
       }
     });
 
@@ -60,7 +60,7 @@ void main() {
           if (!layout.isAvailableForCount(count)) continue;
           final ratio = SessionModel.aspectRatioFor(layout, count);
           expect(ratio, greaterThan(0.0));
-          expect(ratio, lessThan(2.0));
+          expect(ratio, lessThan(3.5));
         }
       }
     });
