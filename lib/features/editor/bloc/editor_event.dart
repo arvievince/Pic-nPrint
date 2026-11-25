@@ -73,6 +73,14 @@ class FrameColorChanged extends EditorEvent {
   List<Object?> get props => [frameColor];
 }
 
+/// User selected a photobooth theme layout.
+class LayoutChanged extends EditorEvent {
+  final LayoutType layout;
+  const LayoutChanged(this.layout);
+  @override
+  List<Object?> get props => [layout];
+}
+
 /// User tapped "Done" — compose or save the final image.
 class EditorConfirmed extends EditorEvent {
   final Uint8List? renderedBytes;

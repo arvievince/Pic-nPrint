@@ -11,9 +11,11 @@ import 'package:uuid/uuid.dart';
 import '../bloc/editor_bloc.dart';
 import '../bloc/editor_event.dart';
 import '../bloc/editor_state.dart';
+import '../widgets/themed_layouts.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/models/models.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/services/supabase_storage_service.dart';
 import '../../../core/theme/app_theme.dart';
 
 /// Photo editor screen — stickers, text, and decorative borders.
@@ -31,11 +33,13 @@ class _EditorScreenState extends State<EditorScreen> {
   bool _renderForPrint = false;
   String? _logoPath;
   String? _brandText;
+  String? _sessionToken;
+  String? _cloudQrUrl;
   late CameraFilter _activeFilter;
   int? _selectedPhotoIndex;
   int _maxRetakes = 1;
 
-  void _handleRetake() {
+  void _handleRetake(BuildContext blocContext) {
     // Guard: enforce retake limit loaded from admin settings.
     if (widget.session.retakesUsed >= _maxRetakes) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -59,10 +63,13 @@ class _EditorScreenState extends State<EditorScreen> {
       return;
     }
     final targetIndex = _selectedPhotoIndex ?? 0;
+    final currentLayout = blocContext.read<EditorBloc>().state.layout;
     // Increment retakesUsed on the session so CaptureBloc and the next
     // EditorScreen both see the updated count.
     final updatedSession = widget.session.copyWith(
       retakesUsed: widget.session.retakesUsed + 1,
+      layout: currentLayout,
+      sessionToken: _sessionToken,
     );
     context.goNamed(
       AppRoute.capture,
@@ -77,7 +84,31 @@ class _EditorScreenState extends State<EditorScreen> {
   void initState() {
     super.initState();
     _activeFilter = CameraFilter.fromName(widget.session.filter);
+    _sessionToken = widget.session.sessionToken;
     _loadBranding();
+    _prepareCloudQr();
+  }
+
+  Future<void> _prepareCloudQr() async {
+    try {
+      final storage = context.read<SupabaseStorageService>();
+      if (!await storage.isCloudConfigured()) return;
+      final token = (_sessionToken != null && _sessionToken!.isNotEmpty)
+          ? _sessionToken!
+          : storage.generateSessionToken();
+      final url = await storage.prepareSessionUpload(
+        sessionToken: token,
+        shotMode: widget.session.shotMode,
+      );
+      if (mounted) {
+        setState(() {
+          _sessionToken = token;
+          _cloudQrUrl = url;
+        });
+      }
+    } catch (_) {
+      // Cloud QR is optional; Receipt layout omits QR if unavailable.
+    }
   }
 
   Future<void> _loadBranding() async {
@@ -102,8 +133,14 @@ class _EditorScreenState extends State<EditorScreen> {
 
   Future<void> _handleDone(BuildContext context) async {
     final editorBloc = context.read<EditorBloc>();
-    final needsWhiteFrameForPrint =
-        editorBloc.state.frameColor.toARGB32() != Colors.white.toARGB32();
+    final editorState = editorBloc.state;
+    final needsWhiteFrameForPrint = !widget.session.isColorPrint &&
+        (editorState.frameColor.toARGB32() != Colors.white.toARGB32() ||
+            editorState.layout == LayoutType.onePieceWanted ||
+            editorState.layout == LayoutType.receipt ||
+            editorState.layout == LayoutType.boardingPass ||
+            editorState.layout == LayoutType.theaterTicket ||
+            editorState.layout == LayoutType.instagram);
 
     setState(() => _isCapturing = true);
 
@@ -166,6 +203,8 @@ class _EditorScreenState extends State<EditorScreen> {
         listener: (context, state) {
           if (state.composedPath != null && !state.isComposing) {
             final updated = widget.session.copyWith(
+              layout: state.layout,
+              sessionToken: _sessionToken,
               composedImagePath: state.composedPath,
               printImagePath: state.printPath,
               filter: _activeFilter.name,
@@ -260,6 +299,7 @@ class _EditorScreenState extends State<EditorScreen> {
                     renderForPrint: _renderForPrint,
                     logoPath: _logoPath,
                     brandText: _brandText,
+                    cloudQrUrl: _cloudQrUrl,
                     activeFilter: _activeFilter,
                     selectedPhotoIndex: _selectedPhotoIndex,
                     onSelectPhoto: (index) {
@@ -279,7 +319,7 @@ class _EditorScreenState extends State<EditorScreen> {
                     setState(() => _activeFilter = filter);
                   },
                   selectedPhotoIndex: _selectedPhotoIndex,
-                  onRetake: _handleRetake,
+                  onRetake: () => _handleRetake(context),
                   onDone: () => _handleDone(context),
                   canRetake: widget.session.retakesUsed < _maxRetakes,
                 ),
@@ -302,6 +342,7 @@ class _EditorCanvas extends StatelessWidget {
   final bool renderForPrint;
   final String? logoPath;
   final String? brandText;
+  final String? cloudQrUrl;
   final CameraFilter activeFilter;
   final int? selectedPhotoIndex;
   final ValueChanged<int>? onSelectPhoto;
@@ -314,26 +355,22 @@ class _EditorCanvas extends StatelessWidget {
     this.renderForPrint = false,
     this.logoPath,
     this.brandText,
+    this.cloudQrUrl,
     required this.activeFilter,
     this.selectedPhotoIndex,
     this.onSelectPhoto,
   });
 
-  double _getAspectRatio() => session.compositionAspectRatio;
+  double _getAspectRatio() => SessionModel.aspectRatioFor(
+        editorState.layout,
+        session.imagePaths.length,
+      );
 
   @override
   Widget build(BuildContext context) {
-    final hasLogo = logoPath != null && File(logoPath!).existsSync();
-    final double footerHeight = 70.0;
-
-    final double radius = isCapturing ? 0.0 : 0.0;
+    const double radius = 0.0;
     final Color frameColor =
         renderForPrint ? Colors.white : editorState.frameColor;
-    final bool isDarkFrame = frameColor.computeLuminance() < 0.5;
-    final Color brandColor = isDarkFrame ? Colors.white : Colors.black;
-    // Detect if a non-white frame color is active
-    final bool hasCustomFrameColor =
-        frameColor.toARGB32() != Colors.white.toARGB32();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -380,79 +417,21 @@ class _EditorCanvas extends StatelessWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // ────── 1. Base Layout: Photos on top, Logo Footer pinned to bottom ──────
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: 8),
-
-                          // Middle: Photo Layout — 1:1 square slots for all tiers
-                          Expanded(
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 8.0),
-                              child: _buildPhotoLayout(frameColor),
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 8,
-                          ),
-
-                          // Bottom Footer: Branding Logo / Studio Name (always at bottom)
-                          SizedBox(
-                            height: footerHeight,
-                            child: Center(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 6,
-                                ),
-                                child: hasLogo
-                                    ? Image.file(
-                                        File(logoPath!),
-                                        fit: BoxFit.contain,
-                                        filterQuality: FilterQuality.high,
-                                        color: hasCustomFrameColor
-                                            ? brandColor
-                                            : null,
-                                        colorBlendMode: hasCustomFrameColor
-                                            ? BlendMode.srcIn
-                                            : null,
-                                      )
-                                    : Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.camera_alt_rounded,
-                                            color: brandColor,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            (brandText != null &&
-                                                    brandText!
-                                                        .trim()
-                                                        .isNotEmpty)
-                                                ? brandText!.trim()
-                                                : 'Pic & Print',
-                                            style: TextStyle(
-                                              color: brandColor,
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 16,
-                                              letterSpacing: 1.2,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 8,
-                          )
-                        ],
+                      // ────── 1. Base Themed Layout ──────
+                      ThemedLayoutCanvas(
+                        layout: editorState.layout,
+                        session: session,
+                        frameColor: frameColor,
+                        renderForPrint: renderForPrint,
+                        logoPath: logoPath,
+                        brandText: brandText,
+                        cloudQrUrl: cloudQrUrl,
+                        buildPhotoSlot: (index) {
+                          final paths = session.imagePaths;
+                          if (paths.isEmpty) return _errorPlaceholder();
+                          final safeIdx = index.clamp(0, paths.length - 1);
+                          return _buildSelectableImage(paths[safeIdx], safeIdx);
+                        },
                       ),
 
                       // ────── 4. Sticker Overlays Layer ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -540,283 +519,6 @@ class _EditorCanvas extends StatelessWidget {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPhotoLayout(Color frameColor) {
-    final paths = session.imagePaths;
-
-    if (paths.isEmpty) return _errorPlaceholder();
-    if (paths.length == 1) return _buildSelectableImage(paths.first, 0);
-    final layout = session.layout ??
-        (paths.length == 4
-            ? LayoutType.grid2x2
-            : paths.length == 6
-                ? LayoutType.grid2x3
-                : paths.length >= 8
-                    ? LayoutType.grid2x4
-                    : LayoutType.verticalStrip);
-
-    switch (layout) {
-      case LayoutType.single:
-        return _buildBaseImage(paths.first);
-
-      case LayoutType.verticalStrip:
-        return Container(
-          color: frameColor,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (int i = 0; i < paths.length; i++) ...[
-                if (i > 0) Container(height: 8, color: frameColor),
-                Expanded(child: _buildSelectableImage(paths[i], i)),
-              ],
-            ],
-          ),
-        );
-
-      case LayoutType.horizontalRow:
-        return Container(
-          color: frameColor,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (int i = 0; i < paths.length; i++) ...[
-                if (i > 0) Container(width: 4, color: frameColor),
-                Expanded(child: _buildSelectableImage(paths[i], i)),
-              ],
-            ],
-          ),
-        );
-
-      case LayoutType.grid2x2:
-        return Container(
-          color: frameColor,
-          child: Column(
-            children: [
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: _buildSelectableImage(paths[0], 0)),
-                    Container(width: 4, color: frameColor),
-                    Expanded(
-                      child: _buildSelectableImage(
-                        paths.length > 1 ? paths[1] : paths[0],
-                        1,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(height: 4, color: frameColor),
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _buildSelectableImage(
-                        paths.length > 2 ? paths[2] : paths[0],
-                        2,
-                      ),
-                    ),
-                    Container(width: 4, color: frameColor),
-                    Expanded(
-                      child: _buildSelectableImage(
-                        paths.length > 3 ? paths[3] : paths[0],
-                        3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-
-      case LayoutType.grid2x3:
-        return Container(
-          color: frameColor,
-          child: Column(
-            children: [
-              for (int row = 0; row < 3; row++) ...[
-                if (row > 0) Container(height: 4, color: frameColor),
-                Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (int col = 0; col < 2; col++) ...[
-                        if (col > 0) Container(width: 4, color: frameColor),
-                        Expanded(
-                          child: _buildSelectableImage(
-                            paths.length > (row * 2 + col)
-                                ? paths[row * 2 + col]
-                                : paths[0],
-                            row * 2 + col,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        );
-
-      case LayoutType.grid2x4:
-        return Container(
-          color: frameColor,
-          child: Column(
-            children: [
-              for (int row = 0; row < 4; row++) ...[
-                if (row > 0) Container(height: 4, color: frameColor),
-                Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (int col = 0; col < 2; col++) ...[
-                        if (col > 0) Container(width: 4, color: frameColor),
-                        Expanded(
-                          child: _buildSelectableImage(
-                            paths.length > (row * 2 + col)
-                                ? paths[row * 2 + col]
-                                : paths[0],
-                            row * 2 + col,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        );
-
-      case LayoutType.bento:
-        return _buildbentoLayout(paths);
-    }
-  }
-
-  Widget _buildbentoCard(String path, int index) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: _buildSelectableImage(path, index),
-    );
-  }
-
-  // Widget _buildbentoBrandTag() {
-  //   final text = (brandText != null && brandText!.trim().isNotEmpty)
-  //       ? brandText!.trim()
-  //       : 'Snapbox.';
-
-  //   return Padding(
-  //     padding: const EdgeInsets.symmetric(vertical: 8),
-  //     child: Center(
-  //       child: Column(
-  //         mainAxisSize: MainAxisSize.min,
-  //         crossAxisAlignment: CrossAxisAlignment.center,
-  //         children: [
-  //           Row(
-  //             mainAxisAlignment: MainAxisAlignment.spaceAround,
-  //             children: [
-  //               const Icon(
-  //                 Icons.camera_enhance_rounded,
-  //                 size: 20,
-  //                 color: Colors.black87,
-  //               ),
-  //               const SizedBox(height: 4),
-  //               Text(
-  //                 text,
-  //                 maxLines: 1,
-  //                 overflow: TextOverflow.ellipsis,
-  //                 style: const TextStyle(
-  //                   fontWeight: FontWeight.w600,
-  //                   fontSize: 16,
-  //                   color: Colors.black87,
-  //                 ),
-  //               ),
-  //             ],
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
-
-  Widget _buildbentoLayout(List<String> paths) {
-    if (paths.isEmpty) return const SizedBox.shrink();
-
-    if (paths.length == 1) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: _buildbentoCard(paths[0], 0),
-      );
-    }
-
-    // Dynamic distribution across 2 columns
-    final total = paths.length;
-    // For 3-shot, 1 on left and 2 on right is the classic bento layout.
-    // Otherwise, split evenly with ceil on the left.
-    final leftCount = (total == 3) ? 1 : (total / 2).ceil();
-    final rightCount = total - leftCount;
-
-    final leftPaths = paths.sublist(0, leftCount);
-    final rightPaths = paths.sublist(leftCount);
-
-    // Generate dynamic alternating flex weights (e.g. 3 vs 2) for Bento masonry aesthetic
-    List<int> getFlexes(int count, bool startWithTall) {
-      return List.generate(count, (i) {
-        if (count == 1) return 1;
-        final isTall = startWithTall ? (i % 2 == 0) : (i % 2 == 1);
-        return isTall ? 3 : 2;
-      });
-    }
-
-    final leftFlexes = getFlexes(leftCount, true);
-    final rightFlexes = getFlexes(rightCount, false);
-
-    const double gap = 8.0;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Left Column
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (int i = 0; i < leftPaths.length; i++) ...[
-                  if (i > 0) const SizedBox(height: gap),
-                  Expanded(
-                    flex: leftFlexes[i],
-                    child: _buildbentoCard(leftPaths[i], i),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: gap),
-          // Right Column
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (int i = 0; i < rightPaths.length; i++) ...[
-                  if (i > 0) const SizedBox(height: gap),
-                  Expanded(
-                    flex: rightFlexes[i],
-                    child: _buildbentoCard(rightPaths[i], leftCount + i),
-                  ),
-                ],
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -1867,26 +1569,32 @@ class _ToolBarState extends State<_ToolBar> {
               child: Row(
                 children: [
                   _Tab(
-                    label: 'Filters',
+                    label: 'Layout',
                     index: 0,
                     selected: _selectedTab,
                     onTap: (i) => setState(() => _selectedTab = i),
                   ),
                   _Tab(
-                    label: 'Stickers',
+                    label: 'Frame',
                     index: 1,
                     selected: _selectedTab,
                     onTap: (i) => setState(() => _selectedTab = i),
                   ),
                   _Tab(
-                    label: 'Frame',
+                    label: 'Filters',
                     index: 2,
                     selected: _selectedTab,
                     onTap: (i) => setState(() => _selectedTab = i),
                   ),
                   _Tab(
-                    label: 'Text',
+                    label: 'Stickers',
                     index: 3,
+                    selected: _selectedTab,
+                    onTap: (i) => setState(() => _selectedTab = i),
+                  ),
+                  _Tab(
+                    label: 'Text',
+                    index: 4,
                     selected: _selectedTab,
                     onTap: (i) => setState(() => _selectedTab = i),
                   ),
@@ -1901,13 +1609,30 @@ class _ToolBarState extends State<_ToolBar> {
             child: IndexedStack(
               index: _selectedTab,
               children: [
-                // 0. Filters Panel
+                // 0. Layout Panel (right beside Frame)
+                LayoutSelectorPanel(
+                  selectedLayout: context.watch<EditorBloc>().state.layout,
+                  photoCount: widget.session.imagePaths.length,
+                  onSelect: (layout) {
+                    context.read<EditorBloc>().add(LayoutChanged(layout));
+                  },
+                ),
+
+                // 1. Frame Color Panel
+                _FrameColorPanel(
+                  selectedColor: context.watch<EditorBloc>().state.frameColor,
+                  onSelect: (color) {
+                    context.read<EditorBloc>().add(FrameColorChanged(color));
+                  },
+                ),
+
+                // 2. Filters Panel
                 _FilterPanel(
                   activeFilter: widget.activeFilter,
                   onSelect: widget.onFilterChanged,
                 ),
 
-                // 1. Stickers Panel
+                // 3. Stickers Panel
                 _StickerPanel(
                   onAdd: (path) {
                     _itemCounter++;
@@ -1925,15 +1650,7 @@ class _ToolBarState extends State<_ToolBar> {
                   },
                 ),
 
-                // 2. Frame Color Panel
-                _FrameColorPanel(
-                  selectedColor: context.watch<EditorBloc>().state.frameColor,
-                  onSelect: (color) {
-                    context.read<EditorBloc>().add(FrameColorChanged(color));
-                  },
-                ),
-
-                // 3. Text Panel
+                // 4. Text Panel
                 _TextPanel(
                   onAdd: (text, color) {
                     _itemCounter++;

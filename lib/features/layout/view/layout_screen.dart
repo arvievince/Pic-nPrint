@@ -212,39 +212,51 @@ class _LayoutCard extends StatelessWidget {
 
   IconData _iconFor(LayoutType l) {
     switch (l) {
-      case LayoutType.single:
-        return Icons.crop_square_rounded;
-      case LayoutType.verticalStrip:
+      case LayoutType.classicStrip:
         return Icons.view_day_rounded;
-      case LayoutType.horizontalRow:
-        return Icons.view_week_rounded;
-      case LayoutType.grid2x2:
-        return Icons.grid_view_rounded;
-      case LayoutType.grid2x3:
-        return Icons.apps_rounded;
-      case LayoutType.grid2x4:
-        return Icons.view_compact_rounded;
+      case LayoutType.receipt:
+        return Icons.receipt_long_rounded;
+      case LayoutType.spotify:
+        return Icons.graphic_eq_rounded;
+      case LayoutType.filmStrip:
+        return Icons.movie_filter_rounded;
+      case LayoutType.boardingPass:
+        return Icons.flight_takeoff_rounded;
+      case LayoutType.polaroid:
+        return Icons.crop_portrait_rounded;
+      case LayoutType.instagram:
+        return Icons.favorite_border_rounded;
       case LayoutType.bento:
         return Icons.dashboard_customize_rounded;
+      case LayoutType.onePieceWanted:
+        return Icons.workspace_premium_rounded;
+      case LayoutType.theaterTicket:
+        return Icons.confirmation_number_rounded;
     }
   }
 
   String _descFor(LayoutType l) {
     switch (l) {
-      case LayoutType.single:
-        return 'One photo, full frame';
-      case LayoutType.verticalStrip:
-        return 'Classic vertical photo booth strip';
-      case LayoutType.horizontalRow:
-        return 'All photos in a single horizontal strip';
-      case LayoutType.grid2x2:
-        return '4 photos arranged in a 2×2 grid';
-      case LayoutType.grid2x3:
-        return '6 photos arranged in a 2×3 grid';
-      case LayoutType.grid2x4:
-        return '8 photos arranged in a 2×4 grid';
+      case LayoutType.classicStrip:
+        return 'Classic photo booth strip';
+      case LayoutType.receipt:
+        return 'Receipt order slip theme';
+      case LayoutType.spotify:
+        return 'Music player theme';
+      case LayoutType.filmStrip:
+        return '35mm cinema film strip';
+      case LayoutType.boardingPass:
+        return 'Airline boarding pass';
+      case LayoutType.polaroid:
+        return 'Instant film Polaroid';
+      case LayoutType.instagram:
+        return 'Social post frame';
       case LayoutType.bento:
         return 'Creative staggered bento-box collage';
+      case LayoutType.onePieceWanted:
+        return 'Wanted bounty poster';
+      case LayoutType.theaterTicket:
+        return 'Vintage theater admit-one ticket';
     }
   }
 }

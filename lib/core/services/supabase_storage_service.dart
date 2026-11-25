@@ -35,6 +35,7 @@ class SupabaseUploadResult {
 ///
 class SupabaseStorageService {
   final AppDatabase _db;
+  final Map<String, Map<String, Map<String, dynamic>>> _preparedUploads = {};
 
   SupabaseStorageService(this._db);
 
@@ -42,6 +43,54 @@ class SupabaseStorageService {
   static const String defaultBucket = 'photobooth-photos';
 
   // ─── Public API ───────────────────────────────────────────────────────────
+
+  /// Returns true when Cloud (Supabase) is configured and not in local-only mode.
+  Future<bool> isCloudConfigured() async {
+    final localOnly =
+        (await _db.getSetting('supabase_local_only'))?.toLowerCase() == 'true';
+    if (localOnly) return false;
+    final config = await _loadConfig();
+    return config != null;
+  }
+
+  /// Generates a random, unguessable 32-char hex session token.
+  String generateSessionToken() => _generateToken();
+
+  /// Pre-allocates signed upload URLs for [sessionToken] so the Receipt layout
+  /// can embed the live QR code before printing/uploading.
+  /// Returns the public photo URL if cloud is configured, or null otherwise.
+  Future<String?> prepareSessionUpload({
+    required String sessionToken,
+    required ShotMode shotMode,
+  }) async {
+    if (!await isCloudConfigured()) return null;
+    final config = await _loadConfig();
+    if (config == null) return null;
+
+    final existing = _preparedUploads[sessionToken];
+    if (existing != null) {
+      return existing['photo']?['url'] as String?;
+    }
+
+    final files = _shouldUploadGif(shotMode) ? ['photo', 'gif'] : ['photo'];
+    try {
+      final uploads = await _requestSignedUrls(
+        config: config,
+        sessionToken: sessionToken,
+        files: files,
+      );
+      _preparedUploads[sessionToken] = uploads;
+      return uploads['photo']?['url'] as String?;
+    } catch (_) {
+      // Deterministic fallback matching pb-create-upload path convention
+      final now = DateTime.now().toUtc();
+      final day = '${now.year.toString().padLeft(4, '0')}-'
+          '${now.month.toString().padLeft(2, '0')}-'
+          '${now.day.toString().padLeft(2, '0')}';
+      return '${config.projectUrl}/storage/v1/object/public/'
+          '${config.bucket}/${config.locationId}/$day/$sessionToken/photo.jpg';
+    }
+  }
 
   /// Generates a random, secure 32-character hex key suitable for kiosk credentials.
   static String generateRandomKioskKey() {
@@ -182,9 +231,11 @@ class SupabaseStorageService {
       throw SupabaseStorageException('Supabase is not configured');
     }
 
-    // 1. Generate a random, unguessable session token for the storage path.
-    //    This is intentionally separate from the barcode session ID.
-    final token = _generateToken();
+    // 1. Reuse pre-allocated session token if present, otherwise generate one.
+    final token =
+        (session.sessionToken != null && session.sessionToken!.isNotEmpty)
+            ? session.sessionToken!
+            : _generateToken();
 
     // 2. Determine which files to upload
     final hasGif = session.gifPath != null &&
@@ -192,12 +243,14 @@ class SupabaseStorageService {
         _shouldUploadGif(session.shotMode);
     final files = hasGif ? ['photo', 'gif'] : ['photo'];
 
-    // 3. Ask the Edge Function for signed upload URLs
-    final uploads = await _requestSignedUrls(
-      config: config,
-      sessionToken: token,
-      files: files,
-    );
+    // 3. Reuse cached signed upload URLs if prepared in EditorScreen, else request.
+    final cached = _preparedUploads.remove(token);
+    final uploads = cached ??
+        await _requestSignedUrls(
+          config: config,
+          sessionToken: token,
+          files: files,
+        );
 
     // 4. Compress and upload photo
     final compressedPhoto = await _compressPhoto(session.composedImagePath!);

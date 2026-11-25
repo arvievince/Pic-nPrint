@@ -6,7 +6,6 @@ import '../../features/attract/view/attract_screen.dart';
 import '../../features/color_mode/view/color_mode_selection_screen.dart';
 import '../../features/voucher/view/voucher_screen.dart';
 import '../../features/capture/view/capture_screen.dart';
-import '../../features/layout/view/layout_screen.dart';
 import '../../features/editor/view/editor_screen.dart';
 import '../../features/output/view/output_screen.dart';
 import '../../features/output/view/qr_screen.dart';
@@ -129,8 +128,7 @@ GoRouter createRouter() {
         },
       ),
 
-      // ── 4. Layout Selection ───────────────────────────────────────────────
-      // Only shown for multi-shot modes (triple/quad/hex)
+      // ── 4. Layout Selection (moved into EditorScreen; /layout redirects to /capture)
       GoRoute(
         path: '/layout',
         name: AppRoute.layout,
@@ -139,8 +137,10 @@ GoRouter createRouter() {
           return null;
         },
         builder: (context, state) {
-          final session = state.extra is SessionModel ? state.extra as SessionModel : _getFallbackSession();
-          return LayoutScreen(session: session);
+          final session = state.extra is SessionModel
+              ? state.extra as SessionModel
+              : _getFallbackSession();
+          return CaptureScreen(session: session);
         },
       ),
 

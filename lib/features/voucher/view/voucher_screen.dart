@@ -33,6 +33,7 @@ class _VoucherScreenState extends State<VoucherScreen> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   bool _showOnScreenKeyboard = false;
+
   /// isColorPrint forwarded from TierSelectionScreen via route extra.
   bool _isColorPrint = false;
 
@@ -50,7 +51,8 @@ class _VoucherScreenState extends State<VoucherScreen> {
           final extra = GoRouterState.of(context).extra;
           if (extra is Map<String, dynamic> &&
               extra.containsKey('isColorPrint')) {
-            setState(() => _isColorPrint = extra['isColorPrint'] as bool? ?? false);
+            setState(
+                () => _isColorPrint = extra['isColorPrint'] as bool? ?? false);
           }
         } catch (_) {}
       }
@@ -135,11 +137,7 @@ class _VoucherScreenState extends State<VoucherScreen> {
               .read<VoucherBloc>()
               .buildSession(state.voucher)
               .copyWith(isColorPrint: _isColorPrint);
-          if (session.shotMode.photoCount == 1) {
-            context.goNamed(AppRoute.capture, extra: session);
-          } else {
-            context.goNamed(AppRoute.layout, extra: session);
-          }
+          context.goNamed(AppRoute.capture, extra: session);
         }
       },
       child: Scaffold(
@@ -166,142 +164,141 @@ class _VoucherScreenState extends State<VoucherScreen> {
 
             return Center(
               child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 580),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // ── Icon ─────────────────────────────────────────────────
-                        const Icon(
-                          Icons.confirmation_number_rounded,
-                          size: 64,
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(height: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 580),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // ── Icon ─────────────────────────────────────────────────
+                      const Icon(
+                        Icons.confirmation_number_rounded,
+                        size: 64,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(height: 16),
 
-                        // ── Heading ───────────────────────────────────────────────
-                        Text(
-                          'Enter Your Code',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineLarge,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Please enter the voucher code printed on your receipt slip below to get started.',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 24),
+                      // ── Heading ───────────────────────────────────────────────
+                      Text(
+                        'Enter Your Code',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineLarge,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Please enter the voucher code printed on your receipt slip below to get started.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 24),
 
-                        // ── Code Input ────────────────────────────────────────────
-                        TextField(
-                          controller: _controller,
-                          focusNode: _focusNode,
-                          autofocus: true,
-                          mouseCursor: SystemMouseCursors.text,
-                          enableInteractiveSelection: true,
-                          textCapitalization: TextCapitalization.characters,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                                RegExp(r'[a-zA-Z0-9\-]')),
-                            TextInputFormatter.withFunction(
-                                (oldValue, newValue) {
-                              return newValue.copyWith(
-                                text: newValue.text.toUpperCase(),
-                              );
-                            }),
-                          ],
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 3,
-                            color: AppColors.onBackground,
+                      // ── Code Input ────────────────────────────────────────────
+                      TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        autofocus: true,
+                        mouseCursor: SystemMouseCursors.text,
+                        enableInteractiveSelection: true,
+                        textCapitalization: TextCapitalization.characters,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'[a-zA-Z0-9\-]')),
+                          TextInputFormatter.withFunction((oldValue, newValue) {
+                            return newValue.copyWith(
+                              text: newValue.text.toUpperCase(),
+                            );
+                          }),
+                        ],
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 3,
+                          color: AppColors.onBackground,
+                        ),
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          hintText: 'MNL1-F-00042-A7K9',
+                          hintStyle: const TextStyle(
+                            letterSpacing: 2,
+                            color: AppColors.onSurface,
+                            fontWeight: FontWeight.w400,
                           ),
-                          textAlign: TextAlign.center,
-                          decoration: InputDecoration(
-                            hintText: 'MNL1-F-00042-A7K9',
-                            hintStyle: const TextStyle(
-                              letterSpacing: 2,
-                              color: AppColors.onSurface,
-                              fontWeight: FontWeight.w400,
-                            ),
-                            errorText: state is VoucherInvalid
-                                ? state.errorMessage
-                                : null,
-                            errorStyle: const TextStyle(
-                              color: AppColors.error,
-                              fontSize: 14,
-                            ),
-                            suffixIcon: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
+                          errorText: state is VoucherInvalid
+                              ? state.errorMessage
+                              : null,
+                          errorStyle: const TextStyle(
+                            color: AppColors.error,
+                            fontSize: 14,
+                          ),
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.content_paste_rounded,
+                                  color: AppColors.primary,
+                                ),
+                                tooltip: 'Paste from clipboard',
+                                onPressed: _pasteFromClipboard,
+                              ),
+                              if (_controller.text.isNotEmpty)
                                 IconButton(
                                   icon: const Icon(
-                                    Icons.content_paste_rounded,
-                                    color: AppColors.primary,
+                                    Icons.clear_rounded,
+                                    color: AppColors.onSurface,
                                   ),
-                                  tooltip: 'Paste from clipboard',
-                                  onPressed: _pasteFromClipboard,
+                                  tooltip: 'Clear',
+                                  onPressed: _clearText,
                                 ),
-                                if (_controller.text.isNotEmpty)
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.clear_rounded,
-                                      color: AppColors.onSurface,
-                                    ),
-                                    tooltip: 'Clear',
-                                    onPressed: _clearText,
-                                  ),
-                              ],
+                            ],
+                          ),
+                        ),
+                        onChanged: (v) => context.read<VoucherBloc>().add(
+                              VoucherCodeChanged(v),
                             ),
-                          ),
-                          onChanged: (v) => context.read<VoucherBloc>().add(
-                                VoucherCodeChanged(v),
-                              ),
-                          onSubmitted: (_) => _submit(context),
+                        onSubmitted: (_) => _submit(context),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // ── Submit Button ─────────────────────────────────────────
+                      SizedBox(
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: state is VoucherValidating
+                              ? null
+                              : () => _submit(context),
+                          child: state is VoucherValidating
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Validate Code'),
                         ),
+                      ),
 
-                        const SizedBox(height: 16),
-
-                        // ── Submit Button ─────────────────────────────────────────
-                        SizedBox(
-                          height: 52,
-                          child: ElevatedButton(
-                            onPressed: state is VoucherValidating
-                                ? null
-                                : () => _submit(context),
-                            child: state is VoucherValidating
-                                ? const SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text('Validate Code'),
-                          ),
+                      // ── Optional On-Screen Kiosk Keypad ─────────────────────
+                      if (_showOnScreenKeyboard) ...[
+                        const SizedBox(height: 24),
+                        _OnScreenKeypad(
+                          onKey: _onKeyTap,
+                          onBackspace: _onBackspace,
+                          onPaste: _pasteFromClipboard,
+                          onClear: _clearText,
                         ),
-
-                        // ── Optional On-Screen Kiosk Keypad ─────────────────────
-                        if (_showOnScreenKeyboard) ...[
-                          const SizedBox(height: 24),
-                          _OnScreenKeypad(
-                            onKey: _onKeyTap,
-                            onBackspace: _onBackspace,
-                            onPaste: _pasteFromClipboard,
-                            onClear: _clearText,
-                          ),
-                        ],
                       ],
-                    ),
+                    ],
                   ),
                 ),
-              );
-            },
+              ),
+            );
+          },
         ),
       ),
     );
@@ -386,7 +383,8 @@ class _OnScreenKeypad extends StatelessWidget {
                     icon: const Icon(Icons.content_paste_rounded, size: 16),
                     label: const Text(
                       'Paste Clipboard',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                     onPressed: onPaste,
                   ),
@@ -408,7 +406,8 @@ class _OnScreenKeypad extends StatelessWidget {
                     icon: const Icon(Icons.clear_all_rounded, size: 16),
                     label: const Text(
                       'Clear',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                     onPressed: onClear,
                   ),

@@ -28,7 +28,12 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
     this.logoPath,
     this.brandText,
   })  : _compositionService = compositionService,
-        super(const EditorState()) {
+        super(EditorState(
+          layout: (session.layout != null &&
+                  session.layout!.isAvailableForCount(session.imagePaths.length))
+              ? session.layout!
+              : LayoutType.classicStrip,
+        )) {
     on<StickerAdded>(_onStickerAdded);
     on<StickerUpdated>(_onStickerUpdated);
     on<StickerDeleted>(_onStickerDeleted);
@@ -37,6 +42,7 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
     on<TextDeleted>(_onTextDeleted);
     on<BorderSelected>(_onBorderSelected);
     on<FrameColorChanged>(_onFrameColorChanged);
+    on<LayoutChanged>(_onLayoutChanged);
     on<EditorConfirmed>(_onConfirmed);
   }
 
@@ -88,6 +94,10 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
     emit(state.copyWith(frameColor: event.frameColor));
   }
 
+  void _onLayoutChanged(LayoutChanged event, Emitter<EditorState> emit) {
+    emit(state.copyWith(layout: event.layout));
+  }
+
   // ─── Compose ──────────────────────────────────────────────────────────────────
 
   Future<void> _onConfirmed(
@@ -110,7 +120,7 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
         }
       } else {
         composedPath = await _compositionService.compose(
-          session: session,
+          session: session.copyWith(layout: state.layout),
           stickers: state.stickers,
           texts: state.texts,
           borderAssetPath: state.borderAssetPath,

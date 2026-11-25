@@ -88,70 +88,109 @@ class SessionModel extends Equatable {
   String get printSizeKind {
     final count = imagePaths.length;
     if (count <= 1) return 'single';
-    final chosen = layout ??
-        (count == 4
-            ? LayoutType.grid2x2
-            : count == 6
-                ? LayoutType.grid2x3
-                : count >= 8
-                    ? LayoutType.grid2x4
-                    : LayoutType.verticalStrip);
-    switch (chosen) {
-      case LayoutType.single:
-        return 'single';
-      case LayoutType.grid2x2:
-      case LayoutType.grid2x3:
-      case LayoutType.grid2x4:
-        return 'grid';
-      default:
-        return 'strip';
+    final chosen = layout ?? LayoutType.classicStrip;
+    if (chosen == LayoutType.bento || count >= 4) {
+      return 'grid';
     }
+    return 'strip';
   }
 
   /// Canonical composition aspect ratio (width / height) matching the printed paper strip.
-  double get compositionAspectRatio {
-    final paths = imagePaths;
-    if (paths.length <= 1) return 1.0 / 1.16;
+  double get compositionAspectRatio => aspectRatioFor(
+        layout ?? LayoutType.classicStrip,
+        imagePaths.length,
+      );
 
-    final chosenLayout = layout ??
-        (paths.length == 4
-            ? LayoutType.grid2x2
-            : paths.length == 6
-                ? LayoutType.grid2x3
-                : paths.length >= 8
-                    ? LayoutType.grid2x4
-                    : LayoutType.verticalStrip);
+  /// Computes the canonical canvas aspect ratio (width / height) for a given
+  /// [layout] and [photoCount]. Shared between EditorCanvas and OutputScreen.
+  static double aspectRatioFor(LayoutType layout, int photoCount) {
+    final count = photoCount <= 0 ? 1 : photoCount;
+    switch (layout) {
+      case LayoutType.classicStrip:
+        if (count == 1) return 1.0 / 1.18;
+        if (count == 2) return 1.0 / 2.22;
+        if (count == 3) return 1.0 / 3.25;
+        if (count == 4) return 1.0 / 1.18;
+        if (count == 6) return 2.0 / 3.35;
+        if (count >= 8) return 2.0 / 4.35;
+        return 1.0 / (count + 0.25);
 
-    switch (chosenLayout) {
-      case LayoutType.single:
-        // 1 × (1:1 square photo) + 70px footer ≈ 1:1.16
-        return 1.0 / 1.16;
+      case LayoutType.polaroid:
+        if (count == 1) return 1.0 / 1.28;
+        if (count == 2) return 1.0 / 2.32;
+        if (count == 3) return 1.0 / 3.36;
+        if (count == 4) return 1.0 / 1.28;
+        if (count == 6) return 2.0 / 3.48;
+        if (count >= 8) return 2.0 / 4.48;
+        return 1.0 / (count + 0.35);
 
-      case LayoutType.verticalStrip:
-        // N stacked 1:1 square photos + 70px footer
-        // Double (2): 1:2.20  Triple (3): 1:3.25
-        if (paths.length == 2) return 1.0 / 2.20;
-        if (paths.length == 3) return 1.0 / 3.25;
-        // Fallback for any other length
-        return 1.0 / (paths.length + 0.25);
+      case LayoutType.receipt:
+        if (count == 1) return 1.0 / 1.72;
+        if (count == 2) return 1.0 / 2.65;
+        if (count == 3) return 1.0 / 3.65;
+        if (count == 4) return 1.0 / 1.68;
+        if (count == 6) return 2.0 / 3.85;
+        if (count >= 8) return 2.0 / 4.85;
+        return 1.0 / (count + 0.65);
 
-      case LayoutType.horizontalRow:
-        return paths.length >= 3 ? 16 / 10 : 4 / 3;
+      case LayoutType.spotify:
+        if (count == 1) return 1.0 / 1.48;
+        if (count == 2) return 1.0 / 2.45;
+        if (count == 3) return 1.0 / 3.45;
+        if (count == 4) return 1.0 / 1.48;
+        if (count == 6) return 2.0 / 3.65;
+        if (count >= 8) return 2.0 / 4.65;
+        return 1.0 / (count + 0.45);
 
-      case LayoutType.grid2x2:
-        // 2×2 grid of 1:1 square photos → photo area is 1:1 + footer ≈ 1:1.16
-        return 1.0 / 1.16;
+      case LayoutType.filmStrip:
+        if (count == 1) return 1.0 / 1.32;
+        if (count == 2) return 1.0 / 2.32;
+        if (count == 3) return 1.0 / 3.35;
+        if (count == 4) return 1.0 / 1.30;
+        if (count == 6) return 2.0 / 3.48;
+        if (count >= 8) return 2.0 / 4.48;
+        return 1.0 / (count + 0.35);
 
-      case LayoutType.grid2x3:
-        // 2 cols × 3 rows of 1:1 square → photo area is 2:3 + footer ≈ 2:3.35
-        return 2.0 / 3.35;
+      case LayoutType.boardingPass:
+        if (count == 1) return 1.0 / 1.65;
+        if (count == 2) return 1.0 / 2.60;
+        if (count == 3) return 1.0 / 3.60;
+        if (count == 4) return 1.0 / 1.62;
+        if (count == 6) return 2.0 / 3.80;
+        if (count >= 8) return 2.0 / 4.80;
+        return 1.0 / (count + 0.60);
 
-      case LayoutType.grid2x4:
-        // 2 cols × 4 rows of 1:1 square → photo area is 2:4 + footer ≈ 2:4.35
-        return 2.0 / 4.35;
+      case LayoutType.instagram:
+        if (count == 1) return 1.0 / 1.32;
+        if (count == 2) return 1.0 / 1.28; // 2x1 side-by-side split
+        if (count == 3) return 1.0 / 3.25;
+        if (count == 4) return 1.0 / 1.32;
+        if (count == 6) return 2.0 / 3.45;
+        if (count >= 8) return 2.0 / 4.45;
+        return 1.0 / (count + 0.32);
 
       case LayoutType.bento:
-        return 2.0 / 3.35;
+        if (count <= 4) return 2.0 / 2.65;
+        if (count <= 6) return 2.0 / 3.35;
+        return 2.0 / 4.15;
+
+      case LayoutType.onePieceWanted:
+        if (count == 1) return 1.0 / 1.52;
+        if (count == 2) return 1.0 / 2.50;
+        if (count == 3) return 1.0 / 3.55;
+        if (count == 4) return 1.0 / 1.52;
+        if (count == 6) return 2.0 / 3.70;
+        if (count >= 8) return 2.0 / 4.70;
+        return 1.0 / (count + 0.52);
+
+      case LayoutType.theaterTicket:
+        if (count == 1) return 1.0 / 1.45;
+        if (count == 2) return 1.0 / 2.45;
+        if (count == 3) return 1.0 / 3.48;
+        if (count == 4) return 1.0 / 1.45;
+        if (count == 6) return 2.0 / 3.62;
+        if (count >= 8) return 2.0 / 4.62;
+        return 1.0 / (count + 0.45);
     }
   }
 

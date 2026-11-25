@@ -11,9 +11,12 @@ class EditorState extends Equatable {
   final List<TextItem> texts;
   final String? borderAssetPath;
   final Color frameColor;
+  final LayoutType layout;
   final bool isComposing; // true while CompositionService runs
-  final String? composedPath; // set when composition is done (colored frame for softcopy)
-  final String? printPath; // clean white-frame composed image for thermal printer
+  final String?
+      composedPath; // set when composition is done (colored frame for softcopy)
+  final String?
+      printPath; // clean white-frame composed image for thermal printer
   final String? error;
 
   const EditorState({
@@ -21,6 +24,7 @@ class EditorState extends Equatable {
     this.texts = const [],
     this.borderAssetPath,
     this.frameColor = Colors.white,
+    this.layout = LayoutType.classicStrip,
     this.isComposing = false,
     this.composedPath,
     this.printPath,
@@ -32,6 +36,7 @@ class EditorState extends Equatable {
     List<TextItem>? texts,
     Object? borderAssetPath = _sentinel,
     Color? frameColor,
+    LayoutType? layout,
     bool? isComposing,
     Object? composedPath = _sentinel,
     Object? printPath = _sentinel,
@@ -44,13 +49,12 @@ class EditorState extends Equatable {
           ? this.borderAssetPath
           : borderAssetPath as String?,
       frameColor: frameColor ?? this.frameColor,
+      layout: layout ?? this.layout,
       isComposing: isComposing ?? this.isComposing,
       composedPath: composedPath == _sentinel
           ? this.composedPath
           : composedPath as String?,
-      printPath: printPath == _sentinel
-          ? this.printPath
-          : printPath as String?,
+      printPath: printPath == _sentinel ? this.printPath : printPath as String?,
       error: error == _sentinel ? this.error : error as String?,
     );
   }
@@ -61,6 +65,7 @@ class EditorState extends Equatable {
         texts,
         borderAssetPath,
         frameColor,
+        layout,
         isComposing,
         composedPath,
         printPath,

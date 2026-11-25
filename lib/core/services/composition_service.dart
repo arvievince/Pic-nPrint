@@ -72,14 +72,7 @@ class CompositionService {
     final outputDir = await _getOutputDir();
     final outputPath = p.join(outputDir, '${session.sessionId}_composed.jpg');
 
-    final chosenLayout = session.layout ??
-        (session.imagePaths.length == 4
-            ? LayoutType.grid2x2
-            : session.imagePaths.length == 6
-                ? LayoutType.grid2x3
-                : session.imagePaths.length >= 8
-                    ? LayoutType.grid2x4
-                    : LayoutType.verticalStrip);
+    final chosenLayout = session.layout ?? LayoutType.classicStrip;
 
     // Run in isolate to avoid blocking UI
     await compute(
@@ -233,21 +226,27 @@ Future<void> _composeIsolate(_ComposeParams params) async {
   img.Image canvas;
 
   switch (params.layout) {
-    case LayoutType.single:
-      final side = images.first.width < images.first.height
-          ? images.first.width
-          : images.first.height;
-      canvas = _cropAndResizeImage(images.first, side, side);
+    case LayoutType.bento:
+      // 2 columns staggered bento collage (3, 4, 6, or 8 photos)
+      canvas = _buildBento(images, brandText: params.brandText);
       break;
 
-    case LayoutType.verticalStrip:
-      // Stack all images vertically as 1:1 square slots
-      {
-        // Use the max width as the square cell dimension
+    case LayoutType.instagram:
+      if (images.length == 2) {
         final w = images.map((i) => i.width).reduce((a, b) => a > b ? a : b);
-        final squareImages = images.map((im) => _cropAndResizeImage(im, w, w)).toList();
-        final totalH = w * squareImages.length;
-        canvas = img.Image(width: w, height: totalH);
+        final sq0 = _cropAndResizeImage(images[0], w, w);
+        final sq1 = _cropAndResizeImage(images[1], w, w);
+        canvas = img.Image(width: w * 2, height: w);
+        img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
+        img.compositeImage(canvas, sq0, dstX: 0, dstY: 0);
+        img.compositeImage(canvas, sq1, dstX: w, dstY: 0);
+      } else if (images.length >= 4) {
+        canvas = _buildGrid(images, columns: 2);
+      } else {
+        final w = images.map((i) => i.width).reduce((a, b) => a > b ? a : b);
+        final squareImages =
+            images.map((im) => _cropAndResizeImage(im, w, w)).toList();
+        canvas = img.Image(width: w, height: w * squareImages.length);
         img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
         var y = 0;
         for (final im in squareImages) {
@@ -257,37 +256,34 @@ Future<void> _composeIsolate(_ComposeParams params) async {
       }
       break;
 
-    case LayoutType.horizontalRow:
-      // Place all images side by side horizontally
-      final h = images.map((i) => i.height).reduce((a, b) => a > b ? a : b);
-      final totalW = images.map((i) => i.width).reduce((a, b) => a + b);
-      canvas = img.Image(width: totalW, height: h);
-      img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
-      var x = 0;
-      for (final im in images) {
-        img.compositeImage(canvas, im, dstX: x, dstY: 0);
-        x += im.width;
+    case LayoutType.classicStrip:
+    case LayoutType.receipt:
+    case LayoutType.spotify:
+    case LayoutType.filmStrip:
+    case LayoutType.boardingPass:
+    case LayoutType.polaroid:
+    case LayoutType.onePieceWanted:
+    case LayoutType.theaterTicket:
+      if (images.length == 1) {
+        final side = images.first.width < images.first.height
+            ? images.first.width
+            : images.first.height;
+        canvas = _cropAndResizeImage(images.first, side, side);
+      } else if (images.length >= 4) {
+        canvas = _buildGrid(images, columns: 2);
+      } else {
+        final w = images.map((i) => i.width).reduce((a, b) => a > b ? a : b);
+        final squareImages =
+            images.map((im) => _cropAndResizeImage(im, w, w)).toList();
+        final totalH = w * squareImages.length;
+        canvas = img.Image(width: w, height: totalH);
+        img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
+        var y = 0;
+        for (final im in squareImages) {
+          img.compositeImage(canvas, im, dstX: 0, dstY: y);
+          y += im.height;
+        }
       }
-      break;
-
-    case LayoutType.grid2x2:
-      // 2 columns × 2 rows
-      canvas = _buildGrid(images, columns: 2);
-      break;
-
-    case LayoutType.grid2x3:
-      // 2 columns × 3 rows
-      canvas = _buildGrid(images, columns: 2);
-      break;
-
-    case LayoutType.grid2x4:
-      // 2 columns × 4 rows
-      canvas = _buildGrid(images, columns: 2);
-      break;
-
-    case LayoutType.bento:
-      // 2 columns staggered bento collage (3, 4, 6, or 8 photos)
-      canvas = _buildBento(images, brandText: params.brandText);
       break;
   }
 

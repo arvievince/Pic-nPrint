@@ -187,11 +187,7 @@ class _TierSelectionScreenState extends State<TierSelectionScreen> {
           createdAt: DateTime.now(),
         );
         if (mounted) {
-          if (session.shotMode.photoCount == 1) {
-            context.goNamed(AppRoute.capture, extra: session);
-          } else {
-            context.goNamed(AppRoute.layout, extra: session);
-          }
+          context.goNamed(AppRoute.capture, extra: session);
         }
         return;
       }

@@ -85,35 +85,62 @@ extension ShotModeExtension on ShotMode {
   }
 }
 
-/// Available print/display layouts.
+/// Available print/display photobooth theme layouts.
 enum LayoutType {
-  single, // 1 photo, full frame
-  verticalStrip, // photos in a vertical photo-booth strip
-  horizontalRow, // all photos in one horizontal strip
-  grid2x2, // 4 photos in 2×2 grid
-  grid2x3, // 6 photos in 2×3 grid
-  grid2x4, // 8 photos in 2×4 grid
-  bento, // Staggered bento-box collage (3, 4, 6, or 8 photos)
+  classicStrip,
+  receipt,
+  spotify,
+  filmStrip,
+  boardingPass,
+  polaroid,
+  instagram,
+  bento,
+  onePieceWanted,
+  theaterTicket,
 }
 
 extension LayoutTypeExtension on LayoutType {
   String get label {
     switch (this) {
-      case LayoutType.single:
-        return 'Single';
-      case LayoutType.verticalStrip:
-        return 'Vertical Strip';
-      case LayoutType.horizontalRow:
-        return 'Horizontal Strip';
-      case LayoutType.grid2x2:
-        return '2×2 Grid';
-      case LayoutType.grid2x3:
-        return '2x3 Grid';
-      case LayoutType.grid2x4:
-        return '2×4 Grid';
+      case LayoutType.classicStrip:
+        return 'Classic';
+      case LayoutType.receipt:
+        return 'Receipt';
+      case LayoutType.spotify:
+        return 'Spotify';
+      case LayoutType.filmStrip:
+        return 'Film Strip';
+      case LayoutType.boardingPass:
+        return 'Boarding';
+      case LayoutType.polaroid:
+        return 'Polaroid';
+      case LayoutType.instagram:
+        return 'Instagram';
       case LayoutType.bento:
         return 'Bento';
+      case LayoutType.onePieceWanted:
+        return 'Wanted';
+      case LayoutType.theaterTicket:
+        return 'Ticket';
     }
+  }
+
+  /// Whether this layout is available for the given number of captured photos.
+  /// Bento is only available when there are more than 2 images.
+  bool isAvailableForCount(int photoCount) {
+    if (this == LayoutType.bento) {
+      return photoCount > 2;
+    }
+    return true;
+  }
+
+  /// Safely parses a stored layout name, falling back to [LayoutType.classicStrip].
+  static LayoutType fromNameOrDefault(String? name) {
+    if (name == null || name.isEmpty) return LayoutType.classicStrip;
+    for (final value in LayoutType.values) {
+      if (value.name == name) return value;
+    }
+    return LayoutType.classicStrip;
   }
 }
 

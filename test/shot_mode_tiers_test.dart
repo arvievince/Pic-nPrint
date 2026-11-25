@@ -1,11 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:picnprint/core/models/models.dart';
 import 'package:picnprint/core/services/pricing_service.dart';
-import 'package:picnprint/features/layout/bloc/layout_bloc.dart';
-import 'package:picnprint/features/layout/bloc/layout_state.dart';
 
 void main() {
-  group('ShotMode Tiers Tests (2 Shots and 8 Shots)', () {
+  group('ShotMode Tiers & In-Editor Layout Tests', () {
     test('Double tier (2 shots) specifications', () {
       const mode = ShotMode.double;
       expect(mode.photoCount, 2);
@@ -33,19 +31,38 @@ void main() {
       expect(PricingService.defaultPrices[ShotMode.octa], 150.0);
     });
 
-    test('LayoutBloc assigned layouts match specifications', () {
-      final doubleBloc = LayoutBloc(shotMode: ShotMode.double);
-      expect(doubleBloc.state, isA<LayoutInitial>());
-      final doubleInitial = doubleBloc.state as LayoutInitial;
-      expect(doubleInitial.availableLayouts, [LayoutType.verticalStrip]);
+    test('All 10 photobooth theme layouts exist and Bento requires > 2 photos', () {
+      expect(LayoutType.values.length, 10);
 
-      final octaBloc = LayoutBloc(shotMode: ShotMode.octa);
-      expect(octaBloc.state, isA<LayoutInitial>());
-      final octaInitial = octaBloc.state as LayoutInitial;
-      expect(octaInitial.availableLayouts, [
-        LayoutType.grid2x4,
-        LayoutType.bento,
-      ]);
+      // 1 and 2 shots: Bento must NOT be available (9 layouts)
+      for (final count in [1, 2]) {
+        final available = LayoutType.values
+            .where((l) => l.isAvailableForCount(count))
+            .toList();
+        expect(available.contains(LayoutType.bento), isFalse);
+        expect(available.length, 9);
+      }
+
+      // 3, 4, 6, 8 shots: Bento IS available (all 10 layouts)
+      for (final count in [3, 4, 6, 8]) {
+        final available = LayoutType.values
+            .where((l) => l.isAvailableForCount(count))
+            .toList();
+        expect(available.contains(LayoutType.bento), isTrue);
+        expect(available.length, 10);
+      }
+    });
+
+    test('SessionModel.aspectRatioFor returns valid positive ratios for all layouts & tiers', () {
+      for (final mode in ShotMode.values) {
+        final count = mode.photoCount;
+        for (final layout in LayoutType.values) {
+          if (!layout.isAvailableForCount(count)) continue;
+          final ratio = SessionModel.aspectRatioFor(layout, count);
+          expect(ratio, greaterThan(0.0));
+          expect(ratio, lessThan(2.0));
+        }
+      }
     });
   });
 }
